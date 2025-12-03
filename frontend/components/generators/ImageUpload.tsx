@@ -6,7 +6,7 @@ interface ImageUploadProps {
     maxImages?: number;
 }
 
-export default function ImageUpload({ onImagesSelected, maxImages = 14 }: ImageUploadProps) {
+export default function ImageUpload({ onImagesSelected, maxImages = 5 }: ImageUploadProps) {
     const [previews, setPreviews] = useState<{ id: string; url: string; file: File }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,15 +65,15 @@ export default function ImageUpload({ onImagesSelected, maxImages = 14 }: ImageU
     return (
         <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Hình ảnh tham chiếu</label>
-
+            
             <div className="flex flex-wrap gap-3">
                 {/* Image Thumbnails */}
                 {previews.map((preview) => (
                     <div key={preview.id} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-border bg-muted">
-                        <img
-                            src={preview.url}
-                            alt="Reference"
-                            className="w-full h-full object-cover"
+                        <img 
+                            src={preview.url} 
+                            alt="Reference" 
+                            className="w-full h-full object-cover" 
                         />
                         <button
                             onClick={() => removeImage(preview.id)}
@@ -86,17 +86,17 @@ export default function ImageUpload({ onImagesSelected, maxImages = 14 }: ImageU
 
                 {/* Add Button */}
                 {previews.length < maxImages && (
-                    <div
+                    <div 
                         onClick={() => fileInputRef.current?.click()}
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
                         className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-accent/50 flex flex-col items-center justify-center cursor-pointer transition-all"
                     >
                         <Plus className="h-6 w-6 text-muted-foreground" />
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden" 
                             accept="image/png, image/jpeg, image/webp"
                             multiple
                             onChange={handleFileChange}
@@ -105,7 +105,7 @@ export default function ImageUpload({ onImagesSelected, maxImages = 14 }: ImageU
                 )}
             </div>
             {previews.length === 0 && (
-                <p className="text-xs text-muted-foreground">Tải lên tối đa {maxImages} ảnh tham chiếu.</p>
+                <p className="text-xs text-muted-foreground">Tải lên tối đa {maxImages} hình ảnh làm tham chiếu.</p>
             )}
         </div>
     );

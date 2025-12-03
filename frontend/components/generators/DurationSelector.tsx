@@ -1,22 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Clock } from 'lucide-react';
 
-interface QualitySelectorProps {
+interface DurationSelectorProps {
     value: string;
     onChange: (value: string) => void;
 }
 
-export default function QualitySelector({ value, onChange }: QualitySelectorProps) {
+export default function DurationSelector({ value, onChange }: DurationSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const options = [
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
+        { value: '5s', label: '5 giây' },
+        { value: '10s', label: '10 giây' },
     ];
 
-    const selectedOption = options.find(opt => opt.value === value) || options[1];
+    const selectedOption = options.find(opt => opt.value === value) || options[0];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -31,13 +30,16 @@ export default function QualitySelector({ value, onChange }: QualitySelectorProp
 
     return (
         <div className="space-y-2" ref={containerRef}>
-            <label className="text-sm font-medium text-foreground">Chất lượng</label>
+            <label className="text-sm font-medium text-foreground">Thời lượng</label>
             <div className="relative">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="w-full flex items-center justify-between p-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
-                    <span className="text-sm">{selectedOption.label}</span>
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{selectedOption.label}</span>
+                    </div>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -59,7 +61,10 @@ export default function QualitySelector({ value, onChange }: QualitySelectorProp
                                                 : 'hover:bg-accent/50 text-foreground'
                                         }`}
                                     >
-                                        <span>{option.label}</span>
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <span>{option.label}</span>
+                                        </div>
                                         {isSelected && <Check className="h-4 w-4 text-primary" />}
                                     </button>
                                 );

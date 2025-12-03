@@ -9,6 +9,7 @@ import AspectRatioSelector from "./AspectRatioSelector"
 import ImageUpload from "./ImageUpload"
 import ModelSelector from "./ModelSelector"
 import QualitySelector from "./QualitySelector"
+import { getModelConfig } from "@/lib/models-config"
 
 export function ImageGenerator() {
     const [prompt, setPrompt] = useState("")
@@ -184,23 +185,36 @@ export function ImageGenerator() {
                     <ImageUpload onImagesSelected={setReferenceImages} maxImages={5} />
 
                     {/* Model Selector */}
-                    <ModelSelector value={model} onChange={setModel} />
+                    <ModelSelector value={model} onChange={setModel} mode="image" />
 
-                    {/* Aspect Ratio Selector - Always show for Higgsfield models */}
-                    <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} />
+                    {/* Dynamic Selectors based on Model Config */}
+                    {(() => {
+                        const modelConfig = getModelConfig(model, 'image');
+                        const showAspectRatio = !modelConfig?.aspectRatios || modelConfig.aspectRatios.length > 0;
+                        const showQuality = !modelConfig?.qualities || modelConfig.qualities.length > 0;
 
-                    {/* Quality Selector - Only for Pro models */}
-                    {model !== 'nano-banana' && (
-                        <QualitySelector value={quality} onChange={setQuality} />
-                    )}
-                    
+                        return (
+                            <>
+                                {/* Aspect Ratio Selector */}
+                                {showAspectRatio && (
+                                    <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} />
+                                )}
+
+                                {/* Quality Selector */}
+                                {showQuality && (
+                                    <QualitySelector value={quality} onChange={setQuality} />
+                                )}
+                            </>
+                        );
+                    })()}
+
                     {/* Error Message */}
-                    {error && (
+                    {/* {error && (
                         <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                             <span>{error}</span>
                         </div>
-                    )}
+                    )} */}
                 </div>
 
                 {/* Generate Button */}

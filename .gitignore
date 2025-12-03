@@ -19,3 +19,7 @@ yarn-error.log*
 __pycache__/
 .venv/
 *.pyc
+
+# AI Pro Max
+.agent/
+.shared/

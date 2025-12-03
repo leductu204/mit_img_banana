@@ -8,7 +8,14 @@ export function useGenerateVideo() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const generate = async (payload: { prompt: string; model_key: string }) => {
+    const generate = async (payload: { 
+        prompt: string; 
+        model_key: string;
+        image_url?: string;
+        duration?: string;
+        quality?: string;
+        keep_style?: boolean;
+    }) => {
         setLoading(true);
         setError(null);
         try {
