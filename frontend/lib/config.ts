@@ -1,2 +1,3 @@
 // config.ts
-export const NEXT_PUBLIC_API = process.env.NEXT_PUBLIC_API || "";
+// Using empty string because Next.js rewrites handle the proxy to backend
+export const NEXT_PUBLIC_API = "";

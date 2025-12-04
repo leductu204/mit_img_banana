@@ -7,11 +7,22 @@ const nextConfig = {
             root: '.',
         },
     },
+    logging: {
+        fetches: {
+            fullUrl: true,
+        },
+    },
+    // Suppress hydration warnings caused by browser extensions
+    onError: (err) => {
+        if (err.message?.includes('Hydration')) {
+            return;
+        }
+    },
     async rewrites() {
         return [
             {
-                source: '/api/nano-banana/:path*',
-                destination: 'http://127.0.0.1:8000/api/nano-banana/:path*',
+                source: '/api/:path*',
+                destination: 'http://127.0.0.1:8000/api/:path*',
             },
         ]
     },

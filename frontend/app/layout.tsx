@@ -1,22 +1,22 @@
-"use client" // <-- Thêm dòng này
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "../styles/globals.css";
 
-import type React from "react"
-import { Geist, Geist_Mono } from "next/font/google"
-import "../styles/globals.css"
+const inter = Inter({ subsets: ["latin"] });
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+export const metadata: Metadata = {
+  title: "MIT Nano Img",
+  description: "AI Image Generator",
+};
 
 export default function RootLayout({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-    return (
-        <html lang="en" suppressHydrationWarning>
-            <body className={`font-sans antialiased`}>
-                {children}
-            </body>
-        </html>
-    )
+  return (
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>{children}</body>
+    </html>
+  );
 }
