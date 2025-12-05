@@ -1,39 +1,198 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Button from "../common/Button"
-import { Sparkles, Video, Loader2 } from "lucide-react"
+import { Sparkles, Video, Loader2, Volume2 } from "lucide-react"
 import { useGenerateVideo } from "@/hooks/useGenerateVideo"
-import VideoPreview from "./VideoPreview"
+import { apiRequest } from "@/lib/api"
 import ImageUpload from "./ImageUpload"
+import dynamic from 'next/dynamic'
+
+const VideoPreview = dynamic(() => import('./VideoPreview'), { ssr: false })
 import ModelSelector from "./ModelSelector"
 import DurationSelector from "./DurationSelector"
 import QualitySelector from "./QualitySelector"
+import AspectRatioSelector from "./AspectRatioSelector"
 import { getModelConfig } from "@/lib/models-config"
 
 export function VideoGenerator() {
     const [prompt, setPrompt] = useState("")
     const [referenceImages, setReferenceImages] = useState<File[]>([])
-    const [model, setModel] = useState("nano-banana")
+    const [model, setModel] = useState("kling-2.5-turbo")
     const [duration, setDuration] = useState("5s")
-    const [quality, setQuality] = useState("2K")
-    const [keepStyle, setKeepStyle] = useState(true)
+    const [quality, setQuality] = useState("720p")
+    const [aspectRatio, setAspectRatio] = useState("16:9")
+    const [audio, setAudio] = useState(false)
+
+    // Update state when model changes
+    useEffect(() => {
+        const config = getModelConfig(model, 'video');
+        if (config) {
+            if (config.durations && config.durations.length > 0) {
+                setDuration(config.durations[0]);
+            }
+            if (config.qualities && config.qualities.length > 0) {
+                setQuality(config.qualities[0]);
+            }
+            if (config.aspectRatios && config.aspectRatios.length > 0) {
+                setAspectRatio(config.aspectRatios[0]);
+            }
+            // Reset audio if not supported
+            if (!config.audio) {
+                setAudio(false);
+            }
+        }
+    }, [model]);
     
-    const { generate, result, loading, error } = useGenerateVideo()
+    
+    const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
 
     // Mode is inferred from referenceImage presence
     const isImageToVideo = referenceImages.length > 0
 
+    // Helper to get image dimensions from URL
+    const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image()
+            img.onload = () => resolve({ width: img.width, height: img.height })
+            img.onerror = reject
+            img.crossOrigin = 'anonymous'
+            img.src = url
+        })
+    }
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return
-        await generate({ 
-            prompt, 
-            model_key: model,
-            duration: duration,
-            quality: quality,
-            image_url: referenceImages.length > 0 ? URL.createObjectURL(referenceImages[0]) : undefined,
-            keep_style: isImageToVideo ? keepStyle : undefined
-        })
+        
+        // Check if model only supports I2V
+        const i2vOnlyModels = ['kling-2.5-turbo', 'kling-o1-video']
+        if (i2vOnlyModels.includes(model) && !isImageToVideo) {
+            alert('Model này chỉ hỗ trợ Image to Video. Vui lòng tải lên hình ảnh tham khảo.')
+            return
+        }
+        
+        setLoading(true)
+        setError(null)
+        
+        try {
+            const durationInt = parseInt(duration.replace('s', ''))
+            let imgId = ''
+            let imgUrl = ''
+            let imgWidth = 0
+            let imgHeight = 0
+            
+            // Step 1: Upload image if I2V mode (same flow as ImageGenerator)
+            if (isImageToVideo && referenceImages.length > 0) {
+                const file = referenceImages[0]
+                
+                // Get upload URL from Higgsfield
+                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/nano-banana/media', {
+                    method: 'POST'
+                })
+                
+                // Upload directly to Higgsfield S3
+                const uploadResponse = await fetch(uploadInfo.upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': 'image/jpeg'
+                    }
+                })
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(`Upload failed: ${uploadResponse.statusText}`)
+                }
+                
+                // Confirm upload
+                await apiRequest('/api/nano-banana/upload/check', {
+                    method: 'POST',
+                    body: JSON.stringify({ img_id: uploadInfo.id })
+                })
+                
+                // Get dimensions from public URL
+                const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
+                
+                imgId = uploadInfo.id
+                imgUrl = uploadInfo.url
+                imgWidth = width
+                imgHeight = height
+            }
+            
+            // Step 2: Call generation endpoint
+            const formData = new FormData()
+            formData.append('prompt', prompt)
+            formData.append('duration', durationInt.toString())
+            
+            let endpoint = ''
+            
+            if (model === 'kling-2.5-turbo') {
+                endpoint = '/api/generate/kling-2.5-turbo/i2v'
+                formData.append('resolution', quality)
+                formData.append('img_id', imgId)
+                formData.append('img_url', imgUrl)
+                formData.append('width', imgWidth.toString())
+                formData.append('height', imgHeight.toString())
+            } else if (model === 'kling-o1-video') {
+                endpoint = '/api/generate/kling-o1/i2v'
+                formData.append('aspect_ratio', aspectRatio)
+                formData.append('img_id', imgId)
+                formData.append('img_url', imgUrl)
+                formData.append('width', imgWidth.toString())
+                formData.append('height', imgHeight.toString())
+            } else if (model === 'kling-2.6') {
+                formData.append('sound', audio.toString())
+                if (isImageToVideo) {
+                    endpoint = '/api/generate/kling-2.6/i2v'
+                    formData.append('img_id', imgId)
+                    formData.append('img_url', imgUrl)
+                    formData.append('width', imgWidth.toString())
+                    formData.append('height', imgHeight.toString())
+                } else {
+                    endpoint = '/api/generate/kling-2.6/t2v'
+                    formData.append('aspect_ratio', aspectRatio)
+                }
+            } else {
+                throw new Error(`Unknown model: ${model}`)
+            }
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            })
+            
+            if (!response.ok) {
+                const errorText = await response.text()
+                throw new Error(`Failed to generate video: ${response.status} - ${errorText}`)
+            }
+            
+            const genRes = await response.json()
+            
+            // Poll for completion
+            const checkStatus = async () => {
+                try {
+                    const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/jobs/${genRes.job_id}`)
+                    if (statusRes.status === 'completed' && statusRes.result) {
+                        setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
+                        setLoading(false)
+                    } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
+                        setError("Video generation failed")
+                        setLoading(false)
+                    } else {
+                        setTimeout(checkStatus, 3000)
+                    }
+                } catch (e) {
+                    setError("Failed to check status")
+                    setLoading(false)
+                }
+            }
+            
+            checkStatus()
+            
+        } catch (e: any) {
+            console.error(e)
+            setError(e.message || "An error occurred")
+            setLoading(false)
+        }
     }
 
     return (
@@ -46,7 +205,7 @@ export function VideoGenerator() {
                         <h1 className="text-xl font-semibold text-foreground">Tạo Video Tự Động</h1>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        {isImageToVideo ? "Chế độ Ảnh sang Video" : "Chế độ Text sang Video"}
+                        {isImageToVideo ? "Chế độ Hình ảnh thành Video" : "Chế độ Văn bản thành Video"}
                     </p>
                 </div>
 
@@ -71,38 +230,59 @@ export function VideoGenerator() {
                     {/* Dynamic Selectors based on Model Config */}
                     {(() => {
                         const modelConfig = getModelConfig(model, 'video');
-                        const showDuration = !modelConfig?.durations || modelConfig.durations.length > 0;
-                        const showQuality = !modelConfig?.qualities || modelConfig.qualities.length > 0;
 
                         return (
                             <>
                                 {/* Duration Selector */}
-                                {showDuration && (
-                                    <DurationSelector value={duration} onChange={setDuration} />
+                                {modelConfig?.durations && modelConfig.durations.length > 0 && (
+                                    <DurationSelector 
+                                        value={duration} 
+                                        onChange={setDuration} 
+                                        options={modelConfig.durations}
+                                    />
+                                )}
+
+                                {/* Aspect Ratio Selector */}
+                                {modelConfig?.aspectRatios && modelConfig.aspectRatios.length > 0 && (
+                                    <AspectRatioSelector 
+                                        value={aspectRatio} 
+                                        onChange={setAspectRatio} 
+                                        options={modelConfig.aspectRatios}
+                                    />
                                 )}
 
                                 {/* Quality Selector */}
-                                {showQuality && (
-                                    <QualitySelector value={quality} onChange={setQuality} />
+                                {modelConfig?.qualities && modelConfig.qualities.length > 0 && (
+                                    <QualitySelector 
+                                        value={quality} 
+                                        onChange={setQuality} 
+                                        options={modelConfig.qualities}
+                                    />
+                                )}
+
+                                {/* Audio Selector */}
+                                {modelConfig?.audio && (
+                                     <div className="flex items-center justify-between p-3 border border-input rounded-md bg-background/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="flex items-center gap-2">
+                                            <Volume2 className="h-4 w-4 text-muted-foreground" />
+                                            <label htmlFor="audio-toggle" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                                                Tạo kèm âm thanh
+                                            </label>
+                                        </div>
+                                        <input 
+                                            type="checkbox" 
+                                            id="audio-toggle" 
+                                            checked={audio}
+                                            onChange={(e) => setAudio(e.target.checked)}
+                                            className="h-4 w-4 rounded border-primary text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                                        />
+                                    </div>
                                 )}
                             </>
                         );
                     })()}
 
-                    {/* Image to Video Specific Settings */}
-                    {isImageToVideo && (
-                        <div className="space-y-4 pt-4 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
-                            <div className="flex items-center space-x-2">
-                                <input 
-                                    type="checkbox" 
-                                    id="keep-style-video" 
-                                    checked={keepStyle}
-                                    onChange={(e) => setKeepStyle(e.target.checked)}
-                                    className="h-4 w-4 rounded border-primary text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                />
-                            </div>
-                        </div>
-                    )}
+
 
                     {/* Error Message */}
                     {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -163,3 +343,4 @@ export function VideoGenerator() {
         </div>
     )
 }
+

@@ -202,19 +202,23 @@ export function ImageGenerator() {
 
                                 {/* Quality Selector */}
                                 {showQuality && (
-                                    <QualitySelector value={quality} onChange={setQuality} />
+                                    <QualitySelector 
+                                        value={quality} 
+                                        onChange={setQuality} 
+                                        options={modelConfig?.qualities}
+                                    />
                                 )}
                             </>
                         );
                     })()}
 
                     {/* Error Message */}
-                    {/* {error && (
+                    {error && (
                         <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                             <span>{error}</span>
                         </div>
-                    )} */}
+                    )}
                 </div>
 
                 {/* Generate Button */}
@@ -312,3 +316,4 @@ export function ImageGenerator() {
         </div>
     )
 }
+

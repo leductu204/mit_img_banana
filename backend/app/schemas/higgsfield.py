@@ -23,6 +23,21 @@ class GenerateImageRequest(BaseModel):
 class GenerateImageResponse(BaseModel):
     job_id: str
 
+class GenerateVideoRequest(BaseModel):
+    prompt: str
+    model: str = "kling-2.5-turbo"
+    duration: str = "5s"
+    resolution: Optional[str] = "720p"
+    aspect_ratio: Optional[str] = "16:9"
+    audio: Optional[bool] = True
+    input_images: Optional[List[dict]] = []
+
 class JobStatusResponse(BaseModel):
     status: str
     result: Optional[str] = None
+
+class UploadImageResponse(BaseModel):
+    id: str
+    url: str
+    width: int
+    height: int

@@ -4,16 +4,21 @@ import { ChevronDown, Check, Clock } from 'lucide-react';
 interface DurationSelectorProps {
     value: string;
     onChange: (value: string) => void;
+    options?: string[];
 }
 
-export default function DurationSelector({ value, onChange }: DurationSelectorProps) {
+export default function DurationSelector({ value, onChange, options: propOptions }: DurationSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const options = [
+    const defaultOptions = [
         { value: '5s', label: '5 giây' },
         { value: '10s', label: '10 giây' },
     ];
+
+    const options = propOptions 
+        ? propOptions.map(opt => ({ value: opt, label: opt === '5s' ? '5 giây' : '10 giây' }))
+        : defaultOptions;
 
     const selectedOption = options.find(opt => opt.value === value) || options[0];
 

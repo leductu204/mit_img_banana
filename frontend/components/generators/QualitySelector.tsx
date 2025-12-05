@@ -4,19 +4,24 @@ import { ChevronDown, Check } from 'lucide-react';
 interface QualitySelectorProps {
     value: string;
     onChange: (value: string) => void;
+    options?: string[];
 }
 
-export default function QualitySelector({ value, onChange }: QualitySelectorProps) {
+export default function QualitySelector({ value, onChange, options: propOptions }: QualitySelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const options = [
+    const defaultOptions = [
         { value: '1K', label: '1K' },
         { value: '2K', label: '2K' },
         { value: '4K', label: '4K' },
     ];
 
-    const selectedOption = options.find(opt => opt.value === value) || options[1];
+    const options = propOptions 
+        ? propOptions.map(opt => ({ value: opt, label: opt }))
+        : defaultOptions;
+
+    const selectedOption = options.find(opt => opt.value === value) || options[0];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

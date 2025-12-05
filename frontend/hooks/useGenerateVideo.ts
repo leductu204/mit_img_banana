@@ -15,6 +15,8 @@ export function useGenerateVideo() {
         duration?: string;
         quality?: string;
         keep_style?: boolean;
+        aspect_ratio?: string;
+        audio?: boolean;
     }) => {
         setLoading(true);
         setError(null);
@@ -31,5 +33,5 @@ export function useGenerateVideo() {
         }
     };
 
-    return { generate, result, loading, error };
+    return { generate, result, loading, error, setResult, setLoading, setError };
 }

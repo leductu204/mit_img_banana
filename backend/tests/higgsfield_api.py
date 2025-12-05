@@ -1099,3 +1099,200 @@ def send_job_i2i_nano_banana_pro(authorization: str, list_ids: list, list_urls: 
             return None, response.text
     except (json.JSONDecodeError, ValueError) as e:
         raise Exception(f"Lỗi parse send_job_i2i_nano_banana_pro response: {e}, Response: {response.text[:200]}")
+
+def send_job_i2v_kling_2_6(authorization: str, width: int, height: int, prompt: str,
+                           duration: int, img_id: str, img_url: str, sound: bool, use_unlim: bool) -> tuple:
+    url = "https://fnf.higgsfield.ai/jobs/kling2-6"
+
+    payload = json.dumps({
+    "params": {
+        "width": width,
+        "height": height,
+        "prompt": prompt,
+        "duration": duration,
+        "cfg_scale": 0.5,
+        "sound": sound,
+        "input_image": {
+        "type": "media_input",
+        "id": img_id,
+        "url": img_url,
+        "width": width,
+        "height": height
+        },
+        "negative_prompt": None,
+        "enhance_prompt": False,
+        "motion_id": "7077cde8-7947-46d6-aea2-dbf2ff9d441c",
+        "use_unlim": use_unlim
+    },
+    "use_unlim": use_unlim
+    })
+    headers = {
+    'sec-ch-ua-platform': '"Windows"',
+    'authorization': authorization,
+    'Referer': '',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    'content-type': 'application/json',
+    'sec-ch-ua-mobile': '?0'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    try:
+        data = response.json()
+        if 'job_sets' in data and len(data['job_sets']) > 0:
+            target_id = data['job_sets'][0]['id']
+            return target_id, response.text
+        else:
+            return None, response.text
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f"Lỗi parse send_job_i2v_kling_2_6 response: {e}, Response: {response.text[:200]}")
+
+def send_job_t2v_kling_2_6(authorization: str, aspect_ratio: str, duration: int, prompt: str, use_unlim: bool)-> tuple:
+    url = "https://fnf.higgsfield.ai/jobs/kling2-6"
+
+    payload = json.dumps({
+    "params": {
+        #if aspect_ratio == "16:9":
+        #    width = 1080
+        #    height = 1920
+        #else if aspect_ratio == "9:16":
+        #    width = 1920
+        #    height = 1080
+        # else if aspect_ratio == "1:1":
+        #     width = 1080
+        #     height = 1080
+        "width": 1080,
+        "height": 1920,
+        "prompt": prompt,
+        "duration": duration,
+        "aspect_ratio": aspect_ratio,
+        "cfg_scale": 0.5,
+        "sound": True,
+        "input_image": None,
+        "negative_prompt": None,
+        "enhance_prompt": False,
+        "motion_id": "7077cde8-7947-46d6-aea2-dbf2ff9d441c",
+        "use_unlim": use_unlim
+    },
+    "use_unlim": use_unlim
+    })
+    headers = {
+    'sec-ch-ua-platform': '"Windows"',
+    'authorization': authorization,
+    'Referer': '',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    'content-type': 'application/json',
+    'sec-ch-ua-mobile': '?0'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    try:
+        data = response.json()
+        if 'job_sets' in data and len(data['job_sets']) > 0:
+            target_id = data['job_sets'][0]['id']
+            return target_id, response.text
+        else:
+            return None, response.text
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f"Lỗi parse send_job_i2v_kling_2_6 response: {e}, Response: {response.text[:200]}")
+
+def send_job_i2v_kling_2_5_turbo(authorization: str, width: int, height: int, prompt: str, resolution: str,
+                           duration: int, img_id: str, img_url: str, use_unlim: bool) -> tuple:
+    url = "https://fnf.higgsfield.ai/jobs/kling"
+
+    payload = json.dumps({
+    "params": {
+        "input_image": {
+        "type": "media_input",
+        "id": img_id,
+        "url": img_url,
+        "width": width,
+        "height": height
+        },
+        "width": width,
+        "height": height,
+        "prompt": prompt,
+        "seed": random.randint(1000, 1000000),
+        "cfg_scale": 0.5,
+        "camera_control": None,
+        "duration": duration,
+        "model": "kling-v2-5-turbo",
+        "resolution": resolution,
+        "motion_id": "7077cde8-7947-46d6-aea2-dbf2ff9d441c",
+        "enhance_prompt": False,
+        "mode": "std",
+        "input_image_end": None
+    },
+    "use_unlim": use_unlim
+    })
+    headers = {
+    'sec-ch-ua-platform': '"Windows"',
+    'authorization': authorization,
+    'Referer': '',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    'content-type': 'application/json',
+    'sec-ch-ua-mobile': '?0'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    try:
+        data = response.json()
+        if 'job_sets' in data and len(data['job_sets']) > 0:
+            target_id = data['job_sets'][0]['id']
+            return target_id, response.text
+        else:
+            return None, response.text
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f"Lỗi parse send_job_i2v_kling_2_5_turbo response: {e}, Response: {response.text[:200]}")
+
+def send_job_i2v_kling_o1(authorization: str, aspect_ratio: str,width: int, height: int, duration: int, prompt: str, img_id: str, img_url: str, use_unlim: bool)-> tuple:
+    url = "https://fnf.higgsfield.ai/jobs/kling-omni-flf"
+
+    payload = json.dumps({
+    "params": {
+        "aspect_ratio": aspect_ratio,
+        "duration": duration,
+        "prompt": prompt,
+        "model": "kling-omni-flf",
+        "input_image": {
+        "id": img_id,
+        "type": "media_input",
+        "url": img_url
+        },
+        "input_image_end": None,
+        "height": height,
+        "width": width,
+        "use_unlim": use_unlim
+    },
+    "use_unlim": use_unlim
+    })
+    headers = {
+    'accept': '*/*',
+    'accept-language': 'vi,zh-CN;q=0.9,zh;q=0.8,fr-FR;q=0.7,fr;q=0.6,en-US;q=0.5,en;q=0.4,zh-TW;q=0.3',
+    'authorization': authorization,
+    'content-type': 'application/json',
+    'origin': 'https://higgsfield.ai',
+    'priority': 'u=1, i',
+    'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    try:
+        data = response.json()
+        if 'job_sets' in data and len(data['job_sets']) > 0:
+            target_id = data['job_sets'][0]['id']
+            return target_id, response.text
+        else:
+            return None, response.text
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f"Lỗi parse send_job_i2v_kling_o1 response: {e}, Response: {response.text[:200]}")
