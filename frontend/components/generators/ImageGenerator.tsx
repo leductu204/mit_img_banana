@@ -191,7 +191,7 @@ export function ImageGenerator() {
                     {(() => {
                         const modelConfig = getModelConfig(model, 'image');
                         const showAspectRatio = !modelConfig?.aspectRatios || modelConfig.aspectRatios.length > 0;
-                        const showQuality = !modelConfig?.qualities || modelConfig.qualities.length > 0;
+                        const showQuality = modelConfig?.qualities && modelConfig.qualities.length > 0;
 
                         return (
                             <>

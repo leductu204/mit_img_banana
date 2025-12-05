@@ -22,8 +22,6 @@ export const IMAGE_MODELS: ModelConfig[] = [
         label: 'Nano Banana', 
         description: 'Phiên bản Nano Banana của Google',
         icon: Banana,
-        // Nano Banana might be simple, maybe no quality selection?
-        qualities: [], // Hide quality selector
         aspectRatios: ['1:1', '9:16', '16:9', '4:3', '3:4']
     },
     { 
@@ -84,7 +82,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
     { 
         value: 'kling-2.5-turbo', 
         label: 'Kling 2.5 Turbo', 
-        description: 'Perfect motion with advanced video control',
+        description: 'Chỉ hỗ trợ IMG to Video',
         icon: Clapperboard,
         badge: 'Unlimited',
         durations: ['5s'],
@@ -93,7 +91,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
     { 
         value: 'kling-o1-video', 
         label: 'Kling O1 Video', 
-        description: 'Perfect motion with advanced video control',
+        description: 'Chỉ hỗ trợ IMG to Video',
         icon: Clapperboard,
         badge: 'Unlimited',
         durations: ['5s'],
@@ -102,7 +100,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
     { 
         value: 'kling-2.6', 
         label: 'Kling 2.6', 
-        description: 'Perfect motion with advanced video control',
+        description: 'Bao gồm cả T2V và I2V',
         icon: Clapperboard,
         badge: 'Unlimited',
         durations: ['5s'],

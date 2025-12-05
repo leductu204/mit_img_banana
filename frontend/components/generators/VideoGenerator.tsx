@@ -244,11 +244,21 @@ export function VideoGenerator() {
 
                                 {/* Aspect Ratio Selector */}
                                 {modelConfig?.aspectRatios && modelConfig.aspectRatios.length > 0 && (
-                                    <AspectRatioSelector 
-                                        value={aspectRatio} 
-                                        onChange={setAspectRatio} 
-                                        options={modelConfig.aspectRatios}
-                                    />
+                                    <>
+                                        <AspectRatioSelector 
+                                            value={aspectRatio} 
+                                            onChange={setAspectRatio} 
+                                            options={modelConfig.aspectRatios}
+                                        />
+                                        {/* Model Note */}
+                                        {modelConfig.description && (
+                                            <div className="flex items-start gap-2 px-3 py-2 bg-muted/50 rounded-lg border border-border/50">
+                                                <div className="text-xs text-muted-foreground leading-relaxed">
+                                                    <span className="font-medium text-foreground">Lưu ý:</span> {modelConfig.description}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 {/* Quality Selector */}

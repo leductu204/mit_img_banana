@@ -1,66 +1,94 @@
 "use client"
 
-import { useEffect, useRef } from 'react';
-import Plyr from 'plyr';
-import 'plyr/dist/plyr.css';
+import { useRef } from 'react';
+import Plyr from 'plyr-react';
+import 'plyr-react/plyr.css';
+import { Download } from 'lucide-react';
 
 interface VideoPreviewProps {
     videoUrl: string;
 }
 
 export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const playerRef = useRef<Plyr | null>(null);
+    const plyrRef = useRef<any>(null);
 
-    useEffect(() => {
-        if (videoRef.current && !playerRef.current) {
-            playerRef.current = new Plyr(videoRef.current, {
-                controls: [
-                    'play-large',
-                    'play',
-                    'progress',
-                    'current-time',
-                    'mute',
-                    'volume',
-                    'settings',
-                    'fullscreen'
-                ],
-                settings: ['quality', 'speed'],
-                quality: {
-                    default: 1080,
-                    options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240]
-                },
-                speed: {
-                    selected: 1,
-                    options: [0.5, 0.75, 1, 1.25, 1.5, 2]
-                }
-            });
+    const handleDownload = async () => {
+        try {
+            const response = await fetch(videoUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `video-${Date.now()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Download failed:', error);
         }
+    };
 
-        return () => {
-            if (playerRef.current) {
-                playerRef.current.destroy();
-                playerRef.current = null;
-            }
-        };
-    }, []);
+    const plyrSource = {
+        type: 'video' as const,
+        sources: [
+            {
+                src: videoUrl,
+                type: 'video/mp4',
+            },
+        ],
+    };
 
-    useEffect(() => {
-        if (playerRef.current && videoRef.current) {
-            videoRef.current.src = videoUrl;
-        }
-    }, [videoUrl]);
+    const plyrOptions = {
+        controls: [
+            'play-large',
+            'play',
+            'progress',
+            'current-time',
+            'mute',
+            'volume',
+            'settings',
+            'fullscreen'
+        ],
+        ratio: '16:9' as const,
+    };
 
     return (
-        <div className="w-full h-full flex items-center justify-center">
-            <video
-                ref={videoRef}
-                className="w-full h-full"
-                playsInline
-                controls
+        <div className="w-full flex flex-col items-center gap-6 p-6 lg:p-10">
+            {/* Fixed Video Box - Matches Image Box Size */}
+            <div className="w-full max-w-3xl aspect-[3/4] max-h-[calc(100vh-14rem)] rounded-xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden flex items-center justify-center relative shadow-sm">
+                <style jsx global>{`
+                    .video-box .plyr {
+                        width: 100%;
+                        height: 100%;
+                    }
+                    .video-box .plyr video {
+                        object-fit: contain;
+                        width: 100%;
+                        height: 100%;
+                    }
+                    .video-box .plyr__video-wrapper {
+                        width: 100%;
+                        height: 100%;
+                    }
+                `}</style>
+                <div className="video-box w-full h-full">
+                    <Plyr
+                        ref={plyrRef}
+                        source={plyrSource}
+                        options={plyrOptions}
+                    />
+                </div>
+            </div>
+
+            {/* Download Button */}
+            <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-                <source src={videoUrl} type="video/mp4" />
-            </video>
+                <Download className="w-5 h-5" />
+                <span className="font-medium">Tải xuống video</span>
+            </button>
         </div>
     );
 }
