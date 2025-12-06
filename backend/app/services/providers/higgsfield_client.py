@@ -218,7 +218,8 @@ class HiggsfieldClient:
             width = 1024
             height = 1024
 
-        if model == "nano-banana":
+        # Check if it's regular Nano Banana (not PRO)
+        if "nano banana" in model.lower() and "pro" not in model.lower():
             url = f"{self.base_url}/jobs/nano-banana"
             # nano-banana: NO aspect_ratio or resolution, only width/height/batch_size
             payload = json.dumps({
@@ -233,7 +234,7 @@ class HiggsfieldClient:
                 "use_unlim": use_unlim
             })
         else:
-            # Default to nano-banana-pro (nano-banana-2)
+            # Default to nano-banana-pro (nano-banana-2) for PRO models
             url = f"{self.base_url}/jobs/nano-banana-2"
             # nano-banana-pro: aspect_ratio AND resolution supported
             payload = json.dumps({
@@ -252,6 +253,11 @@ class HiggsfieldClient:
         
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
+
+        print(f"\n=== HIGGSFIELD API REQUEST ===")
+        print(f"URL: {url}")
+        print(f"Payload: {payload}")
+        print(f"==============================\n")
 
         response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()

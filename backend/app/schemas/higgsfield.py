@@ -16,7 +16,7 @@ class UploadCheckResponse(BaseModel):
 class GenerateImageRequest(BaseModel):
     prompt: str
     aspect_ratio: str = "9:16"
-    resolution: str = "1k"
+    resolution: Optional[str] = None  # Only for PRO models
     input_images: Optional[List[dict]] = []
     model: str = "nano-banana"
 

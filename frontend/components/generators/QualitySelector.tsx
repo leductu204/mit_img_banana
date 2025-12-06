@@ -12,9 +12,9 @@ export default function QualitySelector({ value, onChange, options: propOptions 
     const containerRef = useRef<HTMLDivElement>(null);
 
     const defaultOptions = [
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
+        { value: '1k', label: '1K' },
+        { value: '2k', label: '2K' },
+        { value: '4k', label: '4K' },
     ];
 
     const options = propOptions 

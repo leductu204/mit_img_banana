@@ -31,8 +31,8 @@ export const IMAGE_MODELS: ModelConfig[] = [
         icon: Banana,
         badge: 'HOT',
         colors: 'yellow',
-        // PRO supports everything
-        qualities: ['1K', '2K', '4K'],
+        // PRO supports resolution selection
+        resolutions: ['1k', '2k', '4k'],  // Lowercase as required by API
         aspectRatios: undefined // Show all
     }
 ];

@@ -10,17 +10,19 @@ export function useGenerateImage() {
 
     const generate = async (payload: {
         prompt: string;
-        model_key: string;
+        model: string;
         image_url?: string;
         aspect_ratio?: string;
-        quality?: string;
+        resolution?: string;
         strength?: number;
         keep_style?: boolean;
+        input_images?: any[];
     }) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await apiRequest<GenerationResponse>('/api/generate/t2i', {
+            // Use the correct API endpoint for Nano Banana image generation
+            const data = await apiRequest<GenerationResponse>('/api/nano-banana/generate', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });

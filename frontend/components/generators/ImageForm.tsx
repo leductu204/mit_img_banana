@@ -16,7 +16,7 @@ export default function ImageForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await generate({ prompt, model_key: modelKey });
+        await generate({ prompt, model: modelKey });
     };
 
     return (

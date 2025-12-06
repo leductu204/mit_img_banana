@@ -48,8 +48,8 @@ export function ImageGenerator() {
     const handleGenerate = async () => {
         if (!prompt.trim()) return
 
-        // If using Higgsfield model (nano-banana), use the new flow
-        if (model.includes("nano-banana")) {
+        // If using Higgsfield model (Nano Banana), use the direct API flow
+        if (model.toLowerCase().includes("nano banana")) {
             setLoading(true)
             setError(null)
             try {
@@ -100,15 +100,23 @@ export function ImageGenerator() {
                 // 2. Generate
                 const payload: any = {
                     prompt,
-                    aspect_ratio: aspectRatio,
                     input_images: inputImages,
                     model: model
                 }
 
-                // Only add resolution for Pro models
-                if (model !== 'nano-banana') {
-                    payload.resolution = quality
+                // Get model config to check capabilities
+                const modelConfig = getModelConfig(model, 'image');
+                
+                // Only add aspect_ratio and resolution for Pro models (which have resolutions defined)
+                if (modelConfig?.resolutions && modelConfig.resolutions.length > 0) {
+                    payload.aspect_ratio = aspectRatio;
+                    payload.resolution = quality;
                 }
+
+                console.log('=== IMAGE GENERATION PAYLOAD ===');
+                console.log('Model:', model);
+                console.log('Payload:', JSON.stringify(payload, null, 2));
+                console.log('================================');
 
                 const genRes = await apiRequest<{ job_id: string }>('/api/nano-banana/generate', {
                     method: 'POST',
@@ -146,9 +154,9 @@ export function ImageGenerator() {
 
         await generate({
             prompt,
-            model_key: model,
+            model: model,
             aspect_ratio: aspectRatio,
-            quality: quality,
+            resolution: quality,
             // Use the first image for now as the backend/hook might only support one
             image_url: referenceImages.length > 0 ? URL.createObjectURL(referenceImages[0]) : undefined,
             keep_style: isImageToImage ? keepStyle : undefined
@@ -191,7 +199,7 @@ export function ImageGenerator() {
                     {(() => {
                         const modelConfig = getModelConfig(model, 'image');
                         const showAspectRatio = !modelConfig?.aspectRatios || modelConfig.aspectRatios.length > 0;
-                        const showQuality = modelConfig?.qualities && modelConfig.qualities.length > 0;
+                        const showResolution = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
 
                         return (
                             <>
@@ -200,12 +208,12 @@ export function ImageGenerator() {
                                     <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} />
                                 )}
 
-                                {/* Quality Selector */}
-                                {showQuality && (
+                                {/* Resolution Selector (for PRO models) */}
+                                {showResolution && (
                                     <QualitySelector 
                                         value={quality} 
                                         onChange={setQuality} 
-                                        options={modelConfig?.qualities}
+                                        options={modelConfig?.resolutions}
                                     />
                                 )}
                             </>
