@@ -14,6 +14,7 @@ export interface ModelConfig {
     resolutions?: string[]; // If undefined, hide selector. If array with values, show only those options.
     durations?: string[]; // If undefined, hide selector. If array with values, show only those options.
     audio?: boolean;
+    note?: string; // Specific note to display in the generator UI
 }
 
 export const IMAGE_MODELS: ModelConfig[] = [
@@ -86,7 +87,8 @@ export const VIDEO_MODELS: ModelConfig[] = [
         icon: Clapperboard,
         badge: 'Unlimited',
         durations: ['5s'],
-        resolutions: ['720p']
+        resolutions: ['720p'],
+        note: 'Chỉ hỗ trợ IMG to Video. Tốc độ nhanh nhất',
     },
     { 
         value: 'kling-o1-video', 
@@ -96,6 +98,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         badge: 'Unlimited',
         durations: ['5s'],
         aspectRatios: ['9:16', '16:9', '1:1'],
+        note: 'Chỉ hỗ trợ IMG to Video. Tốc độ trung bình',
     },
     { 
         value: 'kling-2.6', 
@@ -106,6 +109,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         durations: ['5s'],
         aspectRatios: ['9:16', '16:9', '1:1'],
         audio: true,
+        note: 'Bao gồm cả T2V và I2V. Tốc độ chậm',
     },
     // { 
     //     value: 'seedance', 

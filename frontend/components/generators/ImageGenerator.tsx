@@ -113,10 +113,10 @@ export function ImageGenerator() {
                     payload.resolution = quality;
                 }
 
-                console.log('=== IMAGE GENERATION PAYLOAD ===');
-                console.log('Model:', model);
-                console.log('Payload:', JSON.stringify(payload, null, 2));
-                console.log('================================');
+                // console.log('=== IMAGE GENERATION PAYLOAD ===');
+                // console.log('Model:', model);
+                // console.log('Payload:', JSON.stringify(payload, null, 2));
+                // console.log('================================');
 
                 const genRes = await apiRequest<{ job_id: string }>('/api/nano-banana/generate', {
                     method: 'POST',
@@ -134,7 +134,7 @@ export function ImageGenerator() {
                             setError("Generation failed")
                             setLoading(false)
                         } else {
-                            setTimeout(checkStatus, 2000)
+                            setTimeout(checkStatus, 5000)
                         }
                     } catch (e) {
                         setError("Failed to check status")

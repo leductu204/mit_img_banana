@@ -6,13 +6,25 @@ import Button from './Button'
 
 interface NotificationDialogProps {
     title?: string
-    message?: string
+    message?: React.ReactNode
     onClose?: () => void
 }
 
 export default function NotificationDialog({ 
     title = "Thông báo ",
-    message = "Sử dụng miễn phí Nano Banana, Nano Banana PRO và Kling. Nếu website gặp lỗi, hãy liên hệ Zalo 0352143210",
+    message = (
+        <span>
+            OPEN BETA - Sử dụng miễn phí Nano Banana, Nano Banana PRO và Kling. Nếu website gặp lỗi, hãy liên hệ{" "}
+            <a 
+                href="https://zalo.me/0352143210" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+            >
+                ZALO 0352143210
+            </a>
+        </span>
+    ),
     onClose 
 }: NotificationDialogProps) {
     const [isOpen, setIsOpen] = useState(false)

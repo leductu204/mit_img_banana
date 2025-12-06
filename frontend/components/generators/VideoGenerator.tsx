@@ -178,7 +178,7 @@ export function VideoGenerator() {
                         setError("Video generation failed")
                         setLoading(false)
                     } else {
-                        setTimeout(checkStatus, 3000)
+                        setTimeout(checkStatus, 8000)
                     }
                 } catch (e) {
                     setError("Failed to check status")
@@ -251,10 +251,10 @@ export function VideoGenerator() {
                                             options={modelConfig.aspectRatios}
                                         />
                                         {/* Model Note */}
-                                        {modelConfig.description && (
+                                        {modelConfig.note && (
                                             <div className="flex items-start gap-2 px-3 py-2 bg-muted/50 rounded-lg border border-border/50">
                                                 <div className="text-xs text-muted-foreground leading-relaxed">
-                                                    <span className="font-medium text-foreground">Lưu ý:</span> {modelConfig.description}
+                                                    <span className="font-medium text-foreground">Lưu ý:</span> {modelConfig.note}
                                                 </div>
                                             </div>
                                         )}
@@ -317,7 +317,7 @@ export function VideoGenerator() {
                             </>
                         )}
                     </Button>
-                    <p className="text-xs text-muted-foreground text-center mt-4">Powered by DucTu - NanoTool</p>
+                    <p className="text-xs text-muted-foreground text-center mt-4">Hỗ trợ, báo lỗi - 0352143210 </p>
                 </div>
             </div>
 
@@ -330,7 +330,7 @@ export function VideoGenerator() {
                                 <div className="relative">
                                     <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
                                 </div>
-                                <p className="text-sm font-medium">Đang tạo video...</p>
+                                <p className="text-sm font-medium">Đang tạo video... Vui lòng đợi trong khi hệ thống đang xử lý</p>
                             </div>
                         ) : result?.video_url ? (
                             <VideoPreview videoUrl={result.video_url} />
