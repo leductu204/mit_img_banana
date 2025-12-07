@@ -49,7 +49,8 @@ export function ImageGenerator() {
         if (!prompt.trim()) return
 
         // If using Higgsfield model (Nano Banana), use the direct API flow
-        if (model.toLowerCase().includes("nano banana")) {
+        // Handle both "Nano Banana" and "nano-banana" formats
+        if (model.toLowerCase().includes("nano banana") || model.toLowerCase().includes("nano-banana")) {
             setLoading(true)
             setError(null)
             try {
@@ -127,6 +128,7 @@ export function ImageGenerator() {
                 const checkStatus = async () => {
                     try {
                         const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/nano-banana/jobs/${genRes.job_id}`)
+                        
                         if (statusRes.status === 'completed' && statusRes.result) {
                             setResult({ image_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
                             setLoading(false)
@@ -136,8 +138,8 @@ export function ImageGenerator() {
                         } else {
                             setTimeout(checkStatus, 5000)
                         }
-                    } catch (e) {
-                        setError("Failed to check status")
+                    } catch (e: any) {
+                        setError(`Failed to check status: ${e.message}`)
                         setLoading(false)
                     }
                 }
@@ -261,7 +263,7 @@ export function ImageGenerator() {
                                 <div className="relative">
                                     <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
                                 </div>
-                                <p className="text-sm font-medium">Generating your masterpiece...</p>
+                                <p className="text-sm font-medium">Đang tạo ảnh...</p>
                             </div>
                         ) : result?.image_url ? (
                             <img

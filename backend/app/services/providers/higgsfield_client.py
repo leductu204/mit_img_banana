@@ -219,7 +219,10 @@ class HiggsfieldClient:
             height = 1024
 
         # Check if it's regular Nano Banana (not PRO)
-        if "nano banana" in model.lower() and "pro" not in model.lower():
+        # Handle both "nano-banana" and "Nano Banana" formats
+        model_lower = model.lower().replace("-", " ")  # Normalize to space-separated
+        
+        if "nano banana" in model_lower and "pro" not in model_lower:
             url = f"{self.base_url}/jobs/nano-banana"
             # nano-banana: NO aspect_ratio or resolution, only width/height/batch_size
             payload = json.dumps({
@@ -253,11 +256,6 @@ class HiggsfieldClient:
         
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
-
-        print(f"\n=== HIGGSFIELD API REQUEST ===")
-        print(f"URL: {url}")
-        print(f"Payload: {payload}")
-        print(f"==============================\n")
 
         response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()

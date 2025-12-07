@@ -83,14 +83,6 @@ async def check_upload(request: UploadCheckRequest):
 async def generate_image(request: GenerateImageRequest):
     """Generate image using Nano Banana or Nano Banana Pro based on model parameter"""
     try:
-        print(f"\n=== IMAGE GENERATION REQUEST ===")
-        print(f"Model: {request.model}")
-        print(f"Prompt: {request.prompt}")
-        print(f"Aspect Ratio: {request.aspect_ratio}")
-        print(f"Resolution: {request.resolution}")
-        print(f"Input Images Count: {len(request.input_images) if request.input_images else 0}")
-        print(f"================================\n")
-        
         job_id = higgsfield_client.generate_image(
             prompt=request.prompt,
             input_images=request.input_images or [],
@@ -102,7 +94,6 @@ async def generate_image(request: GenerateImageRequest):
             raise HTTPException(status_code=500, detail="Failed to create job")
         return {"job_id": job_id}
     except Exception as e:
-        print(f"ERROR in generate_image: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-video", response_model=GenerateImageResponse)
