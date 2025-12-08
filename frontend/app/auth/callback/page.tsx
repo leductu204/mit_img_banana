@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setToken } from '@/lib/auth';
 import { NEXT_PUBLIC_API } from '@/lib/config';
@@ -13,7 +13,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import Button from '@/components/common/Button';
 import { useToast } from '@/hooks/useToast';
 
-export default function AuthCallbackPage() {
+function CallbackContent() {
     const router = useRouter();
     const { success } = useToast();
     const searchParams = useSearchParams();
@@ -70,7 +70,7 @@ export default function AuthCallbackPage() {
         };
 
         handleCallback();
-    }, [searchParams, router]);
+    }, [searchParams, router, success]);
 
     if (isProcessing && !error) {
         return (
@@ -106,4 +106,19 @@ export default function AuthCallbackPage() {
     }
 
     return null;
+}
+
+export default function AuthCallbackPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-[#0F766E]" />
+                    <p className="text-lg text-foreground">Đang tải...</p>
+                </div>
+            </div>
+        }>
+            <CallbackContent />
+        </Suspense>
+    );
 }

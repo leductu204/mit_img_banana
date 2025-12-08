@@ -10,9 +10,7 @@ from typing import Optional
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
     
-    # Existing Higgsfield settings
-    API_KEY: str = Field(default="", env="API_KEY")
-    DATABASE_URL: str = Field(default="", env="DATABASE_URL")
+    # Higgsfield API Credentials
     HIGGSFIELD_SSES: str = Field(..., env="HIGGSFIELD_SSES")
     HIGGSFIELD_COOKIE: str = Field(..., env="HIGGSFIELD_COOKIE")
     
