@@ -32,6 +32,13 @@ class HiggsfieldClient:
             headers['authorization'] = auth_token
         return headers
 
+    def _handle_response(self, response: requests.Response, operation: str = "API request"):
+        """Sanitize HTTP errors to prevent exposing internal URLs"""
+        try:
+            response.raise_for_status()
+        except requests.HTTPError:
+            raise Exception(f"{operation} failed with status {response.status_code}")
+
     def get_jwt_token(self) -> str:
         url = f"{self.clerk_url}/v1/client/sessions/{self.sses}/tokens?__clerk_api_version=2025-11-10&_clerk_js_version=5.109.0"
         payload = 'organization_id='
@@ -39,7 +46,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/x-www-form-urlencoded'
 
         response = requests.post(url, headers=headers, data=payload)
-        response.raise_for_status()
+        self._handle_response(response, "Authentication")
         
         try:
             data = response.json()
@@ -48,7 +55,7 @@ class HiggsfieldClient:
                  raise ValueError("JWT token not found in response")
             return "Bearer " + token
         except (json.JSONDecodeError, ValueError) as e:
-            raise Exception(f"Failed to parse JWT response: {e}, Response: {response.text[:200]}")
+            raise Exception(f"Failed to parse authentication response")
 
     def get_jwt_token_with_retry(self, max_retries: int = 3) -> str:
         for attempt in range(max_retries):
@@ -69,7 +76,7 @@ class HiggsfieldClient:
                 headers['content-length'] = '0'
 
                 response = requests.post(url, headers=headers, data={})
-                response.raise_for_status()
+                self._handle_response(response, "Upload check")
                 return response.text
             except (requests.RequestException, Exception) as e:
                 if attempt < max_retries - 1:
@@ -88,7 +95,7 @@ class HiggsfieldClient:
                 payload = json.dumps({"mimetype": "image/jpeg"})
 
                 response = requests.post(url, headers=headers, data=payload)
-                response.raise_for_status() # Raise exception for 4xx/5xx
+                self._handle_response(response, "Create reference media")
                 
                 data = response.json()
                 if not data.get("id") or not data.get("upload_url"):
@@ -117,7 +124,7 @@ class HiggsfieldClient:
                 payload = json.dumps({"mimetypes": ["image/jpeg"]})
 
                 response = requests.post(url, headers=headers, data=payload)
-                response.raise_for_status()
+                self._handle_response(response, "Check reference media")
                 
                 data = response.json()
                 
@@ -164,7 +171,7 @@ class HiggsfieldClient:
         headers['content-length'] = '0'
         
         response = requests.post(url, headers=headers, data={})
-        response.raise_for_status()
+        self._handle_response(response, "Get image dimensions")
         
         data = response.json()
         img_id = data.get("id")
@@ -182,14 +189,14 @@ class HiggsfieldClient:
         }
         
         upload_response = requests.put(upload_url, headers=upload_headers, data=image_data)
-        upload_response.raise_for_status()
+        self._handle_response(upload_response, "Upload image")
         
         # Step 3: Confirm upload
         self.check_upload(img_id)
         
         # Step 4: Get image dimensions
         img_response = requests.get(img_url)
-        img_response.raise_for_status()
+        self._handle_response(img_response, "Get image info")
         img = Image.open(BytesIO(img_response.content))
         width, height = img.size
         
@@ -214,9 +221,8 @@ class HiggsfieldClient:
                 width = first_img['width']
                 height = first_img['height']
         else:
-            # Force 1024x1024 for T2I
-            width = 1024
-            height = 1024
+            # Calculate dimensions from aspect ratio for T2I
+            width, height = self._get_image_dimensions_from_ratio(aspect_ratio)
 
         # Check if it's regular Nano Banana (not PRO)
         # Handle both "nano-banana" and "Nano Banana" formats
@@ -258,14 +264,14 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
 
         response = requests.post(url, headers=headers, data=payload)
-        response.raise_for_status()
+        self._handle_response(response, "Generate image")
         try:
             data = response.json()
             if 'job_sets' in data and len(data['job_sets']) > 0:
                 return data['job_sets'][0]['id']
             return None
         except (json.JSONDecodeError, ValueError) as e:
-            raise Exception(f"Failed to parse generate response: {e}, Response: {response.text[:200]}")
+            raise Exception(f"Failed to parse image generation response")
 
     def get_job_status(self, job_id: str) -> dict:
         jwt_token = self.get_jwt_token_with_retry()
@@ -292,13 +298,34 @@ class HiggsfieldClient:
         """Convert duration string to integer (e.g., '5s' -> 5)"""
         return int(duration.replace('s', ''))
 
+    def _get_image_dimensions_from_ratio(self, aspect_ratio: str) -> tuple:
+        """Get width and height from aspect ratio for Image models (approx 1MP)"""
+        mapping = {
+            "1:1": (1024, 1024),
+            "16:9": (1344, 768),
+            "9:16": (768, 1344),
+            "4:3": (1152, 864),
+            "3:4": (864, 1152),
+            "21:9": (1536, 640),
+            "5:4": (1136, 912),
+            "4:5": (912, 1136),
+            "3:2": (1216, 816),
+            "2:3": (816, 1216),
+            "auto": (1024, 1024)
+        }
+        return mapping.get(aspect_ratio, (1024, 1024))
+
     def _get_dimensions_from_aspect_ratio(self, aspect_ratio: str) -> tuple:
-        """Get width and height from aspect ratio"""
+        """Get width and height from aspect ratio for Video models (HD/FHD)"""
         mapping = {
             "16:9": (1920, 1080),
             "9:16": (1080, 1920),
-            "1:1": (1080, 1080)
+            "1:1": (1080, 1080),
+            "4:3": (1440, 1080),
+            "3:4": (1080, 1440),
+            "21:9": (2560, 1080)
         }
+        # Fallback to 9:16 for unknown ratios often used in mobile
         return mapping.get(aspect_ratio, (1080, 1920))
 
     def generate_video_kling_2_5_turbo(self, prompt: str, duration: int, resolution: str,
@@ -352,7 +379,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
 
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Generate Nano Banana PRO")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -403,7 +430,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
 
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Get job status")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -458,7 +485,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
 
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Generate video")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -563,7 +590,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
         
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Kling 2.5 Turbo I2V")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -602,7 +629,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
         
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Kling O1 I2V")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -642,7 +669,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
         
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Kling 2.6 T2V")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:
@@ -685,7 +712,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
         
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()
+        self._handle_response(response, "Kling 2.6 I2V")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:

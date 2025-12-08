@@ -7,6 +7,7 @@ pydantic-settings>=2.0.0
 
 # HTTP Client
 requests>=2.31.0
+httpx>=0.25.0
 
 # Environment Variables
 python-dotenv>=1.0.0
@@ -16,3 +17,10 @@ Pillow>=10.0.0
 
 # Multipart Form Data
 python-multipart>=0.0.6
+
+# Authentication & Security
+PyJWT>=2.8.0
+bcrypt>=4.0.0
+
+# Email Validation (required by pydantic EmailStr)
+email-validator>=2.0.0

@@ -21,8 +21,8 @@ export function useGenerateImage() {
         setLoading(true);
         setError(null);
         try {
-            // Use the correct API endpoint for Nano Banana image generation
-            const data = await apiRequest<GenerationResponse>('/api/nano-banana/generate', {
+            // Use the correct API endpoint for image generation
+            const data = await apiRequest<GenerationResponse>('/api/generate/image/generate', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });

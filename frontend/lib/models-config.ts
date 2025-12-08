@@ -19,14 +19,14 @@ export interface ModelConfig {
 
 export const IMAGE_MODELS: ModelConfig[] = [
     { 
-        value: 'Nano Banana', 
+        value: 'nano-banana', 
         label: 'Nano Banana', 
         description: 'Phiên bản Nano Banana của Google',
         icon: Banana,
-        aspectRatios: ['1:1', '9:16', '16:9', '4:3', '3:4']
+        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5']
     },
     { 
-        value: 'Nano Banana PRO', 
+        value: 'nano-banana-pro', 
         label: 'Nano Banana PRO', 
         description: 'Phiên bản "Chuối" PRO của Google',
         icon: Banana,
@@ -34,60 +34,19 @@ export const IMAGE_MODELS: ModelConfig[] = [
         colors: 'yellow',
         // PRO supports resolution selection
         resolutions: ['1k', '2k', '4k'],  // Lowercase as required by API
-        aspectRatios: undefined // Show all
+        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5']
     }
 ];
 
 export const VIDEO_MODELS: ModelConfig[] = [
-    // { 
-    //     value: 'higgsfield', 
-    //     label: 'Higgsfield', 
-    //     description: 'Advanced camera controls and effect presets',
-    //     icon: Sparkles,
-    //     durations: ['5s', '10s'],
-    //     qualities: ['720p', '1080p']
-    // },
-    // { 
-    //     value: 'minimax-hailuo', 
-    //     label: 'Minimax Hailuo', 
-    //     description: 'High-dynamic VFX-ready, fastest and most affordable',
-    //     icon: Zap,
-    //     badge: 'Unlimited',
-    //     durations: ['5s', '10s'],
-    //     qualities: ['720p']
-    // },
-    // { 
-    //     value: 'openai-sora-2', 
-    //     label: 'OpenAI Sora 2', 
-    //     description: 'Multi-shot video with sound generation',
-    //     icon: Video,
-    //     durations: ['4s', '8s', '12s'],
-    //     qualities: ['1080p']
-    // },
-    // { 
-    //     value: 'google-veo', 
-    //     label: 'Google Veo', 
-    //     description: 'Precision video with sound control',
-    //     icon: Globe,
-    //     durations: ['5s'],
-    //     qualities: ['1080p']
-    // },
-    // { 
-    //     value: 'wan', 
-    //     label: 'Wan', 
-    //     description: 'Camera-controlled video with sound, more freedom',
-    //     icon: Wind,
-    //     durations: ['5s'],
-    //     qualities: ['720p', '1080p']
-    // },
     { 
         value: 'kling-2.5-turbo', 
         label: 'Kling 2.5 Turbo', 
         description: 'Chỉ hỗ trợ IMG to Video',
         icon: Clapperboard,
-        badge: 'Unlimited',
-        durations: ['5s'],
-        resolutions: ['720p'],
+        badge: 'NHANH',
+        durations: ['5s','10s'],
+        resolutions: ['720p', '1080p'],
         note: 'Chỉ hỗ trợ IMG to Video. Tốc độ nhanh nhất',
     },
     { 
@@ -95,8 +54,8 @@ export const VIDEO_MODELS: ModelConfig[] = [
         label: 'Kling O1 Video', 
         description: 'Chỉ hỗ trợ IMG to Video',
         icon: Clapperboard,
-        badge: 'Unlimited',
-        durations: ['5s'],
+        badge: 'RẺ',
+        durations: ['5s', '10s'],
         aspectRatios: ['9:16', '16:9', '1:1'],
         note: 'Chỉ hỗ trợ IMG to Video. Tốc độ trung bình',
     },
@@ -105,21 +64,12 @@ export const VIDEO_MODELS: ModelConfig[] = [
         label: 'Kling 2.6', 
         description: 'Bao gồm cả T2V và I2V',
         icon: Clapperboard,
-        badge: 'Unlimited',
-        durations: ['5s'],
+        badge: 'RẺ',
+        durations: ['5s','10s'],
         aspectRatios: ['9:16', '16:9', '1:1'],
         audio: true,
         note: 'Bao gồm cả T2V và I2V. Tốc độ chậm',
-    },
-    // { 
-    //     value: 'seedance', 
-    //     label: 'Seedance', 
-    //     description: 'Cinematic multi-shot video creation',
-    //     icon: BarChart3,
-    //     badge: 'Unlimited',
-    //     durations: ['5s', '10s'],
-    //     qualities: ['720p', '1080p']
-    // },
+    }
 ];
 
 export const getModelConfig = (value: string, mode: 'image' | 'video'): ModelConfig | undefined => {

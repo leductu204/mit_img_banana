@@ -1,10 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Button from "../common/Button"
-import { Sparkles, Video, Loader2, Volume2 } from "lucide-react"
+import { Sparkles, Video, Loader2, Volume2, Coins, AlertCircle } from "lucide-react"
 import { useGenerateVideo } from "@/hooks/useGenerateVideo"
+import { useCredits } from "@/hooks/useCredits"
 import { apiRequest } from "@/lib/api"
+import { getAuthHeader } from "@/lib/auth"
+import { NEXT_PUBLIC_API } from "@/lib/config"
+import { useToast } from "@/hooks/useToast"
 import ImageUpload from "./ImageUpload"
 import dynamic from 'next/dynamic'
 
@@ -13,6 +17,7 @@ import ModelSelector from "./ModelSelector"
 import DurationSelector from "./DurationSelector"
 import QualitySelector from "./QualitySelector"
 import AspectRatioSelector from "./AspectRatioSelector"
+import InsufficientCreditsModal from "../common/InsufficientCreditsModal"
 import { getModelConfig } from "@/lib/models-config"
 
 export function VideoGenerator() {
@@ -23,6 +28,7 @@ export function VideoGenerator() {
     const [quality, setQuality] = useState("720p")
     const [aspectRatio, setAspectRatio] = useState("16:9")
     const [audio, setAudio] = useState(false)
+    const [showCreditsModal, setShowCreditsModal] = useState(false)
 
     // Update state when model changes
     useEffect(() => {
@@ -46,6 +52,13 @@ export function VideoGenerator() {
     
     
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
+    const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
+    const toast = useToast()
+
+    // Calculate estimated cost based on current selections
+    const estimatedCost = useMemo(() => {
+        return estimateVideoCost(model, duration, quality)
+    }, [model, duration, quality, estimateVideoCost])
 
     // Mode is inferred from referenceImage presence
     const isImageToVideo = referenceImages.length > 0
@@ -63,6 +76,12 @@ export function VideoGenerator() {
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return
+        
+        // Check credits before proceeding
+        if (!hasEnoughCredits(estimatedCost)) {
+            setShowCreditsModal(true)
+            return
+        }
         
         // Check if model only supports I2V
         const i2vOnlyModels = ['kling-2.5-turbo', 'kling-o1-video']
@@ -85,8 +104,8 @@ export function VideoGenerator() {
             if (isImageToVideo && referenceImages.length > 0) {
                 const file = referenceImages[0]
                 
-                // Get upload URL from Higgsfield
-                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/nano-banana/media', {
+                // Get upload URL from backend
+                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
                     method: 'POST'
                 })
                 
@@ -104,7 +123,7 @@ export function VideoGenerator() {
                 }
                 
                 // Confirm upload
-                await apiRequest('/api/nano-banana/upload/check', {
+                await apiRequest('/api/generate/image/upload/check', {
                     method: 'POST',
                     body: JSON.stringify({ img_id: uploadInfo.id })
                 })
@@ -126,14 +145,14 @@ export function VideoGenerator() {
             let endpoint = ''
             
             if (model === 'kling-2.5-turbo') {
-                endpoint = '/api/generate/kling-2.5-turbo/i2v'
+                endpoint = '/api/generate/video/kling-2.5-turbo/i2v'
                 formData.append('resolution', quality)
                 formData.append('img_id', imgId)
                 formData.append('img_url', imgUrl)
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
             } else if (model === 'kling-o1-video') {
-                endpoint = '/api/generate/kling-o1/i2v'
+                endpoint = '/api/generate/video/kling-o1/i2v'
                 formData.append('aspect_ratio', aspectRatio)
                 formData.append('img_id', imgId)
                 formData.append('img_url', imgUrl)
@@ -142,22 +161,25 @@ export function VideoGenerator() {
             } else if (model === 'kling-2.6') {
                 formData.append('sound', audio.toString())
                 if (isImageToVideo) {
-                    endpoint = '/api/generate/kling-2.6/i2v'
+                    endpoint = '/api/generate/video/kling-2.6/i2v'
                     formData.append('img_id', imgId)
                     formData.append('img_url', imgUrl)
                     formData.append('width', imgWidth.toString())
                     formData.append('height', imgHeight.toString())
                 } else {
-                    endpoint = '/api/generate/kling-2.6/t2v'
+                    endpoint = '/api/generate/video/kling-2.6/t2v'
                     formData.append('aspect_ratio', aspectRatio)
                 }
             } else {
                 throw new Error(`Unknown model: ${model}`)
             }
             
-            const response = await fetch(endpoint, {
+            const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    ...getAuthHeader()
+                }
             })
             
             if (!response.ok) {
@@ -166,6 +188,13 @@ export function VideoGenerator() {
             }
             
             const genRes = await response.json()
+
+            // Show success toast with job ID
+            toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+
+            if (genRes.credits_remaining !== undefined) {
+                updateCredits(genRes.credits_remaining)
+            }
             
             // Poll for completion
             const checkStatus = async () => {
@@ -174,15 +203,19 @@ export function VideoGenerator() {
                     if (statusRes.status === 'completed' && statusRes.result) {
                         setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
                         setLoading(false)
+                        toast.success('✅ Tạo video thành công!')
                     } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                        setError("Video generation failed")
+                        setError("Tạo video thất bại. Credits đã được hoàn lại")
                         setLoading(false)
+                        toast.error('Tạo video thất bại. Credits đã được hoàn lại')
                     } else {
                         setTimeout(checkStatus, 8000)
                     }
-                } catch (e) {
-                    setError("Failed to check status")
+                } catch (e: any) {
+                    const errorMsg = e.message || "Failed to check status"
+                    setError(errorMsg)
                     setLoading(false)
+                    toast.error(errorMsg)
                 }
             }
             
@@ -190,8 +223,10 @@ export function VideoGenerator() {
             
         } catch (e: any) {
             console.error(e)
-            setError(e.message || "An error occurred")
+            const errorMsg = e.message || "Đã xảy ra lỗi"
+            setError(errorMsg)
             setLoading(false)
+            toast.error(errorMsg)
         }
     }
 
@@ -300,15 +335,41 @@ export function VideoGenerator() {
 
                 {/* Generate Button */}
                 <div className="mt-8 pt-6 border-t border-border sticky bottom-0 bg-card z-10">
+                    {/* Cost Estimate */}
+                    <div className="mb-4 p-3 rounded-lg bg-muted/50 space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground flex items-center gap-1.5">
+                                <Coins className="h-4 w-4" />
+                                Chi phí:
+                            </span>
+                            <span className="font-medium text-foreground">{estimatedCost} credits</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Số dư:</span>
+                            <span className={`font-medium ${balance >= estimatedCost ? 'text-green-500' : 'text-red-500'}`}>
+                                {balance} credits
+                            </span>
+                        </div>
+                    </div>
+
                     <Button
                         onClick={handleGenerate}
-                        disabled={loading || !prompt.trim()}
-                        className="w-full bg-[#0F766E] hover:bg-[#0D655E] text-white font-medium h-11 rounded-md shadow-sm transition-all duration-200"
+                        disabled={loading || !prompt.trim() || balance < estimatedCost}
+                        className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                            balance < estimatedCost 
+                                ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
+                                : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        }`}
                     >
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 Đang tạo...
+                            </>
+                        ) : balance < estimatedCost ? (
+                            <>
+                                <AlertCircle className="mr-2 h-4 w-4" />
+                                Không đủ credits
                             </>
                         ) : (
                             <>
@@ -319,6 +380,14 @@ export function VideoGenerator() {
                     </Button>
                     <p className="text-xs text-muted-foreground text-center mt-4">Hỗ trợ, báo lỗi - 0352143210 </p>
                 </div>
+
+                {/* Insufficient Credits Modal */}
+                <InsufficientCreditsModal
+                    isOpen={showCreditsModal}
+                    onClose={() => setShowCreditsModal(false)}
+                    required={estimatedCost}
+                    available={balance}
+                />
             </div>
 
             {/* Right Panel - Preview */}

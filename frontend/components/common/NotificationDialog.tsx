@@ -14,7 +14,7 @@ export default function NotificationDialog({
     title = "Thông báo ",
     message = (
         <span>
-            OPEN BETA - Sử dụng miễn phí Nano Banana, Nano Banana PRO và Kling. Nếu website gặp lỗi, hãy liên hệ{" "}
+            OPEN BETA - Sử dụng miễn phí Nano Banana PRO và KLING. Nếu website gặp lỗi, hãy liên hệ{" "}
             <a 
                 href="https://zalo.me/0352143210" 
                 target="_blank" 

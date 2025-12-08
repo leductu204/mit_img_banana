@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import Plyr from 'plyr-react';
 import 'plyr-react/plyr.css';
 import { Download } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
 
 interface VideoPreviewProps {
     videoUrl: string;
@@ -11,9 +12,11 @@ interface VideoPreviewProps {
 
 export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
     const plyrRef = useRef<any>(null);
+    const toast = useToast();
 
     const handleDownload = async () => {
         try {
+            toast.info('Đang tải video xuống...', 3000);
             const response = await fetch(videoUrl);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -24,8 +27,10 @@ export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            toast.success('Tải video thành công!');
         } catch (error) {
             console.error('Download failed:', error);
+            toast.error('Lỗi khi tải video');
         }
     };
 

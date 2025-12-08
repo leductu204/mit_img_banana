@@ -7,7 +7,8 @@ import {
     Smartphone,
     Maximize,
     ChevronDown,
-    Check
+    Check,
+    Wand2
 } from 'lucide-react';
 
 interface AspectRatioSelectorProps {
@@ -21,9 +22,17 @@ export default function AspectRatioSelector({ value, onChange, options: allowedO
     const containerRef = useRef<HTMLDivElement>(null);
 
     const allOptions = [
+        { value: 'auto', label: 'Auto', icon: Wand2 },
         { value: '1:1', label: '1:1', icon: Square },
+        { value: '4:3', label: '4:3', icon: Monitor },
+        { value: '3:4', label: '3:4', icon: RectangleVertical },
         { value: '16:9', label: '16:9', icon: RectangleHorizontal },
         { value: '9:16', label: '9:16', icon: Smartphone },
+        { value: '21:9', label: '21:9', icon: Maximize },
+        { value: '5:4', label: '5:4', icon: Monitor },
+        { value: '4:5', label: '4:5', icon: RectangleVertical },
+        { value: '3:2', label: '3:2', icon: RectangleHorizontal },
+        { value: '2:3', label: '2:3', icon: RectangleVertical },
     ];
 
     const options = allowedOptions 
