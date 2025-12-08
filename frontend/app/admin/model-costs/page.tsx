@@ -26,7 +26,7 @@ export default function AdminModelCostsPage() {
   const fetchCosts = async () => {
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/model-costs`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/model-costs`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -64,7 +64,7 @@ export default function AdminModelCostsPage() {
     setSaving(key);
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/model-costs`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/model-costs`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,7 +96,7 @@ export default function AdminModelCostsPage() {
   const seedDefaults = async () => {
     try {
       const token = getAdminToken();
-      await fetch(`${NEXT_PUBLIC_API}/admin/model-costs/seed-defaults`, {
+      await fetch(`${NEXT_PUBLIC_API}/api/admin/model-costs/seed-defaults`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -129,7 +129,7 @@ export default function AdminModelCostsPage() {
       });
 
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/model-costs/bulk`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/model-costs/bulk`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,

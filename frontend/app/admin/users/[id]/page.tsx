@@ -72,7 +72,7 @@ export default function AdminUserDetailPage() {
   const fetchUser = async () => {
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -96,7 +96,7 @@ export default function AdminUserDetailPage() {
     setActionLoading(true);
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}/credits/add`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/${userId}/credits/add`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -127,7 +127,7 @@ export default function AdminUserDetailPage() {
     setActionLoading(true);
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}/credits/deduct`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/${userId}/credits/deduct`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -159,8 +159,8 @@ export default function AdminUserDetailPage() {
     try {
       const token = getAdminToken();
       const endpoint = data.user.is_banned 
-        ? `${NEXT_PUBLIC_API}/admin/users/${userId}/unban`
-        : `${NEXT_PUBLIC_API}/admin/users/${userId}/ban`;
+        ? `${NEXT_PUBLIC_API}/api/admin/users/${userId}/unban`
+        : `${NEXT_PUBLIC_API}/api/admin/users/${userId}/ban`;
       
       const res = await fetch(endpoint, {
         method: 'POST',

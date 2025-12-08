@@ -106,13 +106,13 @@ app.include_router(costs.router, prefix="/api", tags=["costs"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 
 # ============================================
-# Admin Panel Routes
+# Admin Panel Routes (prefixed with /api to avoid frontend collision)
 # ============================================
-app.include_router(admin.router)  # /admin/auth/login, /admin/me
-app.include_router(admin_users.router)  # /admin/users
-app.include_router(admin_stats.router)  # /admin/stats
-app.include_router(admin_costs.router)  # /admin/model-costs
-app.include_router(admin_logs.router)  # /admin/audit-logs
+app.include_router(admin.router, prefix="/api")  # /api/admin/auth/login, /api/admin/me
+app.include_router(admin_users.router, prefix="/api")  # /api/admin/users
+app.include_router(admin_stats.router, prefix="/api")  # /api/admin/stats
+app.include_router(admin_costs.router, prefix="/api")  # /api/admin/model-costs
+app.include_router(admin_logs.router, prefix="/api")  # /api/admin/audit-logs
 
 
 @app.get("/")

@@ -58,7 +58,7 @@ export default function AdminUsersPage() {
       if (search) params.append('search', search);
       if (status !== 'all') params.append('status', status);
 
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users?${params}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -91,7 +91,7 @@ export default function AdminUsersPage() {
     setBulkLoading(true);
     try {
       const token = getAdminToken();
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/bulk-credits`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/bulk-credits`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

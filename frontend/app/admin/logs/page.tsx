@@ -46,7 +46,7 @@ export default function AdminLogsPage() {
       const params = new URLSearchParams({ page: page.toString(), limit: '30' });
       if (action) params.append('action', action);
 
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/audit-logs?${params}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/audit-logs?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

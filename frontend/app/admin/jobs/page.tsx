@@ -56,7 +56,7 @@ export default function AdminJobsPage() {
       if (model) params.append('model', model);
       if (search) params.append('user_search', search);
 
-      const res = await fetch(`${NEXT_PUBLIC_API}/admin/stats/jobs?${params}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/stats/jobs?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
