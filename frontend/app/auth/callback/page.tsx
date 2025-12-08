@@ -27,7 +27,7 @@ function CallbackContent() {
             if (token) {
                 setToken(token);
                 success('🎉 Đăng nhập thành công!');
-                router.push('/create-image');
+                router.push('/');
                 return;
             }
 

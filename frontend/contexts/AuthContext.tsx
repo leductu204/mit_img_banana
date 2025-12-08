@@ -76,8 +76,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [fetchUser]);
 
     const login = useCallback(() => {
-        // Redirect to Google OAuth
-        window.location.href = `${NEXT_PUBLIC_API}/auth/google/login`;
+        // Redirect to Google OAuth with absolute URL
+        const apiUrl = NEXT_PUBLIC_API || 'https://dtnanotool.io.vn';
+        window.location.href = `${apiUrl}/auth/google/login`;
     }, []);
 
     const logout = useCallback(() => {

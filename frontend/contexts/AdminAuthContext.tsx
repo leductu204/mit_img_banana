@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { NEXT_PUBLIC_API } from '@/lib/config';
 
 interface Admin {
   admin_id: string;
@@ -42,7 +43,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const res = await fetch('http://localhost:8000/admin/me', {
+        const res = await fetch(`${NEXT_PUBLIC_API}/admin/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -71,7 +72,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/admin/auth/login', {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
