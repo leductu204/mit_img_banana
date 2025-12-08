@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAdminToken } from '@/contexts/AdminAuthContext';
+import { NEXT_PUBLIC_API } from '@/lib/config';
 import { 
   Users, 
   CreditCard, 
@@ -55,7 +56,7 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       try {
         const token = getAdminToken();
-        const res = await fetch('http://localhost:8000/admin/stats', {
+        const res = await fetch(`${NEXT_PUBLIC_API}/admin/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

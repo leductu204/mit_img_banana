@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getAdminToken } from '@/contexts/AdminAuthContext';
+import { NEXT_PUBLIC_API } from '@/lib/config';
 import { 
   ArrowLeft,
   Loader2,
@@ -71,7 +72,7 @@ export default function AdminUserDetailPage() {
   const fetchUser = async () => {
     try {
       const token = getAdminToken();
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -95,7 +96,7 @@ export default function AdminUserDetailPage() {
     setActionLoading(true);
     try {
       const token = getAdminToken();
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}/credits/add`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}/credits/add`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -126,7 +127,7 @@ export default function AdminUserDetailPage() {
     setActionLoading(true);
     try {
       const token = getAdminToken();
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}/credits/deduct`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/users/${userId}/credits/deduct`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -158,8 +159,8 @@ export default function AdminUserDetailPage() {
     try {
       const token = getAdminToken();
       const endpoint = data.user.is_banned 
-        ? `http://localhost:8000/admin/users/${userId}/unban`
-        : `http://localhost:8000/admin/users/${userId}/ban`;
+        ? `${NEXT_PUBLIC_API}/admin/users/${userId}/unban`
+        : `${NEXT_PUBLIC_API}/admin/users/${userId}/ban`;
       
       const res = await fetch(endpoint, {
         method: 'POST',

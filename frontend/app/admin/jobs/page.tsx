@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAdminToken } from '@/contexts/AdminAuthContext';
+import { NEXT_PUBLIC_API } from '@/lib/config';
 import { 
   Loader2, 
   CheckCircle, 
@@ -55,7 +56,7 @@ export default function AdminJobsPage() {
       if (model) params.append('model', model);
       if (search) params.append('user_search', search);
 
-      const res = await fetch(`http://localhost:8000/admin/stats/jobs?${params}`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/stats/jobs?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
