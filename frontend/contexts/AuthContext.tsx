@@ -75,6 +75,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
         fetchUser();
     }, [fetchUser]);
 
+    // Watch for token changes (e.g., after OAuth callback)
+    useEffect(() => {
+        const checkTokenChange = () => {
+            const token = getToken();
+            if (token && !user && !isLoading) {
+                fetchUser();
+            }
+        };
+
+        // Check immediately
+        checkTokenChange();
+
+        // Set up interval to check for token changes
+        const interval = setInterval(checkTokenChange, 500);
+
+        return () => clearInterval(interval);
+    }, [user, isLoading, fetchUser]);
+
     const login = useCallback(() => {
         // Redirect to Google OAuth with absolute URL
         const apiUrl = NEXT_PUBLIC_API || 'https://tramsangtao.com';

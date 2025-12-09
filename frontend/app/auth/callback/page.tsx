@@ -26,8 +26,12 @@ function CallbackContent() {
             const token = searchParams.get('token');
             if (token) {
                 setToken(token);
+                
+                // Wait a bit for the token to be set and fetch user data
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 success('🎉 Đăng nhập thành công!');
-                router.push('/');
+                router.push('/create-image');
                 return;
             }
 
@@ -44,6 +48,10 @@ function CallbackContent() {
                         const data = await response.json();
                         if (data.access_token) {
                             setToken(data.access_token);
+                            
+                            // Wait a bit for the token to be set
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
                             success('🎉 Đăng nhập thành công!');
                             router.push('/create-image');
                             return;
