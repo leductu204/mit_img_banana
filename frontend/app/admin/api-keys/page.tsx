@@ -19,7 +19,7 @@ interface APIKey {
 }
 
 export default function AdminAPIKeysPage() {
-  const { admin, loading: authLoading } = useAdminAuth(); // Corrected Hook
+  const { admin, isLoading: authLoading } = useAdminAuth(); // Corrected Hook
   const router = useRouter();
   const [keys, setKeys] = useState<APIKey[]>([]);
   const [loading, setLoading] = useState(true);
