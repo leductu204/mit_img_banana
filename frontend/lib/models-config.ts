@@ -54,7 +54,6 @@ export const VIDEO_MODELS: ModelConfig[] = [
         label: 'Kling O1 Video', 
         description: 'Chỉ hỗ trợ IMG to Video',
         icon: Clapperboard,
-        badge: 'RẺ',
         durations: ['5s', '10s'],
         aspectRatios: ['9:16', '16:9', '1:1'],
         note: 'Chỉ hỗ trợ IMG to Video. Tốc độ trung bình',
@@ -69,6 +68,34 @@ export const VIDEO_MODELS: ModelConfig[] = [
         aspectRatios: ['9:16', '16:9', '1:1'],
         audio: true,
         note: 'Bao gồm cả T2V và I2V. Tốc độ chậm',
+    },
+    { 
+        value: 'veo3.1-low', 
+        label: 'Veo 3.1', 
+        description: 'Mô hình veo3.1 - RẺ',
+        icon: Video,
+        badge: 'HOT - RẺ',
+        aspectRatios: ['9:16', '16:9'],
+        note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - RẺ',
+    },
+    { 
+        value: 'veo3.1-fast', 
+        label: 'Veo 3.1 FAST', 
+        description: 'Mô hình veo3.1 - NHANH',
+        icon: Zap,
+        badge: 'NHANH',
+        colors: 'green',
+        aspectRatios: ['9:16', '16:9'],
+        note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - NHANH',
+    },
+    { 
+        value: 'veo3.1-high', 
+        label: 'Veo 3.1 HIGH', 
+        description: 'Chất lượng tốt nhất',
+        icon: Sparkles,
+        colors: 'yellow',
+        aspectRatios: ['9:16', '16:9'],
+        note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - CHẤT LƯỢNG CAO',
     }
 ];
 

@@ -53,6 +53,21 @@ def get_model_costs() -> dict:
                 if resolution not in structured[model]:
                     structured[model][resolution] = {}
                 structured[model][resolution][rest] = credits
+        
+        elif model in ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]:
+            # Simple key mapping for Veo models (just "8s" -> credits)
+            structured[model][config_key] = credits
+    
+    # Fallback: Ensure Veo3 models exist even if DB is empty/lagging
+    veo_defaults = {
+        "veo3.1-low": {"8s": 15},
+        "veo3.1-fast": {"8s": 10},
+        "veo3.1-high": {"8s": 20}
+    }
+    for m, c in veo_defaults.items():
+        if m not in structured:
+            print(f"DEBUG: Using fallback cost for {m}")
+            structured[m] = c
     
     return structured
 
@@ -181,6 +196,14 @@ def calculate_video_cost(
         
         return model_costs[resolution][key]
     
+    elif model in ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]:
+        # Veo 3.1 - fixed 8s duration
+        if "8s" in model_costs:
+            return model_costs["8s"]
+        else:
+            # Fallback to a reasonable default
+            raise CostCalculationError(f"Cost config not found for {model}")
+    
     else:
         raise CostCalculationError(f"Unknown video model: {model}")
 
@@ -206,7 +229,7 @@ def calculate_cost(
         Credit cost as integer
     """
     # Determine if this is a video model
-    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6"]
+    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6", "veo3.1-low", "veo3.1-fast", "veo3.1-high"]
     
     if model in video_models:
         return calculate_video_cost(

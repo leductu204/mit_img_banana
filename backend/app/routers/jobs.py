@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 
 from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.google_client import google_veo_client
 from app.schemas.higgsfield import JobStatusResponse
 from app.schemas.users import UserInDB
 from app.deps import get_current_user, get_current_user_optional
@@ -51,8 +52,14 @@ async def get_job_status(
     If authenticated, also checks job ownership and triggers refund for failed jobs.
     """
     try:
-        # Get latest status from Higgsfield API
-        result = higgsfield_client.get_job_status(job_id)
+        # Determine which client to use based on job_id format
+        # Veo3 jobs have format: "operation_name|scene_id"
+        if "|" in job_id:
+            # Veo3 job - use Google client
+            result = google_veo_client.get_job_status(job_id)
+        else:
+            # Kling job - use Higgsfield client
+            result = higgsfield_client.get_job_status(job_id)
         
         # If user is authenticated, update our database
         if current_user:

@@ -132,6 +132,15 @@ def seed_default_costs() -> None:
         ("kling-2.6", "720p-10s", 14),
         ("kling-2.6", "720p-5s-audio", 10),
         ("kling-2.6", "720p-10s-audio", 18),
+        
+        # Veo 3.1 LOW (ultra relaxed - slower, higher quality)
+        ("veo3.1-low", "8s", 15),
+        
+        # Veo 3.1 FAST (fast ultra - faster generation)
+        ("veo3.1-fast", "8s", 10),
+        
+        # Veo 3.1 HIGH (standard high quality)
+        ("veo3.1-high", "8s", 20),
     ]
     
     with get_db_context() as conn:

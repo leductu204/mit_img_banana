@@ -141,9 +141,74 @@ export function VideoGenerator() {
             const formData = new FormData()
             formData.append('prompt', prompt)
             formData.append('duration', durationInt.toString())
-            
             let endpoint = ''
             
+            // Veo 3.1 models use dedicated form-data endpoints
+            if (model.startsWith('veo3.1-')) {
+                const formData = new FormData()
+                formData.append('prompt', prompt)
+                formData.append('aspect_ratio', aspectRatio)
+                
+                // Determine T2V or I2V mode based on image upload
+                const mode = isImageToVideo ? 'i2v' : 't2v'
+                
+                // Add image data for I2V (only img_url needed - Veo re-uploads to get media_id)
+                if (mode === 'i2v' && isImageToVideo) {
+                    formData.append('img_url', imgUrl)
+                }
+                
+                // Convert veo3.1-* to veo3_1-* for URL path (period causes 404)
+                const modelPath = model.replace('.', '_')
+                
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        ...getAuthHeader()
+                    }
+                })
+                
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    throw new Error(`Failed to generate video: ${response.status} - ${errorText}`)
+                }
+                
+                const genRes = await response.json()
+                
+                toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                
+                if (genRes.credits_remaining !== undefined) {
+                    updateCredits(genRes.credits_remaining)
+                }
+                
+                // Poll for completion
+                const checkStatus = async () => {
+                    try {
+                        const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
+                        if (statusRes.status === 'completed' && statusRes.result) {
+                            setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
+                            setLoading(false)
+                            toast.success('✅ Tạo video thành công!')
+                        } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
+                            setError("Tạo video thất bại. Credits đã được hoàn lại")
+                            setLoading(false)
+                            toast.error('Tạo video thất bại. Credits đã được hoàn lại')
+                        } else {
+                            setTimeout(checkStatus, 8000)
+                        }
+                    } catch (e: any) {
+                        const errorMsg = e.message || "Failed to check status"
+                        setError(errorMsg)
+                        setLoading(false)
+                        toast.error(errorMsg)
+                    }
+                }
+                
+                checkStatus()
+                return  // Exit early for Veo3
+            }
+            
+            // Kling models use form-data endpoints
             if (model === 'kling-2.5-turbo') {
                 endpoint = '/api/generate/video/kling-2.5-turbo/i2v'
                 formData.append('resolution', quality)

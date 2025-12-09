@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # CORS Origins (comma-separated list for production)
     CORS_ORIGINS: Optional[str] = Field(default=None, env="CORS_ORIGINS")
     
+    # Google Veo API Cookie (for Veo 3.1 video generation)
+    GOOGLE_VEO_COOKIE: Optional[str] = Field(default="", env="GOOGLE_VEO_COOKIE")
+    
     @model_validator(mode='after')
     def validate_jwt_secret(self):
         """Warn if using default JWT_SECRET"""
