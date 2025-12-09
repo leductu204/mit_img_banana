@@ -75,6 +75,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         description: 'Mô hình veo3.1 - RẺ',
         icon: Video,
         badge: 'HOT - RẺ',
+        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - RẺ',
     },
@@ -85,6 +86,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         icon: Zap,
         badge: 'NHANH',
         colors: 'green',
+        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - NHANH',
     },
@@ -94,6 +96,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         description: 'Chất lượng tốt nhất',
         icon: Sparkles,
         colors: 'yellow',
+        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - CHẤT LƯỢNG CAO',
     }

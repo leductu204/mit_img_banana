@@ -154,7 +154,10 @@ export default function AdminModelCostsPage() {
     'nano-banana-pro': 'Nano Banana PRO',
     'kling-2.5-turbo': 'Kling 2.5 Turbo',
     'kling-o1-video': 'Kling O1 Video',
-    'kling-2.6': 'Kling 2.6'
+    'kling-2.6': 'Kling 2.6',
+    'veo3.1-low': 'Veo 3.1 Low (Relaxed)',
+    'veo3.1-fast': 'Veo 3.1 Fast',
+    'veo3.1-high': 'Veo 3.1 High'
   };
 
   const hasChanges = Object.keys(editedCosts).length > 0;
@@ -184,15 +187,14 @@ export default function AdminModelCostsPage() {
               </button>
             )}
 
-            {costs.length === 0 && (
-              <button
-                onClick={seedDefaults}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Seed Default Costs
-              </button>
-            )}
+            <button
+              onClick={seedDefaults}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+              title="Adds any missing default costs"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Sync Defaults
+            </button>
         </div>
       </div>
 

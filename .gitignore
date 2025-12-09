@@ -23,5 +23,7 @@ __pycache__/
 # AI Pro Max
 .agent/
 .shared/
-*test*
+
 *.db
+
+*test*

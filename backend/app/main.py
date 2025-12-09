@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import auth, image, video, jobs, users, health, costs
-from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs
+from .routers import auth, image, video, jobs, users, health, costs, api_keys, public_api
+from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys
 from .config import settings
 from .database.db import init_database
 from .services.admin_service import create_initial_admin
 from .repositories import model_costs_repo
+from .tasks.cleanup import run_pending_jobs_cleanup
+import asyncio
 
 
 @asynccontextmanager
@@ -47,10 +49,21 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Database initialization failed: {e}")
         print("The app will continue but database features may not work.")
     
+    # Start background cleanup task
+    print("Starting background cleanup task...")
+    cleanup_task = asyncio.create_task(run_pending_jobs_cleanup())
+    
     yield
     
     # Shutdown: Cleanup if needed
     print("Shutting down...")
+    
+    # Cancel background task
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        print("Cleanup task cancelled")
 
 
 app = FastAPI(
@@ -96,6 +109,12 @@ app.include_router(video.router, prefix="/api/generate/video", tags=["video"])
 # Job management
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 
+# API Keys (Internal management)
+app.include_router(api_keys.router, prefix="/api/keys", tags=["api-keys"])
+
+# Public API (External developers)
+app.include_router(public_api.router, prefix="/v1", tags=["public-api"])
+
 # User data
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 
@@ -113,6 +132,7 @@ app.include_router(admin_users.router, prefix="/api")  # /api/admin/users
 app.include_router(admin_stats.router, prefix="/api")  # /api/admin/stats
 app.include_router(admin_costs.router, prefix="/api")  # /api/admin/model-costs
 app.include_router(admin_logs.router, prefix="/api")  # /api/admin/audit-logs
+app.include_router(admin_api_keys.router, prefix="/api")  # /api/admin/keys
 
 
 @app.get("/")

@@ -54,7 +54,10 @@ export function useCredits() {
                     },
                     "kling-2.6": {
                         "720p": { "5s": 8, "10s": 14, "5s-audio": 10, "10s-audio": 18 }
-                    }
+                    },
+                    "veo3.1-low": { "8s": 5 },
+                    "veo3.1-fast": { "8s": 5 },
+                    "veo3.1-high": { "8s": 10 }
                 });
                 setCostsLoaded(true);
             }
@@ -103,10 +106,6 @@ export function useCredits() {
         const fallbackCost = costs["16:9"] ?? costs["1:1"] ?? 2;
         return fallbackCost;
     };
-
-    /**
-     * Estimate cost for video generation
-     */
     const estimateVideoCost = (
         model: string,
         duration: string = "5s",
@@ -117,6 +116,11 @@ export function useCredits() {
 
         const costs = modelCosts[model];
         if (!costs) return 5; // Default fallback
+
+        // Handle flat cost (number)
+        if (typeof costs === 'number') {
+            return costs;
+        }
 
         if (costs[resolution]) {
             // Try with aspect ratio first (for kling-o1-video)
@@ -131,6 +135,11 @@ export function useCredits() {
             }
             
             return costs[resolution]["5s"] ?? 5;
+        }
+        
+        // Handle models with direct duration keys (e.g. Veo: { "8s": 15 })
+        if (costs[duration] !== undefined) {
+            return costs[duration];
         }
 
         return 5;

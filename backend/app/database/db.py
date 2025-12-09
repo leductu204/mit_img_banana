@@ -110,6 +110,9 @@ def init_database() -> None:
         # Also initialize admin tables
         init_admin_tables(conn)
         
+        # Initialize API Key tables (Public API)
+        init_api_key_tables(conn)
+        
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
@@ -209,6 +212,99 @@ def init_admin_tables(conn=None) -> None:
         print("Admin tables initialized successfully")
     except Exception as e:
         print(f"Error initializing admin tables: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
+
+
+def init_api_key_tables(conn=None) -> None:
+    """
+    Initialize API Key tables for Public API system.
+    Creates api_keys, api_key_usage, and api_key_quotas tables.
+    """
+    api_schema = """
+    -- API Keys table
+    CREATE TABLE IF NOT EXISTS api_keys (
+        key_id TEXT PRIMARY KEY,
+        user_id TEXT,                      -- NULLABLE (can be unlinked)
+        key_hash TEXT NOT NULL,            -- bcrypt hash of the key
+        key_prefix TEXT NOT NULL,          -- Display prefix: "sk_live_abc..."
+        balance INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TEXT DEFAULT (datetime('now')),
+        expires_at TEXT,                   -- Optional expiry
+        revoked_at TEXT,                   -- If manually revoked
+        last_used_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+    );
+
+    -- Indexes for api_keys
+    CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);
+
+    -- API Key Usage Audit Log
+    CREATE TABLE IF NOT EXISTS api_key_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_id TEXT NOT NULL,
+        endpoint TEXT NOT NULL,            -- "/v1/image/generate"
+        job_id TEXT,                       -- Link to jobs table if applicable
+        cost INTEGER NOT NULL,             -- Credits deducted
+        balance_before INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL,
+        status TEXT,                       -- "success", "failed", "insufficient_balance"
+        response_time_ms INTEGER,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (key_id) REFERENCES api_keys(key_id) ON DELETE CASCADE
+    );
+
+    -- Indexes for usage logs
+    CREATE INDEX IF NOT EXISTS idx_api_usage_key ON api_key_usage(key_id);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_key_usage(created_at);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_endpoint ON api_key_usage(endpoint);
+
+    -- API Key Quotas (Optional - for future analytics/limits)
+    CREATE TABLE IF NOT EXISTS api_key_quotas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_id TEXT NOT NULL,
+        period TEXT NOT NULL,              -- "2025-12" (YYYY-MM format)
+        requests_count INTEGER DEFAULT 0,
+        credits_used INTEGER DEFAULT 0,
+        images_generated INTEGER DEFAULT 0,
+        videos_generated INTEGER DEFAULT 0,
+        FOREIGN KEY (key_id) REFERENCES api_keys(key_id) ON DELETE CASCADE,
+        UNIQUE(key_id, period)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_api_quotas_key_period ON api_key_quotas(key_id, period);
+    """
+    
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    
+    try:
+        conn.executescript(api_schema)
+        
+        # Seed system user for unlinked public API usage
+        # This ensures 'jobs' table foreign key constraints are met
+        try:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO users (user_id, google_id, email, username, credits)
+                VALUES ('system_public_api', 'system_public_api', 'public-api@system.local', 'Public API System', 0)
+                """
+            )
+        except Exception as e:
+            print(f"Warning seeding system user: {e}")
+            
+        conn.commit()
+        print("API Key tables initialized successfully")
+    except Exception as e:
+        print(f"Error initializing API Key tables: {e}")
         raise
     finally:
         if should_close:

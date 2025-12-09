@@ -58,11 +58,10 @@ def delete_cost(model: str, config_key: str) -> bool:
 
 
 def seed_default_costs() -> None:
-    """Seed default model costs from JSON config if table is empty."""
-    # Check if table is empty
-    result = fetch_one("SELECT COUNT(*) as count FROM model_costs")
-    if result and result["count"] > 0:
-        return  # Already has data
+    """Seed default model costs. Inserts any missing default costs."""
+    # Get existing keys to avoid duplicates
+    existing = fetch_all("SELECT model, config_key FROM model_costs")
+    existing_set = {(r["model"], r["config_key"]) for r in existing}
     
     # Default costs based on model_costs.json
     default_costs = [
@@ -144,13 +143,17 @@ def seed_default_costs() -> None:
     ]
     
     with get_db_context() as conn:
+        count = 0
         for model, config_key, credits in default_costs:
-            conn.execute(
-                """
-                INSERT INTO model_costs (model, config_key, credits)
-                VALUES (?, ?, ?)
-                """,
-                (model, config_key, credits)
-            )
+            if (model, config_key) not in existing_set:
+                conn.execute(
+                    """
+                    INSERT INTO model_costs (model, config_key, credits)
+                    VALUES (?, ?, ?)
+                    """,
+                    (model, config_key, credits)
+                )
+                count += 1
     
-    print(f"Seeded {len(default_costs)} default model costs")
+    if count > 0:
+        print(f"Seeded {count} new model costs")

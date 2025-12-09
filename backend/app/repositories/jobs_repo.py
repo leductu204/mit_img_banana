@@ -210,3 +210,34 @@ def get_recent_by_user(user_id: str, limit: int = 10) -> List[dict]:
         """,
         (user_id, limit)
     )
+
+
+def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
+    """
+    Get job IDs that have been pending for longer than the specified minutes.
+    
+    Args:
+        minutes: Number of minutes to consider a job stale
+        
+    Returns:
+        List of stale jobs
+    """
+    # SQLite datetime calculation: datetime('now', '-30 minutes')
+    # But since we store created_at as ISO string, we can use datetime comparison
+    # generated in Python or rely on SQLite functions if dates are standard.
+    # We use ISO format in Python, so standard string comparison works IF purely ISO.
+    # However, 'now' in SQLite is UTC, our app uses UTC.
+    
+    # Let's use Python to calculate the cutoff time string to be safe and consistent
+    
+    from datetime import timedelta
+    cutoff = (datetime.utcnow() - timedelta(minutes=minutes)).isoformat()
+    
+    return fetch_all(
+        """
+        SELECT * FROM jobs 
+        WHERE status = 'pending' 
+        AND created_at < ?
+        """,
+        (cutoff,)
+    )
