@@ -100,13 +100,11 @@ def calculate_image_cost(
     
     if model == "nano-banana":
         # Standard model: only aspect ratio matters
-        if "base" not in model_costs:
-            raise CostCalculationError(f"Invalid cost config for {model}")
-        
-        if aspect_ratio not in model_costs["base"]:
+        # Direct lookup: costs[model][aspect_ratio]
+        if aspect_ratio not in model_costs:
             raise CostCalculationError(f"Invalid aspect ratio: {aspect_ratio}")
         
-        return model_costs["base"][aspect_ratio]
+        return model_costs[aspect_ratio]
     
     elif model == "nano-banana-pro":
         # Pro model: resolution + aspect ratio
