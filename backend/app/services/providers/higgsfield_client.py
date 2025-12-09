@@ -230,13 +230,14 @@ class HiggsfieldClient:
         
         if "nano banana" in model_lower and "pro" not in model_lower:
             url = f"{self.base_url}/jobs/nano-banana"
-            # nano-banana: NO aspect_ratio or resolution, only width/height/batch_size
+            # nano-banana: Include aspect_ratio to ensure correct dimensions
             payload = json.dumps({
                 "params": {
                     "prompt": prompt,
                     "input_images": input_images,
                     "width": width,
                     "height": height,
+                    "aspect_ratio": aspect_ratio,  # Added to fix dimension issue
                     "batch_size": 1,
                     "use_unlim": use_unlim
                 },
