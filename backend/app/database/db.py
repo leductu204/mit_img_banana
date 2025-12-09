@@ -208,6 +208,31 @@ def init_admin_tables(conn=None) -> None:
         if 'last_login_at' not in admin_columns:
             conn.execute("ALTER TABLE admins ADD COLUMN last_login_at TEXT")
         
+        # System Settings Table (Generic Key-Value Store)
+        settings_schema = """
+        CREATE TABLE IF NOT EXISTS system_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT NOT NULL,
+            description TEXT,
+            is_public BOOLEAN DEFAULT FALSE,  -- If true, accessible via public API
+            updated_at TEXT DEFAULT (datetime('now')),
+            updated_by TEXT
+        );
+        """
+        conn.executescript(settings_schema)
+        
+        # Seed default notification settings if not exist
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO system_settings (setting_key, setting_value, description, is_public)
+                VALUES 
+                ('notification_title', 'Thông báo', 'Title of the global popup notification', 1),
+                ('notification_message', '<span>OPEN BETA - Sử dụng miễn phí Nano Banana PRO và KLING. Nếu website gặp lỗi, hãy liên hệ <a href="https://zalo.me/0352143210" target="_blank" class="text-blue-500 hover:underline">ZALO 0352143210</a></span>', 'HTML content of the global popup notification', 1),
+                ('notification_active', 'true', 'Whether the notification popup is enabled', 1)
+            """)
+        except Exception as e:
+            print(f"Error seeding settings: {e}")
+
         conn.commit()
         print("Admin tables initialized successfully")
     except Exception as e:

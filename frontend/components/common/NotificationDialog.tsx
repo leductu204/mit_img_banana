@@ -3,39 +3,40 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import Button from './Button'
+import { NEXT_PUBLIC_API } from '@/lib/config'
 
 interface NotificationDialogProps {
-    title?: string
-    message?: React.ReactNode
     onClose?: () => void
 }
 
-export default function NotificationDialog({ 
-    title = "Thông báo ",
-    message = (
-        <span>
-            OPEN BETA - Sử dụng miễn phí Nano Banana PRO và KLING. Nếu website gặp lỗi, hãy liên hệ{" "}
-            <a 
-                href="https://zalo.me/0352143210" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-            >
-                ZALO 0352143210
-            </a>
-        </span>
-    ),
-    onClose 
-}: NotificationDialogProps) {
+export default function NotificationDialog({ onClose }: NotificationDialogProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [title, setTitle] = useState("Thông báo")
+    const [content, setContent] = useState<string>("")
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        // Show notification after a short delay on every page load
-        const timer = setTimeout(() => {
-            setIsOpen(true)
-        }, 1000)
-        
-        return () => clearTimeout(timer)
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch(`${NEXT_PUBLIC_API}/api/settings/public`)
+                if (res.ok) {
+                    const data = await res.json()
+                    
+                    if (data.notification_active === 'true') {
+                        if (data.notification_title) setTitle(data.notification_title)
+                        if (data.notification_message) setContent(data.notification_message)
+                        
+                        setTimeout(() => setIsOpen(true), 1000)
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch notification settings", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchSettings()
     }, [])
 
     const handleClose = () => {
@@ -43,7 +44,7 @@ export default function NotificationDialog({
         onClose?.()
     }
 
-    if (!isOpen) return null
+    if (!isOpen || !content) return null
 
     return (
         <>
@@ -70,9 +71,10 @@ export default function NotificationDialog({
 
                     {/* Content */}
                     <div className="p-6">
-                        <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed mb-6">
-                            {message}
-                        </p>
+                        <div 
+                            className="text-gray-700 dark:text-gray-300 text-base leading-relaxed mb-6 [&>a]:text-blue-500 [&>a]:hover:underline [&>a]:font-medium"
+                            dangerouslySetInnerHTML={{ __html: content }}
+                        />
 
                         {/* Action Button */}
                         <Button

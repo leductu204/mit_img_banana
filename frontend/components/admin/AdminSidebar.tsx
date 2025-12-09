@@ -20,6 +20,7 @@ const navItems = [
   { href: '/admin/model-costs', label: 'Model Costs', icon: CreditCard },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
   { href: '/admin/logs', label: 'Audit Logs', icon: History },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminSidebar() {

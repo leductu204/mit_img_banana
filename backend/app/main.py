@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import auth, image, video, jobs, users, health, costs, api_keys, public_api
-from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys
+from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys, admin_settings
+from .routers import settings as public_settings
 from .config import settings
 from .database.db import init_database
 from .services.admin_service import create_initial_admin
@@ -133,6 +134,9 @@ app.include_router(admin_stats.router, prefix="/api")  # /api/admin/stats
 app.include_router(admin_costs.router, prefix="/api")  # /api/admin/model-costs
 app.include_router(admin_logs.router, prefix="/api")  # /api/admin/audit-logs
 app.include_router(admin_api_keys.router, prefix="/api")  # /api/admin/keys
+app.include_router(admin_settings.router, prefix="/api")  # /api/admin/settings
+
+app.include_router(public_settings.router, prefix="/api")  # /api/settings/public
 
 
 @app.get("/")
