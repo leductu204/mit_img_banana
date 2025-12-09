@@ -77,7 +77,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const login = useCallback(() => {
         // Redirect to Google OAuth with absolute URL
-        const apiUrl = NEXT_PUBLIC_API || 'http://localhost:8000';
+        const apiUrl = NEXT_PUBLIC_API || 'https://tramsangtao.com';
         window.location.href = `${apiUrl}/auth/google/login`;
     }, []);
 
