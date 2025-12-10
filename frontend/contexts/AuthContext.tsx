@@ -76,9 +76,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [fetchUser]);
 
     const login = useCallback(() => {
-        // Redirect to Google OAuth with absolute URL
+        // Detect if running in an embedded webview (Zalo, Messenger, Facebook, etc.)
+        const userAgent = navigator.userAgent || navigator.vendor || '';
+        const isEmbeddedWebview = 
+            /FBAN|FBAV|Instagram|Zalo|Line|Twitter|Messenger/i.test(userAgent) ||
+            // iOS webview detection
+            (/(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(userAgent)) ||
+            // Android webview detection
+            (/wv\)|\.0\.0\.0 Mobile/i.test(userAgent));
+        
         const apiUrl = NEXT_PUBLIC_API || 'https://tramsangtao.com';
-        window.location.href = `${apiUrl}/auth/google/login`;
+        const authUrl = `${apiUrl}/auth/google/login`;
+        
+        if (isEmbeddedWebview) {
+            // For embedded webviews, try to open in external browser
+            // Method 1: Use intent for Android
+            const isAndroid = /Android/i.test(userAgent);
+            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+            
+            if (isAndroid) {
+                // Android: Use intent to open in Chrome/default browser
+                window.location.href = `intent://${authUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;action=android.intent.action.VIEW;end`;
+            } else if (isIOS) {
+                // iOS: Try x-safari-https scheme or show alert
+                // Note: This may not work in all webviews
+                const safariUrl = `x-safari-${authUrl}`;
+                window.location.href = safariUrl;
+                
+                // Fallback: Show alert after a short delay
+                setTimeout(() => {
+                    alert('Vui lòng mở liên kết trong Safari hoặc Chrome để đăng nhập.\n\nPlease open this link in Safari or Chrome to login.');
+                }, 1000);
+            } else {
+                // Generic fallback: Show alert
+                alert('Vui lòng mở trang web này trong trình duyệt Chrome hoặc Safari để đăng nhập.\n\nPlease open this website in Chrome or Safari to login.');
+            }
+        } else {
+            // Normal browser: Direct redirect
+            window.location.href = authUrl;
+        }
     }, []);
 
     const logout = useCallback(() => {

@@ -40,10 +40,10 @@ export default function LoginPage() {
                             <Sparkles className="h-8 w-8 text-[#0F766E]" />
                         </div>
                         <h1 className="text-2xl font-bold text-foreground mb-2">
-                            MIT Img Video
+                            Trạm Sáng Tạo
                         </h1>
                         <p className="text-muted-foreground">
-                            Đăng nhập để sử dụng dịch vụ
+                            Tạo ảnh và Video AI nhanh chóng - tự động.
                         </p>
                     </div>
 
@@ -86,7 +86,7 @@ export default function LoginPage() {
 
                 {/* Footer */}
                 <p className="text-center text-xs text-muted-foreground mt-6">
-                    Bằng việc đăng nhập, bạn đồng ý với điều khoản sử dụng của chúng tôi.
+                    Công cụ tạo hình ảnh - video - studio AI miễn phí
                 </p>
             </div>
         </div>

@@ -23,7 +23,7 @@ import { getModelConfig } from "@/lib/models-config"
 export function VideoGenerator() {
     const [prompt, setPrompt] = useState("")
     const [referenceImages, setReferenceImages] = useState<File[]>([])
-    const [model, setModel] = useState("kling-2.5-turbo")
+    const [model, setModel] = useState("kling-2.6")
     const [duration, setDuration] = useState("5s")
     const [quality, setQuality] = useState("720p")
     const [aspectRatio, setAspectRatio] = useState("16:9")
@@ -36,6 +36,11 @@ export function VideoGenerator() {
         if (config) {
             if (config.durations && config.durations.length > 0) {
                 setDuration(config.durations[0]);
+            } else {
+                 // For models without configurable duration (Veo), default logic handles it, 
+                 // but we can set a safe default 'state' here just in case cost calc relies on it.
+                 // However, Veo uses fixed cost logic.
+                 setDuration("5s"); 
             }
             if (config.qualities && config.qualities.length > 0) {
                 setQuality(config.qualities[0]);

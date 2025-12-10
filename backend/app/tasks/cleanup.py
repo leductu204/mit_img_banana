@@ -5,7 +5,7 @@ from app.services.credits_service import credits_service
 
 logger = logging.getLogger(__name__)
 
-async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minutes: int = 30):
+async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minutes: int = 45):
     """
     Background task to cleanup stale pending jobs.
     

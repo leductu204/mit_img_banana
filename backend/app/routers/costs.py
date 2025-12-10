@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter
 from app.services.cost_calculator import get_model_costs
-from datetime import datetime, timedelta
+from datetime import datetime
 
 router = APIRouter(tags=["costs"])
 
@@ -11,6 +11,13 @@ router = APIRouter(tags=["costs"])
 _costs_cache = None
 _cache_timestamp = None
 CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def invalidate_cache():
+    """Invalidate the costs cache (called when admin updates costs)"""
+    global _costs_cache, _cache_timestamp
+    _costs_cache = None
+    _cache_timestamp = None
 
 
 @router.get("/costs")

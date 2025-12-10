@@ -258,9 +258,8 @@ class GoogleVeoClient:
         response = requests.post(url, json=payload, headers=headers)
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            print(f"Veo T2V API Error: {response.text}")
-            raise e
+        except requests.exceptions.HTTPError:
+            raise Exception(f"Veo T2V API Error {response.status_code}: {response.text}")
         data = response.json()
         
         if "operations" in data and len(data["operations"]) > 0:

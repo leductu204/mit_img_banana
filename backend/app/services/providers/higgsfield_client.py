@@ -37,7 +37,7 @@ class HiggsfieldClient:
         try:
             response.raise_for_status()
         except requests.HTTPError:
-            raise Exception(f"{operation} failed with status {response.status_code}")
+            raise Exception(f"{operation} failed with status {response.status_code}: {response.text}")
 
     def get_jwt_token(self) -> str:
         url = f"{self.clerk_url}/v1/client/sessions/{self.sses}/tokens?__clerk_api_version=2025-11-10&_clerk_js_version=5.109.0"
@@ -355,7 +355,7 @@ class HiggsfieldClient:
                 "seed": random.randint(1000, 1000000),
                 "cfg_scale": 0.5,
                 "camera_control": None,
-                "duration": duration,
+                "duration": duration,  # API expects integer (5 or 10)
                 "model": "kling-v2-5-turbo",
                 "resolution": resolution,
                 "motion_id": "7077cde8-7947-46d6-aea2-dbf2ff9d441c",
@@ -366,7 +366,7 @@ class HiggsfieldClient:
             "use_unlim": use_unlim
         }
         
-        # Add input image for I2V
+        # Add input image for I2V only (do not include field for T2V)
         if input_image:
             payload["params"]["input_image"] = {
                 "type": "media_input",
@@ -380,7 +380,7 @@ class HiggsfieldClient:
         headers['content-type'] = 'application/json'
 
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        self._handle_response(response, "Generate Nano Banana PRO")
+        self._handle_response(response, "Kling 2.5 Turbo Generate")
         
         data = response.json()
         if 'job_sets' in data and len(data['job_sets']) > 0:

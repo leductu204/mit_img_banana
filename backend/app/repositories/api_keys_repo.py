@@ -69,12 +69,12 @@ def get_by_user(user_id: str) -> List[dict]:
         (user_id,)
     )
 
-def revoke(key_id: str) -> bool:
-    """Revoke a key (soft delete)."""
-    now = datetime.utcnow().isoformat()
+def delete(key_id: str) -> bool:
+    """Delete a key (hard delete)."""
+    # This will cascade delete usage logs if ON DELETE CASCADE is set
     affected = execute(
-        "UPDATE api_keys SET is_active = FALSE, revoked_at = ? WHERE key_id = ?",
-        (now, key_id)
+        "DELETE FROM api_keys WHERE key_id = ?",
+        (key_id,)
     )
     return affected > 0
 

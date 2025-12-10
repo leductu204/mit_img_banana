@@ -8,6 +8,11 @@ import { ToastProvider } from "@/contexts/ToastContext"
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
+export const metadata = {
+  title: "Trạm Sáng Tạo - AI Studio",
+  description: "Tạo ảnh và video với AI nhanh chóng và hoàn toàn tự động.",
+}
+
 export default function RootLayout({
     children,
 }: Readonly<{

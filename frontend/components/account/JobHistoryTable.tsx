@@ -10,6 +10,7 @@ import { Job } from '@/hooks/useJobs';
 import { CheckCircle, XCircle, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '../common/Button';
 import { TableSkeleton } from '../common/SkeletonLoader';
+import JobDetailsModal from './JobDetailsModal';
 
 interface JobHistoryTableProps {
     jobs: Job[];
@@ -64,6 +65,8 @@ export default function JobHistoryTable({
         return date.toLocaleDateString('vi-VN');
     };
 
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
     return (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
             {/* Header */}
@@ -95,12 +98,13 @@ export default function JobHistoryTable({
                 <table className="w-full">
                     <thead className="bg-muted/50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Type</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Loại</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Model</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Prompt</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Credits</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Time</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Thời gian</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Xem lại</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -152,6 +156,14 @@ export default function JobHistoryTable({
                                                 {formatTime(job.created_at)}
                                             </span>
                                         </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <Button 
+                                                onClick={() => setSelectedJob(job)}
+                                                className="h-8 px-2 text-primary hover:text-primary/80 hover:bg-primary/10"
+                                            >
+                                                Chi tiết
+                                            </Button>
+                                        </td>
                                     </tr>
                                 );
                             })
@@ -183,6 +195,15 @@ export default function JobHistoryTable({
                         </Button>
                     </div>
                 </div>
+            )}
+            
+            {/* Details Modal */}
+            {selectedJob && (
+                <JobDetailsModal 
+                    job={selectedJob} 
+                    open={!!selectedJob} 
+                    onClose={() => setSelectedJob(null)} 
+                />
             )}
         </div>
     );

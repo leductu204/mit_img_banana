@@ -26,8 +26,8 @@ export default function AdminAPIKeysPage() {
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   
-  // Revocation state
-  const [revokingId, setRevokingId] = useState<string | null>(null);
+  // Deletion state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !admin) {
@@ -49,7 +49,8 @@ export default function AdminAPIKeysPage() {
 
       if (!res.ok) throw new Error('Failed to fetch keys');
 
-      const data = await res.json();
+      let data = await res.json();
+      // Ensure we render keys
       setKeys(data);
     } catch (err: any) {
       setError(err.message);
@@ -64,10 +65,10 @@ export default function AdminAPIKeysPage() {
     }
   }, [admin]);
 
-  const handleRevoke = async (keyId: string) => {
-    if (!confirm('Are you sure you want to revoke this key? This action cannot be undone.')) return;
+  const handleDelete = async (keyId: string) => {
+    if (!confirm('Are you sure you want to PERMANENTLY DELETE this key? This action cannot be undone.')) return;
 
-    setRevokingId(keyId);
+    setDeletingId(keyId);
     try {
       const token = localStorage.getItem('admin_token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API}/api/admin/keys/${keyId}`, {
@@ -77,14 +78,14 @@ export default function AdminAPIKeysPage() {
         }
       });
 
-      if (!res.ok) throw new Error('Failed to revoke key');
+      if (!res.ok) throw new Error('Failed to delete key');
 
       // Refresh list
       await fetchKeys();
     } catch (err: any) {
       alert(err.message);
     } finally {
-      setRevokingId(null);
+      setDeletingId(null);
     }
   };
 
@@ -204,20 +205,18 @@ export default function AdminAPIKeysPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {key.is_active && (
                           <button
-                            onClick={() => handleRevoke(key.key_id)}
-                            disabled={revokingId === key.key_id}
+                            onClick={() => handleDelete(key.key_id)}
+                            disabled={deletingId === key.key_id}
                             className="p-2 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                            title="Revoke Key"
+                            title="Delete Key"
                           >
-                             {revokingId === key.key_id ? (
+                             {deletingId === key.key_id ? (
                                <RefreshCw className="w-4 h-4 animate-spin" />
                              ) : (
                                <Trash2 className="w-4 h-4" />
                              )}
                           </button>
-                        )}
                       </td>
                     </tr>
                   ))

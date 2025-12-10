@@ -46,7 +46,7 @@ export const VIDEO_MODELS: ModelConfig[] = [
         icon: Clapperboard,
         badge: 'NHANH',
         durations: ['5s','10s'],
-        resolutions: ['720p', '1080p'],
+        qualities: ['720p', '1080p'],
         note: 'Chỉ hỗ trợ IMG to Video. Tốc độ nhanh nhất',
     },
     { 
@@ -75,7 +75,6 @@ export const VIDEO_MODELS: ModelConfig[] = [
         description: 'Mô hình veo3.1 - RẺ',
         icon: Video,
         badge: 'HOT - RẺ',
-        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - RẺ',
     },
@@ -86,7 +85,6 @@ export const VIDEO_MODELS: ModelConfig[] = [
         icon: Zap,
         badge: 'NHANH',
         colors: 'green',
-        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - NHANH',
     },
@@ -96,7 +94,6 @@ export const VIDEO_MODELS: ModelConfig[] = [
         description: 'Chất lượng tốt nhất',
         icon: Sparkles,
         colors: 'yellow',
-        durations: ['8s'],
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - CHẤT LƯỢNG CAO',
     }

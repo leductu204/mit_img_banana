@@ -62,6 +62,8 @@ class JobInfo(BaseModel):
     credits_cost: int
     created_at: datetime
     completed_at: Optional[datetime] = None
+    input_params: Optional[str] = None
+    input_images: Optional[str] = None
 
     class Config:
         from_attributes = True

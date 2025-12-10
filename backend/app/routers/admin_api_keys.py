@@ -59,10 +59,10 @@ async def admin_revoke_key(
     admin: dict = Depends(get_current_admin)
 ):
     """
-    Revoke an API key.
+    Revoke an API key (Hard Delete).
     Admin only.
     """
-    success = api_keys_repo.revoke(key_id)
+    success = api_keys_repo.delete(key_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Key not found or already revoked")
-    return {"status": "success", "message": "Key revoked"}
+        raise HTTPException(status_code=404, detail="Key not found")
+    return {"status": "success", "message": "Key deleted"}
