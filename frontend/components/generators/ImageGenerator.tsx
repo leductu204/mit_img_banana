@@ -182,7 +182,7 @@ export function ImageGenerator() {
                             setLoading(false)
                             toast.error('Tạo ảnh thất bại. Credits đã được hoàn lại')
                         } else {
-                            setTimeout(checkStatus, 5000)
+                            setTimeout(checkStatus, 6000)
                         }
                     } catch (e: any) {
                         setError(`Failed to check status: ${e.message}`)

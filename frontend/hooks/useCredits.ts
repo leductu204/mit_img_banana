@@ -65,8 +65,8 @@ export function useCredits() {
 
         fetchCosts();
         
-        // Refresh costs every 30 seconds to pick up admin changes
-        const interval = setInterval(fetchCosts, 30000);
+        // Refresh costs every 5 minutes (costs rarely change)
+        const interval = setInterval(fetchCosts, 300000);
         
         return () => clearInterval(interval);
     }, []);

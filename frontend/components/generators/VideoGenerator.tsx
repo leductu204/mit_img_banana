@@ -194,7 +194,7 @@ export function VideoGenerator() {
                             setLoading(false)
                             toast.error('Tạo video thất bại. Credits đã được hoàn lại')
                         } else {
-                            setTimeout(checkStatus, 8000)
+                            setTimeout(checkStatus, 15000)
                         }
                     } catch (e: any) {
                         const errorMsg = e.message || "Failed to check status"
@@ -274,7 +274,7 @@ export function VideoGenerator() {
                         setLoading(false)
                         toast.error('Tạo video thất bại. Credits đã được hoàn lại')
                     } else {
-                        setTimeout(checkStatus, 8000)
+                        setTimeout(checkStatus, 15000)
                     }
                 } catch (e: any) {
                     const errorMsg = e.message || "Failed to check status"
