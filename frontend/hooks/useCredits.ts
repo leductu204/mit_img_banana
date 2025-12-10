@@ -141,6 +141,11 @@ export function useCredits() {
         if (costs[duration] !== undefined) {
             return costs[duration];
         }
+        
+        // For Veo models, try "8s" key since they have fixed 8-second duration
+        if (model.startsWith('veo') && costs["8s"] !== undefined) {
+            return costs["8s"];
+        }
 
         return 5;
     };
