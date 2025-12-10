@@ -13,6 +13,7 @@ class APIKeyResponse(BaseModel):
     """Schema for returning API key details (without the secret)."""
     key_id: str
     key_prefix: str
+    name: Optional[str] = None
     user_id: Optional[str]
     balance: int
     is_active: bool

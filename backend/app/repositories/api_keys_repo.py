@@ -36,16 +36,18 @@ def create(data: APIKeyCreate, user_id: Optional[str] = None) -> dict:
         conn.execute(
             """
             INSERT INTO api_keys (
-                key_id, user_id, key_hash, key_prefix, balance, 
+                key_id, user_id, key_hash, key_full, key_prefix, name, balance, 
                 is_active, created_at, expires_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 key_id, 
                 user_id, 
-                key_hash, 
-                key_prefix, 
+                key_hash,
+                full_key,  # Store full key for admin viewing
+                key_prefix,
+                data.name if hasattr(data, 'name') else None,  # Name if provided
                 data.initial_balance,
                 True,
                 now,

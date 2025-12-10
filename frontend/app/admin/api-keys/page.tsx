@@ -205,18 +205,39 @@ export default function AdminAPIKeysPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleDelete(key.key_id)}
-                            disabled={deletingId === key.key_id}
-                            className="p-2 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                            title="Delete Key"
-                          >
-                             {deletingId === key.key_id ? (
-                               <RefreshCw className="w-4 h-4 animate-spin" />
-                             ) : (
-                               <Trash2 className="w-4 h-4" />
-                             )}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const token = localStorage.getItem('admin_token');
+                                  const res = await fetch(`${process.env.NEXT_PUBLIC_API}/api/admin/keys/${key.key_id}/reveal`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  if (!res.ok) throw new Error('Failed to reveal key');
+                                  const data = await res.json();
+                                  alert(`Full API Key:\n\n${data.full_key}\n\n⚠️ Save this key securely!`);
+                                } catch (err: any) {
+                                  alert(err.message);
+                                }
+                              }}
+                              className="p-2 hover:bg-green-500/20 rounded-lg text-gray-500 hover:text-green-400 transition-colors"
+                              title="Show Full Key"
+                            >
+                              <Key className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(key.key_id)}
+                              disabled={deletingId === key.key_id}
+                              className="p-2 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                              title="Delete Key"
+                            >
+                               {deletingId === key.key_id ? (
+                                 <RefreshCw className="w-4 h-4 animate-spin" />
+                               ) : (
+                                 <Trash2 className="w-4 h-4" />
+                               )}
+                            </button>
+                          </div>
                       </td>
                     </tr>
                   ))

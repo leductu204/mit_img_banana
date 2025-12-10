@@ -253,8 +253,10 @@ def init_api_key_tables(conn=None) -> None:
     CREATE TABLE IF NOT EXISTS api_keys (
         key_id TEXT PRIMARY KEY,
         user_id TEXT,                      -- NULLABLE (can be unlinked)
-        key_hash TEXT NOT NULL,            -- bcrypt hash of the key
+        key_hash TEXT NOT NULL,            -- bcrypt hash of the key (for auth)
+        key_full TEXT,                     -- Full key for admin viewing (added later)
         key_prefix TEXT NOT NULL,          -- Display prefix: "sk_live_abc..."
+        name TEXT,                         -- Optional friendly name for the key
         balance INTEGER NOT NULL DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TEXT DEFAULT (datetime('now')),
@@ -313,6 +315,21 @@ def init_api_key_tables(conn=None) -> None:
     
     try:
         conn.executescript(api_schema)
+        
+        # Migration: Add 'name' column to api_keys if not exists
+        try:
+            cursor = conn.execute("PRAGMA table_info(api_keys)")
+            columns = [row[1] for row in cursor.fetchall()]
+            
+            if 'name' not in columns and 'api_keys' in [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+                conn.execute("ALTER TABLE api_keys ADD COLUMN name TEXT")
+                print("Added 'name' column to api_keys table")
+            
+            if 'key_full' not in columns and 'api_keys' in [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+                conn.execute("ALTER TABLE api_keys ADD COLUMN key_full TEXT")
+                print("Added 'key_full' column to api_keys table")
+        except Exception as e:
+            print(f"Migration note (api_keys columns): {e}")
         
         # Seed system user for unlinked public API usage
         # This ensures 'jobs' table foreign key constraints are met

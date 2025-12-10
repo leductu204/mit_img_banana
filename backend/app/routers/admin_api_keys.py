@@ -66,3 +66,19 @@ async def admin_revoke_key(
     if not success:
         raise HTTPException(status_code=404, detail="Key not found")
     return {"status": "success", "message": "Key deleted"}
+
+@router.get("/admin/keys/{key_id}/reveal")
+async def admin_reveal_key(
+    key_id: str,
+    admin: dict = Depends(get_current_admin)
+):
+    """
+    Reveal the full API key for admin viewing.
+    Admin only. Returns the full key from key_full column.
+    """
+    from app.database.db import fetch_one
+    
+    key = fetch_one("SELECT key_full, name, key_prefix FROM api_keys WHERE key_id = ?", (key_id,))
+    if not key or not key["key_full"]:
+        raise HTTPException(status_code=404, detail="Key not found or full key not available")
+    return {"key_id": key_id, "full_key": key["key_full"], "name": key.get("name"), "prefix": key["key_prefix"]}
