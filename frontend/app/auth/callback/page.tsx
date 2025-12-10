@@ -26,12 +26,12 @@ function CallbackContent() {
             const token = searchParams.get('token');
             if (token) {
                 setToken(token);
-                
-                // Wait a bit for the token to be set and fetch user data
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
                 success('🎉 Đăng nhập thành công!');
-                router.push('/create-image');
+                
+                // Use window.location for hard reload to ensure auth state is fresh
+                setTimeout(() => {
+                    window.location.href = '/create-image';
+                }, 200);
                 return;
             }
 
@@ -48,12 +48,12 @@ function CallbackContent() {
                         const data = await response.json();
                         if (data.access_token) {
                             setToken(data.access_token);
-                            
-                            // Wait a bit for the token to be set
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            
                             success('🎉 Đăng nhập thành công!');
-                            router.push('/create-image');
+                            
+                            // Use window.location for hard reload
+                            setTimeout(() => {
+                                window.location.href = '/create-image';
+                            }, 200);
                             return;
                         }
                     }
