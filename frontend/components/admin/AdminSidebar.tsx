@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/admin/api-keys', label: 'API Keys', icon: Users },
+  { href: '/admin/keys', label: 'API Keys', icon: Users },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/model-costs', label: 'Model Costs', icon: CreditCard },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
