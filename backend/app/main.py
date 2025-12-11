@@ -96,6 +96,39 @@ app.add_middleware(
 )
 
 
+# Cache Control Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    """Middleware to set appropriate cache headers for different routes."""
+    
+    # Static file extensions that should be cached
+    STATIC_EXTENSIONS = {'.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot'}
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        
+        # Check if this is a static file (by extension)
+        is_static = any(path.endswith(ext) for ext in self.STATIC_EXTENSIONS)
+        
+        if is_static:
+            # Long cache for static assets (1 year, immutable)
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.startswith("/api/") or path.startswith("/v1/") or path.startswith("/auth/"):
+            # No cache for API endpoints
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        
+        return response
+
+
+app.add_middleware(CacheControlMiddleware)
+
+
 # ============================================
 # Router Registration - Clean URL Structure
 # ============================================

@@ -28,6 +28,7 @@ export function VideoGenerator() {
     const [quality, setQuality] = useState("720p")
     const [aspectRatio, setAspectRatio] = useState("16:9")
     const [audio, setAudio] = useState(false)
+    const [speed, setSpeed] = useState("fast")
     const [showCreditsModal, setShowCreditsModal] = useState(false)
 
     // Update state when model changes
@@ -221,6 +222,7 @@ export function VideoGenerator() {
                 formData.append('img_url', imgUrl)
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
+                formData.append('speed', speed)
             } else if (model === 'kling-o1-video') {
                 endpoint = '/api/generate/video/kling-o1/i2v'
                 formData.append('aspect_ratio', aspectRatio)
@@ -228,8 +230,10 @@ export function VideoGenerator() {
                 formData.append('img_url', imgUrl)
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
+                formData.append('speed', speed)
             } else if (model === 'kling-2.6') {
                 formData.append('sound', audio.toString())
+                formData.append('speed', speed)
                 if (isImageToVideo) {
                     endpoint = '/api/generate/video/kling-2.6/i2v'
                     formData.append('img_id', imgId)
@@ -331,6 +335,35 @@ export function VideoGenerator() {
 
                     {/* Model Selector */}
                     <ModelSelector value={model} onChange={setModel} mode="video" />
+
+                    {/* Speed Selector (Kling Only) */}
+                    {model.startsWith('kling') && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Tốc độ</label>
+                            <div className="flex bg-muted p-1 rounded-lg">
+                                <button
+                                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                        speed === 'fast'
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    onClick={() => setSpeed('fast')}
+                                >
+                                    Nhanh (Standard)
+                                </button>
+                                <button
+                                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                        speed === 'slow'
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    onClick={() => setSpeed('slow')}
+                                >
+                                    Chậm (Unlimited)
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Dynamic Selectors based on Model Config */}
                     {(() => {

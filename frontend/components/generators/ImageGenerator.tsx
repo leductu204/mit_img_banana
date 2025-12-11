@@ -20,6 +20,7 @@ export function ImageGenerator() {
     const [referenceImages, setReferenceImages] = useState<File[]>([])
     const [model, setModel] = useState("nano-banana-pro")
     const [quality, setQuality] = useState("2k")
+    const [speed, setSpeed] = useState("fast")
     const [keepStyle, setKeepStyle] = useState(true)
     const [showCreditsModal, setShowCreditsModal] = useState(false)
 
@@ -147,7 +148,8 @@ export function ImageGenerator() {
                 const payload: any = {
                     prompt,
                     input_images: inputImages,
-                    aspect_ratio: aspectRatio
+                    aspect_ratio: aspectRatio,
+                    speed: speed
                 };
 
                 // Add resolution only for Pro models
@@ -244,6 +246,33 @@ export function ImageGenerator() {
 
                     {/* Model Selector */}
                     <ModelSelector value={model} onChange={setModel} mode="image" />
+
+                    {/* Speed Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Tốc độ</label>
+                        <div className="flex bg-muted p-1 rounded-lg">
+                            <button
+                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                    speed === 'fast'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                onClick={() => setSpeed('fast')}
+                            >
+                                Nhanh (Standard)
+                            </button>
+                            <button
+                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                                    speed === 'slow'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                onClick={() => setSpeed('slow')}
+                            >
+                                Chậm (Unlimited)
+                            </button>
+                        </div>
+                    </div>
 
                     {/* Dynamic Selectors based on Model Config */}
                     {(() => {

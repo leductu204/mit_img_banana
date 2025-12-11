@@ -17,17 +17,33 @@ export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
     const handleDownload = async () => {
         try {
             toast.info('Đang tải video xuống...', 3000);
-            const response = await fetch(videoUrl);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `video-${Date.now()}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Tải video thành công!');
+            
+            // Try fetch first (works for same-origin or CORS-enabled URLs)
+            try {
+                const response = await fetch(videoUrl, { mode: 'cors' });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `video-${Date.now()}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    toast.success('Tải video thành công!');
+                    return;
+                }
+            } catch (corsError) {
+                // CORS blocked, fall through to direct open
+                console.log('CORS blocked, opening directly:', corsError);
+            }
+            
+            // Fallback: Open video in new tab for manual download
+            // This works for external CDN URLs that block CORS
+            window.open(videoUrl, '_blank');
+            toast.info('Video đang mở trong tab mới. Nhấp chuột phải để lưu.', 5000);
+            
         } catch (error) {
             console.error('Download failed:', error);
             toast.error('Lỗi khi tải video');

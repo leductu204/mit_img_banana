@@ -27,7 +27,8 @@ class CreditsService:
         aspect_ratio: str = "1:1",
         resolution: Optional[str] = None,
         duration: Optional[str] = None,
-        audio: bool = False
+        audio: bool = False,
+        speed: str = "fast"
     ) -> int:
         """
         Calculate the credit cost for a generation request.
@@ -38,6 +39,7 @@ class CreditsService:
             resolution: Resolution (for applicable models)
             duration: Duration (for video models)
             audio: Audio enabled (for kling-2.6)
+            speed: Generation speed ("fast", "slow")
             
         Returns:
             Credit cost as integer
@@ -50,7 +52,8 @@ class CreditsService:
             aspect_ratio=aspect_ratio,
             resolution=resolution,
             duration=duration,
-            audio=audio
+            audio=audio,
+            speed=speed
         )
     
     def check_credits(self, user_id: str, required: int) -> Tuple[bool, int]:

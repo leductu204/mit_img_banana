@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Bell, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { Save, Bell, Check, AlertTriangle, Loader2, Key, Eye, EyeOff } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { useRouter } from 'next/navigation';
@@ -18,10 +18,12 @@ export default function AdminSettingsPage() {
     const router = useRouter();
     
     const [settings, setSettings] = useState<Record<string, string>>({});
+    const [envSettings, setEnvSettings] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (!authLoading && !admin) {
@@ -51,9 +53,57 @@ export default function AdminSettingsPage() {
         }
     };
 
+    const fetchEnvSettings = async () => {
+        try {
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API}/api/admin/settings/env`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setEnvSettings(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch env settings", err);
+        }
+    };
+
     useEffect(() => {
-        if (admin) fetchSettings();
+        if (admin) {
+            fetchSettings();
+            fetchEnvSettings();
+        }
     }, [admin]);
+
+    const handleSaveEnv = async () => {
+        setSaving(true);
+        setSuccess('');
+        setError('');
+        
+        try {
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API}/api/admin/settings/env`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(envSettings)
+            });
+
+            if (!res.ok) throw new Error('Failed to update env settings');
+            
+            const data = await res.json();
+            setSuccess(`Secrets updated! (${data.updated?.join(', ') || 'Stored'})`);
+            setTimeout(() => setSuccess(''), 5000);
+            
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleSave = async (key: string, value: string) => {
         setSaving(true);
@@ -92,6 +142,34 @@ export default function AdminSettingsPage() {
         handleSave('notification_message', settings['notification_message']);
         handleSave('notification_active', settings['notification_active']);
     }
+
+    const toggleSecret = (key: string) => {
+        setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const renderSecretInput = (label: string, key: string, placeholder: string) => (
+        <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+                {label}
+            </label>
+            <div className="relative">
+                <input
+                    type={showSecrets[key] ? "text" : "password"}
+                    value={envSettings[key] || ''}
+                    onChange={(e) => setEnvSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors font-mono text-sm pr-10"
+                    placeholder={placeholder}
+                />
+                <button
+                    type="button"
+                    onClick={() => toggleSecret(key)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                    {showSecrets[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+            </div>
+        </div>
+    );
 
     if (authLoading || !admin) return null;
 
@@ -192,6 +270,44 @@ export default function AdminSettingsPage() {
                             </div>
                         </div>
 
+                    </div>
+                )}
+                    
+                {/* API Credentials Section */}
+                {!loading && (
+                    <div className="space-y-6 max-w-2xl mt-8">
+                        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                            <div className="p-4 border-b border-gray-800 bg-gray-900/50 flex items-center gap-3">
+                                <Key className="w-5 h-5 text-blue-400" />
+                                <h3 className="font-semibold text-white">API Credentials (Secrets)</h3>
+                            </div>
+                            
+                            <div className="p-6 space-y-6">
+                                <p className="text-sm text-yellow-500/80 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
+                                    ⚠️ Warning: Updating these values will modify the server environment. Changes might require a server restart to take full effect.
+                                </p>
+
+                                {/* Higgsfield Cookie */}
+                                {renderSecretInput("Higgsfield Cookie", "HIGGSFIELD_COOKIE", "Enter Higgsfield Cookie")}
+
+                                {/* Higgsfield SSES */}
+                                {renderSecretInput("Higgsfield SSES Token", "HIGGSFIELD_SSES", "Enter Higgsfield SSES")}
+
+                                {/* Google Veo Cookie */}
+                                {renderSecretInput("Google Veo Cookie (Video Gen)", "GOOGLE_VEO_COOKIE", "Enter Google Veo Cookie")}
+
+                                <div className="pt-4 border-t border-gray-800 flex justify-end">
+                                    <button
+                                        onClick={handleSaveEnv}
+                                        disabled={saving}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        Update Secrets
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>

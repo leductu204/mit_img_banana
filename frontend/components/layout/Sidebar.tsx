@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Video, User, BookOpenText } from 'lucide-react';
+import { Sparkles, Video, User, BookOpenText, CreditCard } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,15 +13,27 @@ export default function Sidebar() {
 
     const navItems = [
         { href: '/create-image', icon: Sparkles, label: 'Tạo ảnh' },
-        { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
+        // { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/create-video', icon: Video, label: 'Tạo Video' },
+        { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },
     ];
 
     return (
         <aside className="w-64 bg-card border-r border-border h-full p-4 hidden md:flex md:flex-col">
             <div className="mb-8 px-2">
-                <h1 className="text-xl font-bold text-foreground">MIT Img Video</h1>
+                <div className="flex items-center gap-3">
+                    <div className="relative h-10 w-10 overflow-hidden rounded-xl">
+                        <img 
+                            src="/logo.png" 
+                            alt="Logo" 
+                            className="h-full w-full object-cover"
+                        />
+                    </div>
+                    <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                        Trạm Sáng Tạo
+                    </span>
+                </div>
             </div>
             
             <nav className="flex flex-col space-y-2 flex-1">

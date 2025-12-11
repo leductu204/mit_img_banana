@@ -31,6 +31,7 @@ class GenerateVideoRequest(BaseModel):
     aspect_ratio: Optional[str] = "16:9"
     audio: Optional[bool] = True
     input_images: Optional[List[dict]] = []
+    speed: Optional[str] = "fast"  # fast (standard) or slow (unlimited)
 
 class JobStatusResponse(BaseModel):
     status: str

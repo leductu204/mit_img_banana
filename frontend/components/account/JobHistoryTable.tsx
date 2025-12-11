@@ -52,18 +52,6 @@ export default function JobHistoryTable({
         { value: 'pending', label: 'Đang chờ' },
     ];
 
-    const formatTime = (dateStr: string) => {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const days = Math.floor(hours / 24);
-
-        if (hours < 1) return 'Vừa xong';
-        if (hours < 24) return `${hours} giờ trước`;
-        if (days < 7) return `${days} ngày trước`;
-        return date.toLocaleDateString('vi-VN');
-    };
 
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
@@ -103,7 +91,6 @@ export default function JobHistoryTable({
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Prompt</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Trạng thái</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Credits</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Thời gian</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Xem lại</th>
                         </tr>
                     </thead>
@@ -151,11 +138,7 @@ export default function JobHistoryTable({
                                                 {job.credits_refunded ? '+' : '-'}{job.credits_cost}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <span className="text-sm text-muted-foreground">
-                                                {formatTime(job.created_at)}
-                                            </span>
-                                        </td>
+
                                         <td className="px-4 py-3 text-right">
                                             <Button 
                                                 onClick={() => setSelectedJob(job)}

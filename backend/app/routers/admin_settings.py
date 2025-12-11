@@ -42,3 +42,57 @@ async def update_setting(
         
     updated = settings_repo.get_setting(key)
     return SettingResponse(**dict(updated))
+
+
+# Environment Variable Management
+class EnvSettingsResponse(BaseModel):
+    HIGGSFIELD_SSES: str
+    HIGGSFIELD_COOKIE: str
+    GOOGLE_VEO_COOKIE: str
+
+class UpdateEnvRequest(BaseModel):
+    HIGGSFIELD_SSES: Optional[str] = None
+    HIGGSFIELD_COOKIE: Optional[str] = None
+    GOOGLE_VEO_COOKIE: Optional[str] = None
+
+@router.get("/env", response_model=EnvSettingsResponse)
+async def get_env_settings(
+    admin: AdminInDB = Depends(get_current_admin)
+):
+    """Get critical environment variables."""
+    from dotenv import get_key
+    env_path = ".env"
+    
+    return {
+        "HIGGSFIELD_SSES": get_key(env_path, "HIGGSFIELD_SSES") or "",
+        "HIGGSFIELD_COOKIE": get_key(env_path, "HIGGSFIELD_COOKIE") or "",
+        "GOOGLE_VEO_COOKIE": get_key(env_path, "GOOGLE_VEO_COOKIE") or ""
+    }
+
+@router.put("/env")
+async def update_env_settings(
+    body: UpdateEnvRequest,
+    admin: AdminInDB = Depends(get_current_admin)
+):
+    """Update critical environment variables."""
+    from dotenv import set_key
+    env_path = ".env"
+    
+    updates = {
+        "HIGGSFIELD_SSES": body.HIGGSFIELD_SSES,
+        "HIGGSFIELD_COOKIE": body.HIGGSFIELD_COOKIE,
+        "GOOGLE_VEO_COOKIE": body.GOOGLE_VEO_COOKIE
+    }
+    
+    updated_keys = []
+    
+    try:
+        for key, value in updates.items():
+            if value is not None:
+                # Update both .env file and os.environ immediately
+                set_key(env_path, key, value)
+                updated_keys.append(key)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update .env: {str(e)}")
+
+    return {"message": "Settings updated successfully", "updated": updated_keys}

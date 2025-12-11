@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Video, Menu, X, User, BookOpenText } from 'lucide-react';
+import { Sparkles, Video, Menu, X, User, BookOpenText, CreditCard } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,6 +16,7 @@ export default function MobileNav() {
         { href: '/create-image', icon: Sparkles, label: 'Tạo ảnh' },
         { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/create-video', icon: Video, label: 'Tạo Video' },
+        { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },
     ];
 
@@ -23,7 +24,18 @@ export default function MobileNav() {
         <>
             {/* Mobile Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-                <h1 className="text-lg font-bold text-foreground">MIT Img Video</h1>
+                <div className="flex items-center gap-2">
+                     <div className="relative h-8 w-8 overflow-hidden rounded-lg">
+                        <img 
+                            src="/logo.png" 
+                            alt="Logo" 
+                            className="h-full w-full object-cover"
+                        />
+                    </div>
+                    <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                        Trạm Sáng Tạo
+                    </span>
+                </div>
                 <div className="flex items-center gap-2">
                     {isAuthenticated && user && (
                         <CreditsBadge amount={user.credits} size="sm" />

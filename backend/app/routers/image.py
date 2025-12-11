@@ -42,6 +42,7 @@ class NanoBananaRequest(BaseModel):
     prompt: str
     input_images: Optional[List[dict]] = []
     aspect_ratio: str = "9:16"
+    speed: Optional[str] = "fast"  # fast (standard) or slow (unlimited)
 
 
 class NanoBananaProRequest(BaseModel):
@@ -50,6 +51,7 @@ class NanoBananaProRequest(BaseModel):
     input_images: Optional[List[dict]] = []
     aspect_ratio: str = "9:16"
     resolution: str = "1k"  # 1k, 2k, 4k
+    speed: Optional[str] = "fast"  # fast (standard) or slow (unlimited)
 
 
 # ============================================
@@ -150,7 +152,8 @@ async def generate_nano_banana(
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,
-            aspect_ratio=request.aspect_ratio
+            aspect_ratio=request.aspect_ratio,
+            speed=request.speed
         )
         
         # 2. Check credits
@@ -169,11 +172,16 @@ async def generate_nano_banana(
             )
         
         # 3. Generate image via Higgsfield API
+        # fast -> use_unlim=False (standard queue)
+        # slow -> use_unlim=True (relaxed queue)
+        use_unlim = True if request.speed == "slow" else False
+        
         job_id = higgsfield_client.generate_image(
             prompt=request.prompt,
             input_images=request.input_images or [],
             aspect_ratio=request.aspect_ratio,
-            model=model
+            model=model,
+            use_unlim=use_unlim
         )
         
         if not job_id:
@@ -190,7 +198,8 @@ async def generate_nano_banana(
             model=model,
             prompt=request.prompt,
             input_params=json.dumps({
-                "aspect_ratio": request.aspect_ratio
+                "aspect_ratio": request.aspect_ratio,
+                "speed": request.speed
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
             credits_cost=cost
@@ -198,7 +207,7 @@ async def generate_nano_banana(
         jobs_repo.create(job_data)
         
         # 6. Deduct credits (creates credit_transaction with FK to job)
-        reason = f"Image generation: {model} {request.aspect_ratio}"
+        reason = f"Image generation: {model} {request.aspect_ratio} ({request.speed})"
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -266,7 +275,8 @@ async def generate_nano_banana_pro(
         cost = credits_service.calculate_generation_cost(
             model=model,
             aspect_ratio=request.aspect_ratio,
-            resolution=request.resolution
+            resolution=request.resolution,
+            speed=request.speed
         )
         
         # 2. Check credits
@@ -285,12 +295,17 @@ async def generate_nano_banana_pro(
             )
         
         # 3. Generate image via Higgsfield API
+        # fast -> use_unlim=False (standard)
+        # slow -> use_unlim=True (relaxed)
+        use_unlim = True if request.speed == "slow" else False
+        
         job_id = higgsfield_client.generate_image(
             prompt=request.prompt,
             input_images=request.input_images or [],
             aspect_ratio=request.aspect_ratio,
             resolution=request.resolution,
-            model=model
+            model=model,
+            use_unlim=use_unlim
         )
         
         if not job_id:

@@ -106,7 +106,8 @@ async def generate_video(
             aspect_ratio=request.aspect_ratio or "16:9",
             resolution=request.resolution or "720p",
             duration=request.duration,
-            audio=request.audio if request.audio is not None else False
+            audio=request.audio if request.audio is not None else False,
+            speed=request.speed
         )
         
         # 2. Check credits
@@ -141,6 +142,8 @@ async def generate_video(
             )
         else:
             # Route to Higgsfield (Kling models)
+            use_unlim = True if request.speed == "slow" else False
+            
             job_id = higgsfield_client.generate_video(
                 prompt=request.prompt,
                 model=request.model,
@@ -148,7 +151,8 @@ async def generate_video(
                 resolution=request.resolution or "720p",
                 aspect_ratio=request.aspect_ratio or "16:9",
                 audio=request.audio if request.audio is not None else True,
-                input_images=request.input_images or []
+                input_images=request.input_images or [],
+                use_unlim=use_unlim
             )
         
         if not job_id:
@@ -228,7 +232,8 @@ async def generate_kling_turbo_i2v(
     img_id: str = Form(...),
     img_url: str = Form(...),
     width: int = Form(...),
-    height: int = Form(...)
+    height: int = Form(...),
+    speed: str = Form("fast")
 ):
     """Kling 2.5 Turbo Image-to-Video (form-based)."""
     try:
@@ -239,7 +244,8 @@ async def generate_kling_turbo_i2v(
         cost = credits_service.calculate_generation_cost(
             model="kling-2.5-turbo",
             duration=f"{duration}s",
-            resolution=resolution
+            resolution=resolution,
+            speed=speed
         )
         
         # Check credits
@@ -249,6 +255,9 @@ async def generate_kling_turbo_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
+        # Determine unlimited usage
+        use_unlim = True if speed == "slow" else False
+
         # Generate
         job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
             prompt=prompt,
@@ -257,7 +266,8 @@ async def generate_kling_turbo_i2v(
             img_id=img_id,
             img_url=img_url,
             width=width,
-            height=height
+            height=height,
+            use_unlim=use_unlim
         )
         
         if not job_id:
@@ -270,7 +280,7 @@ async def generate_kling_turbo_i2v(
             type="i2v",
             model="kling-2.5-turbo",
             prompt=prompt,
-            input_params=json.dumps({"duration": duration, "resolution": resolution}),
+            input_params=json.dumps({"duration": duration, "resolution": resolution, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
             credits_cost=cost
         )
@@ -281,7 +291,7 @@ async def generate_kling_turbo_i2v(
             user_id=current_user.user_id,
             amount=cost,
             job_id=job_id,
-            reason=f"Video: kling-2.5-turbo {duration}s"
+            reason=f"Video: kling-2.5-turbo {duration}s ({speed})"
         )
         
         return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)
@@ -302,7 +312,8 @@ async def generate_kling_o1_i2v(
     img_id: str = Form(...),
     img_url: str = Form(...),
     width: int = Form(...),
-    height: int = Form(...)
+    height: int = Form(...),
+    speed: str = Form("fast")
 ):
     """Kling O1 Video Image-to-Video (form-based)."""
     try:
@@ -310,13 +321,16 @@ async def generate_kling_o1_i2v(
             model="kling-o1-video",
             duration=f"{duration}s",
             aspect_ratio=aspect_ratio,
-            resolution="720p"
+            resolution="720p",
+            speed=speed
         )
         
         has_enough, current_balance = credits_service.check_credits(current_user.user_id, cost)
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
+        use_unlim = True if speed == "slow" else False
+
         job_id = higgsfield_client.send_job_kling_o1_i2v(
             prompt=prompt,
             duration=duration,
@@ -324,7 +338,8 @@ async def generate_kling_o1_i2v(
             img_id=img_id,
             img_url=img_url,
             width=width,
-            height=height
+            height=height,
+            use_unlim=use_unlim
         )
         
         if not job_id:
@@ -337,7 +352,7 @@ async def generate_kling_o1_i2v(
             type="i2v",
             model="kling-o1-video",
             prompt=prompt,
-            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio}),
+            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
             credits_cost=cost
         )
@@ -348,7 +363,7 @@ async def generate_kling_o1_i2v(
             user_id=current_user.user_id,
             amount=cost,
             job_id=job_id,
-            reason=f"Video: kling-o1 {duration}s {aspect_ratio}"
+            reason=f"Video: kling-o1 {duration}s {aspect_ratio} ({speed})"
         )
         
         return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)
@@ -366,7 +381,8 @@ async def generate_kling_2_6_t2v(
     prompt: str = Form(...),
     duration: int = Form(5),
     aspect_ratio: str = Form("16:9"),
-    sound: bool = Form(True)
+    sound: bool = Form(True),
+    speed: str = Form("fast")
 ):
     """Kling 2.6 Text-to-Video (form-based)."""
     try:
@@ -374,18 +390,22 @@ async def generate_kling_2_6_t2v(
             model="kling-2.6",
             duration=f"{duration}s",
             audio=sound,
-            resolution="720p"
+            resolution="720p",
+            speed=speed
         )
         
         has_enough, current_balance = credits_service.check_credits(current_user.user_id, cost)
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
+        use_unlim = True if speed == "slow" else False
+
         job_id = higgsfield_client.send_job_kling_2_6_t2v(
             prompt=prompt,
             duration=duration,
             aspect_ratio=aspect_ratio,
-            sound=sound
+            sound=sound,
+            use_unlim=use_unlim
         )
         
         if not job_id:
@@ -398,7 +418,7 @@ async def generate_kling_2_6_t2v(
             type="t2v",
             model="kling-2.6",
             prompt=prompt,
-            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "sound": sound}),
+            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "sound": sound, "speed": speed}),
             input_images=None,
             credits_cost=cost
         )
@@ -409,7 +429,7 @@ async def generate_kling_2_6_t2v(
             user_id=current_user.user_id,
             amount=cost,
             job_id=job_id,
-            reason=f"Video: kling-2.6 {duration}s {'with' if sound else 'no'} audio"
+            reason=f"Video: kling-2.6 {duration}s {'with' if sound else 'no'} audio ({speed})"
         )
         
         return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)
@@ -430,7 +450,8 @@ async def generate_kling_2_6_i2v(
     img_id: str = Form(...),
     img_url: str = Form(...),
     width: int = Form(...),
-    height: int = Form(...)
+    height: int = Form(...),
+    speed: str = Form("fast")
 ):
     """Kling 2.6 Image-to-Video (form-based)."""
     try:
@@ -438,13 +459,16 @@ async def generate_kling_2_6_i2v(
             model="kling-2.6",
             duration=f"{duration}s",
             audio=sound,
-            resolution="720p"
+            resolution="720p",
+            speed=speed
         )
         
         has_enough, current_balance = credits_service.check_credits(current_user.user_id, cost)
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
+        use_unlim = True if speed == "slow" else False
+
         job_id = higgsfield_client.send_job_kling_2_6_i2v(
             prompt=prompt,
             duration=duration,
@@ -452,7 +476,8 @@ async def generate_kling_2_6_i2v(
             img_id=img_id,
             img_url=img_url,
             width=width,
-            height=height
+            height=height,
+            use_unlim=use_unlim
         )
         
         if not job_id:
@@ -465,7 +490,7 @@ async def generate_kling_2_6_i2v(
             type="i2v",
             model="kling-2.6",
             prompt=prompt,
-            input_params=json.dumps({"duration": duration, "sound": sound}),
+            input_params=json.dumps({"duration": duration, "sound": sound, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
             credits_cost=cost
         )
@@ -476,7 +501,7 @@ async def generate_kling_2_6_i2v(
             user_id=current_user.user_id,
             amount=cost,
             job_id=job_id,
-            reason=f"Video: kling-2.6 i2v {duration}s"
+            reason=f"Video: kling-2.6 i2v {duration}s ({speed})"
         )
         
         return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)

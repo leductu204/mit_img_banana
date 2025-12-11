@@ -206,23 +206,58 @@ export default function AdminModelCostsPage() {
               {modelDisplayNames[model] || model}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {modelCosts.map((cost) => {
+              {modelCosts.filter(cost => {
+                  // Strict filtering: Only show keys with speed suffixes for updated models
+                  // This hides the legacy/base keys effectively
+                  const isSpeedKey = cost.config_key.endsWith('-fast') || cost.config_key.endsWith('-slow');
+                  
+                  if (model === 'nano-banana') return isSpeedKey;
+                  if (model === 'nano-banana-pro') return isSpeedKey;
+                  if (model.startsWith('kling')) return isSpeedKey;
+                  
+                  // For Veo or others not yet updated with speed suffixes
+                  return true;
+              }).sort((a, b) => {
+                  // Sort to keep related keys together (e.g. 1k-fast, 1k-slow)
+                  return a.config_key.localeCompare(b.config_key);
+              }).map((cost) => {
                 const key = `${cost.model}/${cost.config_key}`;
                 const isEdited = editedCosts[key] !== undefined;
                 const currentValue = isEdited ? editedCosts[key] : cost.credits;
+                
+                // Format display key
+                let displayKey = cost.config_key;
+                let speedLabel = '';
+                
+                if (displayKey.endsWith('-fast')) {
+                    speedLabel = ' (Fast)';
+                    displayKey = displayKey.replace('-fast', '');
+                } else if (displayKey.endsWith('-slow')) {
+                    speedLabel = ' (Slow)';
+                    displayKey = displayKey.replace('-slow', '');
+                }
+                
+                if (model === 'nano-banana' && displayKey === 'default') displayKey = 'Base Cost';
+                if (model === 'nano-banana-pro') {
+                    if (displayKey === '1k') displayKey = '1K';
+                    if (displayKey === '2k') displayKey = '2K';
+                    if (displayKey === '4k') displayKey = '4K';
+                }
+                
+                displayKey += speedLabel;
 
                 return (
                   <div 
                     key={cost.config_key}
                     className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg"
                   >
-                    <span className="text-gray-300">{cost.config_key}</span>
+                    <span className="text-gray-300 font-medium">{displayKey}</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         value={currentValue}
                         onChange={(e) => handleEdit(cost.model, cost.config_key, parseInt(e.target.value) || 0)}
-                        className="w-20 px-3 py-1.5 bg-gray-600 border border-gray-500 rounded text-white text-center"
+                        className="w-20 px-3 py-1.5 bg-gray-600 border border-gray-500 rounded text-white text-center font-mono"
                       />
                       {isEdited && (
                         <button
