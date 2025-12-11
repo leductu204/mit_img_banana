@@ -63,8 +63,8 @@ export function VideoGenerator() {
 
     // Calculate estimated cost based on current selections
     const estimatedCost = useMemo(() => {
-        return estimateVideoCost(model, duration, quality)
-    }, [model, duration, quality, estimateVideoCost])
+        return estimateVideoCost(model, duration, quality, aspectRatio, audio, speed)
+    }, [model, duration, quality, aspectRatio, audio, speed, estimateVideoCost])
 
     // Mode is inferred from referenceImage presence
     const isImageToVideo = referenceImages.length > 0

@@ -74,78 +74,108 @@ export function useCredits() {
     /**
      * Estimate cost for image generation
      */
+    /**
+     * Estimate cost for image generation
+     */
     const estimateImageCost = (
         model: string,
         aspectRatio: string = "16:9",
-        resolution?: string
+        resolution?: string,
+        speed: string = "fast"
     ): number => {
         
-        if (!costsLoaded) {
-            return 2; // Loading fallback
+        if (!costsLoaded || !modelCosts[model]) {
+            return 2; // Loading/Default fallback
         }
 
         const costs = modelCosts[model];
-        
-        if (!costs) {
-            return 2; // Default fallback
+        const speedSuffix = speed.toLowerCase();
+
+        // 1. Try resolution + speed (nano-banana-pro)
+        if (resolution) {
+            // "1k-fast"
+            const key = `${resolution}-${speedSuffix}`;
+            if (costs[key] !== undefined) return costs[key];
+             // Fallback to just resolution
+            if (costs[resolution] !== undefined && typeof costs[resolution] === 'number') return costs[resolution];
         }
 
-        // For models with resolution tiers (like nano-banana-pro)
+        // 2. Try default + speed (nano-banana)
+        const defaultKey = `default-${speedSuffix}`;
+        if (costs[defaultKey] !== undefined) return costs[defaultKey];
+
+        // 3. Fallback to nested structure (old format/fallback support)
         if (resolution && costs[resolution]) {
-            const cost = costs[resolution][aspectRatio] ?? costs[resolution]["16:9"] ?? 6;
-            return cost;
+            // nano-banana-pro old structure: { "1k": { "16:9": 4 } }
+             if (typeof costs[resolution] === 'object') {
+                 const resCosts = costs[resolution];
+                 return resCosts[aspectRatio] ?? resCosts["16:9"] ?? 6;
+             }
         }
-
-        // For nano-banana (direct aspect ratio lookup, no resolution)
-        // Check if aspectRatio key exists directly in costs
-        if (costs[aspectRatio] !== undefined) {
+        
+        // nano-banana old structure: { "1:1": 1 }
+        if (costs[aspectRatio] !== undefined && typeof costs[aspectRatio] === 'number') {
             return costs[aspectRatio];
         }
 
-        // Fallback to 16:9 or any available ratio
-        const fallbackCost = costs["16:9"] ?? costs["1:1"] ?? 2;
-        return fallbackCost;
+        return 2;
     };
+
     const estimateVideoCost = (
         model: string,
         duration: string = "5s",
         resolution: string = "720p",
-        aspectRatio: string = "16:9"
+        aspectRatio: string = "16:9",
+        audio: boolean = false,
+        speed: string = "fast"
     ): number => {
-        if (!costsLoaded) return 5; // Loading fallback
+        if (!costsLoaded || !modelCosts[model]) return 5;
 
         const costs = modelCosts[model];
-        if (!costs) return 5; // Default fallback
+        
+        // Helper to normalize duration
+        const dur = duration.replace("s", "") + "s";
+        const res = resolution;
+        const spd = speed.toLowerCase();
 
-        // Handle flat cost (number)
-        if (typeof costs === 'number') {
-            return costs;
+        // Potential keys to try in order of specificity
+        const keysToTry: string[] = [];
+
+        // Kling 2.6: 5s-audio-fast or 5s-fast
+        if (model === 'kling-2.6') {
+             if (audio) {
+                 keysToTry.push(`${dur}-audio-${spd}`);
+             }
+             keysToTry.push(`${dur}-${spd}`);
+        } else {
+            // Other models (Kling 2.5/O1): resolution-duration-speed
+            // Kling O1 might have aspect: resolution-duration-aspect-speed (future proofing)
+             keysToTry.push(`${res}-${dur}-${aspectRatio}-${spd}`);
+             keysToTry.push(`${res}-${dur}-${spd}`);
+             
+             // Fallback for Veo (8s)
+             keysToTry.push(`${dur}`);
+             keysToTry.push("8s"); 
         }
 
-        if (costs[resolution]) {
-            // Try with aspect ratio first (for kling-o1-video)
-            const keyWithAspect = `${duration}-${aspectRatio}`;
-            if (costs[resolution][keyWithAspect] !== undefined) {
-                return costs[resolution][keyWithAspect];
+        for (const key of keysToTry) {
+            if (costs[key] !== undefined) {
+                return costs[key];
             }
-            
-            // Try without aspect ratio
-            if (costs[resolution][duration] !== undefined) {
-                return costs[resolution][duration];
-            }
-            
-            return costs[resolution]["5s"] ?? 5;
+        }
+
+        // Nested Fallback (Old structure support)
+        if (costs[resolution] && typeof costs[resolution] === 'object') {
+             const resCosts = costs[resolution];
+             // Try specific duration/aspect
+             const durKey = `${dur}-${aspectRatio}`;
+             if (resCosts[durKey] !== undefined) return resCosts[durKey];
+             if (resCosts[dur] !== undefined) return resCosts[dur];
+             if (resCosts["5s"] !== undefined) return resCosts["5s"];
         }
         
-        // Handle models with direct duration keys (e.g. Veo: { "8s": 15 })
-        if (costs[duration] !== undefined) {
-            return costs[duration];
-        }
-        
-        // For Veo models, try "8s" key since they have fixed 8-second duration
-        if (model.startsWith('veo') && costs["8s"] !== undefined) {
-            return costs["8s"];
-        }
+        // Veo/Flat fallback
+        if (costs[dur] !== undefined) return costs[dur];
 
         return 5;
     };

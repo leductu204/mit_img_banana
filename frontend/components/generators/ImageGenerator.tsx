@@ -49,8 +49,8 @@ export function ImageGenerator() {
 
     // Calculate estimated cost based on current selections
     const estimatedCost = useMemo(() => {
-        return estimateImageCost(model, aspectRatio, quality);
-    }, [model, aspectRatio, quality, estimateImageCost])
+        return estimateImageCost(model, aspectRatio, quality, speed);
+    }, [model, aspectRatio, quality, speed, estimateImageCost])
 
     // Mode is inferred from referenceImage presence
     const isImageToImage = referenceImages.length > 0

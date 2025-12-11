@@ -82,6 +82,8 @@ async def get_model_costs(
     }
 
 
+from app.routers.costs import invalidate_cache
+
 @router.put("", response_model=UpdateCostResponse)
 async def update_model_cost(
     request: Request,
@@ -102,6 +104,9 @@ async def update_model_cost(
         credits=body.credits,
         admin_id=current_admin.admin_id
     )
+    
+    # Invalidate public cache
+    invalidate_cache()
     
     # Log admin action
     log_action(AuditLogCreate(
@@ -156,6 +161,9 @@ async def update_model_costs_bulk(
                 admin_id=current_admin.admin_id
             )
             updated_count += 1
+            
+        # Invalidate public cache
+        invalidate_cache()
             
         # Log single bulk action
         log_action(AuditLogCreate(
