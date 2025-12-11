@@ -20,6 +20,9 @@ from app.repositories import jobs_repo
 from pydantic import BaseModel
 
 
+# Maximum concurrent pending/processing jobs per user
+MAX_CONCURRENT_JOBS = 2
+
 router = APIRouter(tags=["image"])
 
 
@@ -131,6 +134,19 @@ async def generate_nano_banana(
     model = "nano-banana"
     
     try:
+        # 0. Check concurrent job limit
+        pending_count = jobs_repo.count_pending_by_user(current_user.user_id)
+        if pending_count >= MAX_CONCURRENT_JOBS:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Too many pending jobs",
+                    "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
+                    "pending_count": pending_count,
+                    "max_allowed": MAX_CONCURRENT_JOBS
+                }
+            )
+        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,
@@ -233,6 +249,19 @@ async def generate_nano_banana_pro(
     model = "nano-banana-pro"
     
     try:
+        # 0. Check concurrent job limit
+        pending_count = jobs_repo.count_pending_by_user(current_user.user_id)
+        if pending_count >= MAX_CONCURRENT_JOBS:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Too many pending jobs",
+                    "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
+                    "pending_count": pending_count,
+                    "max_allowed": MAX_CONCURRENT_JOBS
+                }
+            )
+        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,

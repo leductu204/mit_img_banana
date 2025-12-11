@@ -19,6 +19,24 @@ from pydantic import BaseModel
 
 router = APIRouter(tags=["video"])
 
+# Maximum concurrent pending/processing jobs per user
+MAX_CONCURRENT_JOBS = 2
+
+
+def check_concurrent_limit(user_id: str):
+    """Check if user has reached concurrent job limit. Raises HTTPException if exceeded."""
+    pending_count = jobs_repo.count_pending_by_user(user_id)
+    if pending_count >= MAX_CONCURRENT_JOBS:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "Too many pending jobs",
+                "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
+                "pending_count": pending_count,
+                "max_allowed": MAX_CONCURRENT_JOBS
+            }
+        )
+
 
 # ============================================
 # SCHEMAS
@@ -79,6 +97,9 @@ async def generate_video(
     Requires authentication and sufficient credits.
     """
     try:
+        # 0. Check concurrent job limit
+        check_concurrent_limit(current_user.user_id)
+        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=request.model,
@@ -211,6 +232,9 @@ async def generate_kling_turbo_i2v(
 ):
     """Kling 2.5 Turbo Image-to-Video (form-based)."""
     try:
+        # Check concurrent job limit
+        check_concurrent_limit(current_user.user_id)
+        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="kling-2.5-turbo",
@@ -476,6 +500,9 @@ async def generate_veo31_low_t2v(
 ):
     """Veo 3.1 LOW Text-to-Video (form-based)."""
     try:
+        # Check concurrent job limit
+        check_concurrent_limit(current_user.user_id)
+        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="veo3.1-low",
@@ -539,6 +566,10 @@ async def generate_veo31_low_i2v(
 ):
     """Veo 3.1 LOW Image-to-Video (form-based)."""
     try:
+        # Calculate cost
+        # Check concurrent job limit
+        check_concurrent_limit(current_user.user_id)
+        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="veo3.1-low",
@@ -824,3 +855,4 @@ async def generate_veo31_high_i2v(
         import traceback
         print(f"Veo 3.1 HIGH I2V error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to generate video")
+

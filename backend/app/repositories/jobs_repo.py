@@ -199,6 +199,17 @@ def count_by_user(user_id: str) -> int:
     return result["count"] if result else 0
 
 
+def count_pending_by_user(user_id: str) -> int:
+    """Get count of pending/processing jobs for a user (for concurrency limiting)."""
+    result = fetch_one(
+        """
+        SELECT COUNT(*) as count FROM jobs 
+        WHERE user_id = ? AND status IN ('pending', 'processing')
+        """,
+        (user_id,)
+    )
+    return result["count"] if result else 0
+
 def get_recent_by_user(user_id: str, limit: int = 10) -> List[dict]:
     """Get most recent jobs for a user."""
     return fetch_all(

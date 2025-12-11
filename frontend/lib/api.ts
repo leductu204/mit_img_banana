@@ -29,6 +29,14 @@ function getFriendlyErrorMessage(status: number, detail: any): string {
         return 'Bạn không có quyền truy cập tài nguyên này';
     }
     
+    // Handle 429 Too Many Requests (concurrent job limit)
+    if (status === 429) {
+        if (typeof detail === 'object' && detail.message) {
+            return detail.message;
+        }
+        return 'Bạn đang có quá nhiều tác vụ đang xử lý. Vui lòng đợi hoàn thành.';
+    }
+    
     // Handle 404 Not Found
     if (status === 404) {
         return 'Không tìm thấy tài nguyên';
