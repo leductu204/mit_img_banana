@@ -234,6 +234,7 @@ export function VideoGenerator() {
             } else if (model === 'kling-2.6') {
                 formData.append('sound', audio.toString())
                 formData.append('speed', speed)
+                formData.append('resolution', quality)
                 if (isImageToVideo) {
                     endpoint = '/api/generate/video/kling-2.6/i2v'
                     formData.append('img_id', imgId)
@@ -349,7 +350,7 @@ export function VideoGenerator() {
                                     }`}
                                     onClick={() => setSpeed('fast')}
                                 >
-                                    Nhanh (Standard)
+                                    Nhanh
                                 </button>
                                 <button
                                     className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
@@ -359,7 +360,7 @@ export function VideoGenerator() {
                                     }`}
                                     onClick={() => setSpeed('slow')}
                                 >
-                                    Chậm (Unlimited)
+                                    Chậm - RẺ
                                 </button>
                             </div>
                         </div>

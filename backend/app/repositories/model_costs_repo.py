@@ -95,14 +95,14 @@ def seed_default_costs() -> None:
         ("kling-o1-video", "720p-10s-slow", 10),
         
         # Kling 2.6
-        ("kling-2.6", "720p-5s-fast", 8),
-        ("kling-2.6", "720p-5s-slow", 8),
-        ("kling-2.6", "720p-10s-fast", 14),
-        ("kling-2.6", "720p-10s-slow", 14),
-        ("kling-2.6", "720p-5s-audio-fast", 10),
-        ("kling-2.6", "720p-5s-audio-slow", 10),
-        ("kling-2.6", "720p-10s-audio-fast", 18),
-        ("kling-2.6", "720p-10s-audio-slow", 18),
+        ("kling-2.6", "5s-fast", 8),
+        ("kling-2.6", "5s-slow", 8),
+        ("kling-2.6", "10s-fast", 14),
+        ("kling-2.6", "10s-slow", 14),
+        ("kling-2.6", "5s-audio-fast", 10),
+        ("kling-2.6", "5s-audio-slow", 10),
+        ("kling-2.6", "10s-audio-fast", 18),
+        ("kling-2.6", "10s-audio-slow", 18),
         
         # Veo 3.1 LOW (ultra relaxed - slower, higher quality)
         ("veo3.1-low", "8s", 15),

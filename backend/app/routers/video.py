@@ -390,7 +390,6 @@ async def generate_kling_2_6_t2v(
             model="kling-2.6",
             duration=f"{duration}s",
             audio=sound,
-            resolution="720p",
             speed=speed
         )
         
@@ -459,7 +458,6 @@ async def generate_kling_2_6_i2v(
             model="kling-2.6",
             duration=f"{duration}s",
             audio=sound,
-            resolution="720p",
             speed=speed
         )
         

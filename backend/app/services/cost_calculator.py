@@ -155,8 +155,8 @@ def calculate_video_cost(
         base_key = f"{resolution}-{duration_key}"
     
     elif model == "kling-2.6":
-        # Duration + resolution + optional audio
-        base_key = f"{resolution}-{duration_key}"
+        # Duration + optional audio (resolution not supported)
+        base_key = f"{duration_key}"
         if audio:
             base_key += "-audio"
     

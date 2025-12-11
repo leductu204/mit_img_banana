@@ -259,7 +259,7 @@ export function ImageGenerator() {
                                 }`}
                                 onClick={() => setSpeed('fast')}
                             >
-                                Nhanh (Standard)
+                                Nhanh
                             </button>
                             <button
                                 className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
@@ -269,7 +269,7 @@ export function ImageGenerator() {
                                 }`}
                                 onClick={() => setSpeed('slow')}
                             >
-                                Chậm (Unlimited)
+                                Chậm
                             </button>
                         </div>
                     </div>
