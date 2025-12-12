@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 JobType = Literal["t2i", "i2i", "t2v", "i2v"]
-JobStatus = Literal["pending", "processing", "completed", "failed"]
+JobStatus = Literal["pending", "processing", "completed", "failed", "cancelled"]
 
 
 class InputImage(BaseModel):

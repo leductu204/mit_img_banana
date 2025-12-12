@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Job } from '@/hooks/useJobs';
-import { CheckCircle, XCircle, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, ChevronLeft, ChevronRight, Ban, X } from 'lucide-react';
 import Button from '../common/Button';
 import { TableSkeleton } from '../common/SkeletonLoader';
 import JobDetailsModal from './JobDetailsModal';
@@ -20,6 +20,7 @@ interface JobHistoryTableProps {
     onPageChange: (page: number) => void;
     onFilterChange: (status: string | undefined) => void;
     selectedFilter?: string;
+    onCancelJob?: (jobId: string) => Promise<boolean | void>;
 }
 
 const statusConfig = {
@@ -27,6 +28,7 @@ const statusConfig = {
     failed: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Thất bại' },
     pending: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Đang chờ' },
     processing: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Đang xử lý' },
+    cancelled: { icon: Ban, color: 'text-gray-500', bg: 'bg-gray-500/10', label: 'Đã hủy' },
 };
 
 const typeLabels: Record<string, string> = {
@@ -44,7 +46,19 @@ export default function JobHistoryTable({
     onPageChange,
     onFilterChange,
     selectedFilter,
+    onCancelJob,
 }: JobHistoryTableProps) {
+    const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+
+    const handleCancel = async (jobId: string) => {
+        if (!onCancelJob) return;
+        setCancellingJobId(jobId);
+        try {
+            await onCancelJob(jobId);
+        } finally {
+            setCancellingJobId(null);
+        }
+    };
     const filters = [
         { value: undefined, label: 'Tất cả' },
         { value: 'completed', label: 'Hoàn thành' },
@@ -140,12 +154,27 @@ export default function JobHistoryTable({
                                         </td>
 
                                         <td className="px-4 py-3 text-right">
-                                            <Button 
-                                                onClick={() => setSelectedJob(job)}
-                                                className="h-8 px-2 text-primary hover:text-primary/80 hover:bg-primary/10"
-                                            >
-                                                Chi tiết
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {(job.status === 'pending' || job.status === 'processing') && onCancelJob && (
+                                                    <Button 
+                                                        onClick={() => handleCancel(job.job_id)}
+                                                        disabled={cancellingJobId === job.job_id}
+                                                        className="h-8 px-2 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                                                    >
+                                                        {cancellingJobId === job.job_id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <X className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                )}
+                                                <Button 
+                                                    onClick={() => setSelectedJob(job)}
+                                                    className="h-8 px-2 text-primary hover:text-primary/80 hover:bg-primary/10"
+                                                >
+                                                    Chi tiết
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );

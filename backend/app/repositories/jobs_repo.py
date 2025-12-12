@@ -252,3 +252,47 @@ def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
         """,
         (cutoff,)
     )
+
+
+def get_active_jobs() -> List[dict]:
+    """
+    Get all jobs that are currently pending or processing.
+    Used by the job monitor background task.
+    
+    Returns:
+        List of active jobs
+    """
+    return fetch_all(
+        """
+        SELECT * FROM jobs 
+        WHERE status IN ('pending', 'processing')
+        ORDER BY created_at ASC
+        """
+    )
+
+
+def cancel_job(job_id: str, user_id: str) -> bool:
+    """
+    Cancel a job if it belongs to the user and is still active.
+    
+    Args:
+        job_id: Job ID to cancel
+        user_id: User ID (for ownership check)
+        
+    Returns:
+        True if cancelled successfully, False otherwise
+    """
+    now = datetime.utcnow().isoformat()
+    
+    affected = execute(
+        """
+        UPDATE jobs 
+        SET status = 'cancelled', completed_at = ?
+        WHERE job_id = ? 
+        AND user_id = ? 
+        AND status IN ('pending', 'processing')
+        """,
+        (now, job_id, user_id)
+    )
+    return affected > 0
+

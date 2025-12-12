@@ -153,6 +153,9 @@ export function useCredits() {
              keysToTry.push(`${res}-${dur}-${aspectRatio}-${spd}`);
              keysToTry.push(`${res}-${dur}-${spd}`);
              
+             // Universal flat fallback (matches Kling O1 new structure: 5s-fast)
+             keysToTry.push(`${dur}-${spd}`);
+             
              // Fallback for Veo (8s)
              keysToTry.push(`${dur}`);
              keysToTry.push("8s"); 

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     user_id TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('t2i', 'i2i', 't2v', 'i2v')),
     model TEXT NOT NULL,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
     prompt TEXT NOT NULL,
     input_params TEXT,
     input_images TEXT,

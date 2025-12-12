@@ -21,7 +21,7 @@ import { CardSkeleton } from '@/components/common/SkeletonLoader';
 
 function AccountContent() {
     const { user, logout } = useAuth();
-    const { jobs, loading: jobsLoading, pagination: jobsPagination, getMyJobs } = useJobs();
+    const { jobs, loading: jobsLoading, pagination: jobsPagination, getMyJobs, cancelJob } = useJobs();
     const { transactions, loading: txLoading, pagination: txPagination, getMyTransactions } = useTransactions();
     
     const [jobsFilter, setJobsFilter] = useState<string | undefined>(undefined);
@@ -112,6 +112,7 @@ function AccountContent() {
                         onPageChange={setJobsPage}
                         onFilterChange={handleJobsFilterChange}
                         selectedFilter={jobsFilter}
+                        onCancelJob={cancelJob}
                     />
 
                     {/* Transaction History */}

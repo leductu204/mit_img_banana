@@ -13,7 +13,7 @@ export interface Job {
     type: 'i2i' | 't2i' | 'i2v' | 't2v';
     model: string;
     prompt: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
     input_images?: string;
     input_params?: string;
     output_url?: string;
@@ -85,11 +85,44 @@ export function useJobs() {
         }
     }, []);
 
+    const cancelJob = useCallback(async (jobId: string): Promise<boolean> => {
+        try {
+            const response = await fetch(
+                `${NEXT_PUBLIC_API}/api/jobs/${jobId}/cancel`,
+                {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeader(),
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to cancel job');
+            }
+
+            // Update local state
+            setJobs(prev => prev.map(job => 
+                job.job_id === jobId 
+                    ? { ...job, status: 'cancelled' as const }
+                    : job
+            ));
+
+            return true;
+        } catch (err: any) {
+            setError(err.message);
+            return false;
+        }
+    }, []);
+
     return {
         jobs,
         loading,
         error,
         pagination,
         getMyJobs,
+        cancelJob,
     };
 }

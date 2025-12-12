@@ -13,6 +13,7 @@ from .database.db import init_database
 from .services.admin_service import create_initial_admin
 from .repositories import model_costs_repo
 from .tasks.cleanup import run_pending_jobs_cleanup
+from .tasks.job_monitor import run_job_monitor
 import asyncio
 
 
@@ -50,21 +51,27 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Database initialization failed: {e}")
         print("The app will continue but database features may not work.")
     
-    # Start background cleanup task
-    print("Starting background cleanup task...")
+    # Start background tasks
+    print("Starting background tasks...")
     cleanup_task = asyncio.create_task(run_pending_jobs_cleanup())
+    job_monitor_task = asyncio.create_task(run_job_monitor())
     
     yield
     
     # Shutdown: Cleanup if needed
     print("Shutting down...")
     
-    # Cancel background task
+    # Cancel background tasks
     cleanup_task.cancel()
+    job_monitor_task.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
         print("Cleanup task cancelled")
+    try:
+        await job_monitor_task
+    except asyncio.CancelledError:
+        print("Job monitor task cancelled")
 
 
 app = FastAPI(

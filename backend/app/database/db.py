@@ -107,6 +107,9 @@ def init_database() -> None:
         conn.commit()
         print(f"Database initialized at: {DATABASE_PATH}")
         
+        # Migration: Update jobs table CHECK constraint to include 'cancelled'
+        migrate_jobs_table_for_cancelled_status(conn)
+        
         # Also initialize admin tables
         init_admin_tables(conn)
         
@@ -118,6 +121,72 @@ def init_database() -> None:
         raise
     finally:
         conn.close()
+
+
+def migrate_jobs_table_for_cancelled_status(conn) -> None:
+    """
+    Migrate existing jobs table to support 'cancelled' status.
+    SQLite doesn't allow altering CHECK constraints, so we need to recreate the table.
+    """
+    try:
+        # Check if jobs table exists
+        cursor = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
+        )
+        result = cursor.fetchone()
+        
+        if not result:
+            return  # Table doesn't exist
+        
+        table_sql = result[0] or ""
+        
+        # Check if 'cancelled' is already in the CHECK constraint
+        if "'cancelled'" in table_sql or '"cancelled"' in table_sql:
+            print("Jobs table already supports 'cancelled' status")
+            return
+        
+        print("Migrating jobs table to support 'cancelled' status...")
+        
+        # Recreate the table with updated constraint
+        conn.executescript("""
+            -- Create new table with updated constraint
+            CREATE TABLE IF NOT EXISTS jobs_new (
+                job_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                type TEXT NOT NULL CHECK (type IN ('t2i', 'i2i', 't2v', 'i2v')),
+                model TEXT NOT NULL,
+                status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+                prompt TEXT NOT NULL,
+                input_params TEXT,
+                input_images TEXT,
+                output_url TEXT,
+                credits_cost INTEGER NOT NULL CHECK (credits_cost >= 0),
+                credits_refunded BOOLEAN DEFAULT FALSE,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            
+            -- Copy data
+            INSERT OR IGNORE INTO jobs_new SELECT * FROM jobs;
+            
+            -- Drop old table and rename new
+            DROP TABLE IF EXISTS jobs;
+            ALTER TABLE jobs_new RENAME TO jobs;
+            
+            -- Recreate indexes
+            CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
+            CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+            CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_jobs_user_created ON jobs(user_id, created_at);
+        """)
+        conn.commit()
+        print("Jobs table migration completed successfully")
+        
+    except Exception as e:
+        print(f"Warning: Jobs table migration failed: {e}")
+        # Don't raise - allow app to continue, cancel will just fail
 
 
 def init_admin_tables(conn=None) -> None:

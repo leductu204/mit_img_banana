@@ -17,34 +17,12 @@ class SettingResponse(BaseModel):
 class UpdateSettingRequest(BaseModel):
     value: str
 
-@router.get("", response_model=List[SettingResponse])
-async def get_all_settings(
-    admin: AdminInDB = Depends(get_current_admin)
-):
-    """List all system settings."""
-    settings = settings_repo.get_all_settings()
-    return [SettingResponse(**dict(s)) for s in settings]
 
-@router.put("/{key}", response_model=SettingResponse)
-async def update_setting(
-    key: str,
-    body: UpdateSettingRequest,
-    admin: AdminInDB = Depends(get_current_admin)
-):
-    """Update a specific setting."""
-    setting = settings_repo.get_setting(key)
-    if not setting:
-        raise HTTPException(status_code=404, detail="Setting not found")
-    
-    success = settings_repo.update_setting(key, body.value, admin.admin_id)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update setting")
-        
-    updated = settings_repo.get_setting(key)
-    return SettingResponse(**dict(updated))
-
-
+# ============================================
 # Environment Variable Management
+# IMPORTANT: These routes must come BEFORE /{key} to avoid being matched as a key
+# ============================================
+
 class EnvSettingsResponse(BaseModel):
     HIGGSFIELD_SSES: str
     HIGGSFIELD_COOKIE: str
@@ -75,8 +53,22 @@ async def update_env_settings(
     admin: AdminInDB = Depends(get_current_admin)
 ):
     """Update critical environment variables."""
+    import os
+    from pathlib import Path
     from dotenv import set_key
-    env_path = ".env"
+    
+    env_path = Path(".env")
+    
+    # Create .env file if it doesn't exist
+    if not env_path.exists():
+        try:
+            env_path.touch()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Cannot create .env file: {str(e)}")
+    
+    # Check if file is writable
+    if not os.access(env_path, os.W_OK):
+        raise HTTPException(status_code=500, detail=".env file is not writable. Check file permissions.")
     
     updates = {
         "HIGGSFIELD_SSES": body.HIGGSFIELD_SSES,
@@ -89,10 +81,41 @@ async def update_env_settings(
     try:
         for key, value in updates.items():
             if value is not None:
-                # Update both .env file and os.environ immediately
-                set_key(env_path, key, value)
+                # Update .env file
+                set_key(str(env_path), key, value)
                 updated_keys.append(key)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update .env: {str(e)}")
 
     return {"message": "Settings updated successfully", "updated": updated_keys}
+
+
+# ============================================
+# General Settings (must come AFTER /env routes)
+# ============================================
+
+@router.get("", response_model=List[SettingResponse])
+async def get_all_settings(
+    admin: AdminInDB = Depends(get_current_admin)
+):
+    """List all system settings."""
+    settings = settings_repo.get_all_settings()
+    return [SettingResponse(**dict(s)) for s in settings]
+
+@router.put("/{key}", response_model=SettingResponse)
+async def update_setting(
+    key: str,
+    body: UpdateSettingRequest,
+    admin: AdminInDB = Depends(get_current_admin)
+):
+    """Update a specific setting."""
+    setting = settings_repo.get_setting(key)
+    if not setting:
+        raise HTTPException(status_code=404, detail="Setting not found")
+    
+    success = settings_repo.update_setting(key, body.value, admin.admin_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update setting")
+        
+    updated = settings_repo.get_setting(key)
+    return SettingResponse(**dict(updated))

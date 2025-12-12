@@ -111,3 +111,42 @@ async def get_job_status(
         import traceback
         print(f"Job status error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to get job status")
+
+
+@router.post("/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Cancel a job that is still pending or processing.
+    
+    Only the job owner can cancel. Credits are NOT refunded for cancelled jobs.
+    """
+    # Check if job exists and belongs to user
+    job = jobs_repo.get_by_id(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job["user_id"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="You don't have access to this job")
+    
+    if job["status"] not in ("pending", "processing"):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot cancel job with status '{job['status']}'"
+        )
+    
+    # Cancel the job (no refund)
+    cancelled = jobs_repo.cancel_job(job_id, current_user.user_id)
+    
+    if not cancelled:
+        raise HTTPException(status_code=500, detail="Failed to cancel job")
+    
+    return {
+        "job_id": job_id,
+        "status": "cancelled",
+        "message": "Job cancelled successfully"
+    }
+
