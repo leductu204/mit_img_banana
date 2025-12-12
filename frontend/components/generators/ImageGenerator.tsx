@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Button from "../common/Button"
 import { Sparkles, Loader2, Download, RefreshCw, AlertCircle, Coins } from "lucide-react"
 import { useGenerateImage } from "@/hooks/useGenerateImage"
@@ -51,6 +51,19 @@ export function ImageGenerator() {
     const estimatedCost = useMemo(() => {
         return estimateImageCost(model, aspectRatio, quality, speed);
     }, [model, aspectRatio, quality, speed, estimateImageCost])
+
+    // Reset aspect ratio to first available option when model changes
+    useEffect(() => {
+        const modelConfig = getModelConfig(model, 'image');
+        const availableRatios = dynamicAspectRatios.length > 0 
+            ? dynamicAspectRatios 
+            : (modelConfig?.aspectRatios || []);
+        
+        // If current aspect ratio is not in available options, select the first available one
+        if (availableRatios.length > 0 && !availableRatios.includes(aspectRatio)) {
+            setAspectRatio(availableRatios[0]);
+        }
+    }, [model, dynamicAspectRatios]);
 
     // Mode is inferred from referenceImage presence
     const isImageToImage = referenceImages.length > 0
@@ -278,14 +291,10 @@ export function ImageGenerator() {
                     {(() => {
                         const modelConfig = getModelConfig(model, 'image');
                         
-                        // Check if dynamic ratios look valid (contain ':' or 'auto')
-                        // This prevents showing durations ('5s') as aspect ratios for Kling models
-                        const hasValidDynamicRatios = dynamicAspectRatios.length > 0 && 
-                            dynamicAspectRatios.some(r => r.includes(':') || r === 'auto');
-                            
-                        const ratiosToShow = hasValidDynamicRatios 
-                            ? dynamicAspectRatios 
-                            : (modelConfig?.aspectRatios || []);
+                        // Use dynamic ratios from costs if available, otherwise use model config
+                        const ratiosToShow = costsLoaded && dynamicAspectRatios.length > 0
+                            ? dynamicAspectRatios
+                            : (modelConfig?.aspectRatios || ['16:9', '9:16', '1:1']);
                             
                         // For resolutions, dynamic list is usually safe (1k, 720p), but fallback is safe too
                         const resolutionsToShow = dynamicResolutions.length > 0 

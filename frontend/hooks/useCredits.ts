@@ -220,24 +220,42 @@ export function useCredits() {
         if (!costsLoaded || !modelCosts[model]) return [];
 
         const costs = modelCosts[model];
+        const keys = Object.keys(costs);
+        if (keys.length === 0) return [];
         
-        // Check if this is a model with direct aspect ratios (nano-banana)
-        // Structure: { "1:1": 1, "16:9": 2, ... }
-        const firstKey = Object.keys(costs)[0];
-        if (firstKey && typeof costs[firstKey] === 'number') {
-            return Object.keys(costs);
-        }
-        
-        // For nano-banana-pro (resolution-based)
-        if (resolution && costs[resolution]) {
-            return Object.keys(costs[resolution]);
-        }
-        
-        // Get all unique aspect ratios across all resolutions
         const allRatios = new Set<string>();
-        Object.keys(costs).forEach(key => {
-            if (typeof costs[key] === 'object') {
-                Object.keys(costs[key]).forEach(ratio => allRatios.add(ratio));
+        const firstValue = costs[keys[0]];
+        
+        // Check if this is nested structure (old format)
+        if (typeof firstValue === 'object' && firstValue !== null) {
+            // Nested: { "1k": { "16:9": 4, "1:1": 3 } }
+            if (resolution && costs[resolution]) {
+                return Object.keys(costs[resolution]);
+            }
+            
+            // Get all unique ratios across all resolutions
+            keys.forEach(key => {
+                if (typeof costs[key] === 'object') {
+                    Object.keys(costs[key]).forEach(ratio => allRatios.add(ratio));
+                }
+            });
+            
+            return Array.from(allRatios);
+        }
+        
+        // Flat structure - parse keys to extract aspect ratios
+        // Keys can be: "1k-16:9", "2k-1:1", "1k-auto", "default-fast", "1k-fast", etc.
+        keys.forEach(key => {
+            const parts = key.split('-');
+            
+            // Look for parts containing ':' (aspect ratio pattern) or 'auto'
+            for (const part of parts) {
+                if (part.includes(':') || part === 'auto') {
+                    // Filter by resolution if provided
+                    if (!resolution || key.startsWith(`${resolution}-`)) {
+                        allRatios.add(part);
+                    }
+                }
             }
         });
         

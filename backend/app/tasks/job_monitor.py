@@ -25,7 +25,7 @@ def map_external_status(external_status: str) -> str:
     return "processing"
 
 
-async def run_job_monitor(check_interval_seconds: int = 15):
+async def run_job_monitor(check_interval_seconds: int = 30):
     """
     Background task to actively monitor all pending/processing jobs.
     
@@ -86,9 +86,13 @@ async def run_job_monitor(check_interval_seconds: int = 15):
                                 
                     except Exception as e:
                         logger.error(f"Error checking job {job_id}: {e}")
+                    
+                    # Wait between each job check to avoid rate limiting
+                    await asyncio.sleep(2)
                         
         except Exception as e:
             logger.error(f"Error in job monitor loop: {e}")
         
         # Sleep until next check
         await asyncio.sleep(check_interval_seconds)
+
