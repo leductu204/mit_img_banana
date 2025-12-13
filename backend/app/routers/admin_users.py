@@ -29,6 +29,7 @@ class UserListItem(BaseModel):
     avatar_url: Optional[str]
     credits: int
     is_banned: bool
+    plan_id: Optional[int] = 1  # Default to Free plan
     created_at: str
     last_login_at: Optional[str]
 
@@ -134,7 +135,7 @@ async def list_users(
     # Get paginated users
     query = f"""
         SELECT user_id, google_id, email, username, avatar_url, credits, 
-               COALESCE(is_banned, FALSE) as is_banned, created_at, last_login_at
+               COALESCE(is_banned, FALSE) as is_banned, plan_id, created_at, last_login_at
         FROM users 
         WHERE {where_clause}
         ORDER BY created_at DESC
@@ -153,6 +154,7 @@ async def list_users(
             avatar_url=u.get("avatar_url"),
             credits=u["credits"],
             is_banned=u.get("is_banned", False),
+            plan_id=u.get("plan_id", 1),
             created_at=u["created_at"],
             last_login_at=u.get("last_login_at")
         )
@@ -167,6 +169,76 @@ async def list_users(
         page=page,
         pages=pages
     )
+
+
+# ============================================
+# Subscription Tier Management
+# Must be BEFORE /{user_id} to avoid route collision
+# ============================================
+
+@router.get("/subscription-plans")
+async def get_subscription_plans(
+    current_admin: AdminInDB = Depends(get_current_admin)
+):
+    """Get all subscription plans for tier management dropdown."""
+    plans = fetch_all("""
+        SELECT plan_id, name, price, total_concurrent_limit, 
+               image_concurrent_limit, video_concurrent_limit, description
+        FROM subscription_plans
+        ORDER BY plan_id
+    """)
+    return {"plans": [dict(p) for p in plans]}
+
+
+@router.post("/{user_id}/tier")
+async def update_user_tier(
+    user_id: str,
+    request: Request,
+    body: UpdateTierRequest,
+    current_admin: AdminInDB = Depends(get_current_admin)
+):
+    """Update a user's subscription tier."""
+    # Verify user exists
+    user_data = users_repo.get_by_id(user_id)
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify plan exists
+    plan = fetch_one("SELECT * FROM subscription_plans WHERE plan_id = ?", (body.plan_id,))
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    
+    old_plan_id = user_data.get("plan_id", 1)
+    
+    # Update user's plan
+    execute(
+        "UPDATE users SET plan_id = ? WHERE user_id = ?",
+        (body.plan_id, user_id)
+    )
+    
+    # Log admin action
+    log_action(AuditLogCreate(
+        admin_id=current_admin.admin_id,
+        action="update_user_tier",
+        target_type="user",
+        target_id=user_id,
+        details={
+            "old_plan_id": old_plan_id,
+            "new_plan_id": body.plan_id,
+            "new_plan_name": plan["name"],
+            "reason": body.reason
+        },
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    ))
+    
+    return {
+        "message": f"User tier updated to {plan['name']}",
+        "user_id": user_id,
+        "old_plan_id": old_plan_id,
+        "new_plan_id": body.plan_id,
+        "new_plan_name": plan["name"]
+    }
 
 
 @router.get("/{user_id}", response_model=UserDetailResponse)
@@ -188,6 +260,7 @@ async def get_user_detail(
         avatar_url=user_data.get("avatar_url"),
         credits=user_data["credits"],
         is_banned=user_data.get("is_banned", False),
+        plan_id=user_data.get("plan_id", 1),
         created_at=user_data["created_at"],
         last_login_at=user_data.get("last_login_at")
     )
@@ -569,70 +642,3 @@ async def bulk_update_credits(
     )
 
 
-# ============================================
-# Subscription Tier Management
-# ============================================
-
-@router.get("/subscription-plans")
-async def get_subscription_plans(
-    current_admin: AdminInDB = Depends(get_current_admin)
-):
-    """Get all subscription plans for tier management dropdown."""
-    plans = fetch_all("""
-        SELECT plan_id, name, price, total_concurrent_limit, 
-               image_concurrent_limit, video_concurrent_limit, description
-        FROM subscription_plans
-        ORDER BY plan_id
-    """)
-    return {"plans": [dict(p) for p in plans]}
-
-
-@router.post("/{user_id}/tier")
-async def update_user_tier(
-    user_id: str,
-    request: Request,
-    body: UpdateTierRequest,
-    current_admin: AdminInDB = Depends(get_current_admin)
-):
-    """Update a user's subscription tier."""
-    # Verify user exists
-    user_data = users_repo.get_by_id(user_id)
-    if not user_data:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Verify plan exists
-    plan = fetch_one("SELECT * FROM subscription_plans WHERE plan_id = ?", (body.plan_id,))
-    if not plan:
-        raise HTTPException(status_code=400, detail="Invalid subscription plan")
-    
-    old_plan_id = user_data.get("plan_id", 1)
-    
-    # Update user's plan
-    execute(
-        "UPDATE users SET plan_id = ? WHERE user_id = ?",
-        (body.plan_id, user_id)
-    )
-    
-    # Log admin action
-    log_action(AuditLogCreate(
-        admin_id=current_admin.admin_id,
-        action="update_user_tier",
-        target_type="user",
-        target_id=user_id,
-        details={
-            "old_plan_id": old_plan_id,
-            "new_plan_id": body.plan_id,
-            "new_plan_name": plan["name"],
-            "reason": body.reason
-        },
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
-    ))
-    
-    return {
-        "message": f"User tier updated to {plan['name']}",
-        "user_id": user_id,
-        "old_plan_id": old_plan_id,
-        "new_plan_id": body.plan_id,
-        "new_plan_name": plan["name"]
-    }
