@@ -20,7 +20,7 @@ export function ImageGenerator() {
     const [referenceImages, setReferenceImages] = useState<File[]>([])
     const [model, setModel] = useState("nano-banana-pro")
     const [quality, setQuality] = useState("2k")
-    const [speed, setSpeed] = useState("fast")
+    const [speed, setSpeed] = useState("slow")
     const [keepStyle, setKeepStyle] = useState(true)
     const [showCreditsModal, setShowCreditsModal] = useState(false)
 
@@ -282,7 +282,7 @@ export function ImageGenerator() {
                                 }`}
                                 onClick={() => setSpeed('slow')}
                             >
-                                Chậm
+                                Chậm - Rẻ
                             </button>
                         </div>
                     </div>

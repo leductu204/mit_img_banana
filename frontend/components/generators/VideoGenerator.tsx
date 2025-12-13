@@ -28,7 +28,7 @@ export function VideoGenerator() {
     const [quality, setQuality] = useState("720p")
     const [aspectRatio, setAspectRatio] = useState("16:9")
     const [audio, setAudio] = useState(false)
-    const [speed, setSpeed] = useState("fast")
+    const [speed, setSpeed] = useState("slow")
     const [showCreditsModal, setShowCreditsModal] = useState(false)
 
     // Update state when model changes

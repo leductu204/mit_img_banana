@@ -1,7 +1,7 @@
 import json
 import time
 import random
-import requests
+from curl_cffi import requests
 from PIL import Image
 from io import BytesIO
 from app.config import settings
@@ -45,7 +45,7 @@ class HiggsfieldClient:
         headers = self._get_headers()
         headers['content-type'] = 'application/x-www-form-urlencoded'
 
-        response = requests.post(url, headers=headers, data=payload)
+        response = requests.post(url, headers=headers, data=payload, impersonate="chrome")
         self._handle_response(response, "Authentication")
         
         try:
@@ -75,7 +75,7 @@ class HiggsfieldClient:
                 headers = self._get_headers(jwt_token)
                 headers['content-length'] = '0'
 
-                response = requests.post(url, headers=headers, data={})
+                response = requests.post(url, headers=headers, data={}, impersonate="chrome")
                 self._handle_response(response, "Upload check")
                 return response.text
             except (requests.RequestException, Exception) as e:
@@ -94,7 +94,7 @@ class HiggsfieldClient:
                 
                 payload = json.dumps({"mimetype": "image/jpeg"})
 
-                response = requests.post(url, headers=headers, data=payload)
+                response = requests.post(url, headers=headers, data=payload, impersonate="chrome")
                 self._handle_response(response, "Create reference media")
                 
                 data = response.json()
@@ -123,7 +123,7 @@ class HiggsfieldClient:
                 
                 payload = json.dumps({"mimetypes": ["image/jpeg"]})
 
-                response = requests.post(url, headers=headers, data=payload)
+                response = requests.post(url, headers=headers, data=payload, impersonate="chrome")
                 self._handle_response(response, "Check reference media")
                 
                 data = response.json()
@@ -170,7 +170,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-length'] = '0'
         
-        response = requests.post(url, headers=headers, data={})
+        response = requests.post(url, headers=headers, data={}, impersonate="chrome")
         self._handle_response(response, "Get image dimensions")
         
         data = response.json()
@@ -188,14 +188,14 @@ class HiggsfieldClient:
             'Origin': 'https://higgsfield.ai'
         }
         
-        upload_response = requests.put(upload_url, headers=upload_headers, data=image_data)
+        upload_response = requests.put(upload_url, headers=upload_headers, data=image_data, impersonate="chrome")
         self._handle_response(upload_response, "Upload image")
         
         # Step 3: Confirm upload
         self.check_upload(img_id)
         
         # Step 4: Get image dimensions
-        img_response = requests.get(img_url)
+        img_response = requests.get(img_url, impersonate="chrome")
         self._handle_response(img_response, "Get image info")
         img = Image.open(BytesIO(img_response.content))
         width, height = img.size
@@ -264,7 +264,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
 
-        response = requests.post(url, headers=headers, data=payload)
+        response = requests.post(url, headers=headers, data=payload, impersonate="chrome")
         self._handle_response(response, "Generate image")
         try:
             data = response.json()
@@ -279,7 +279,7 @@ class HiggsfieldClient:
         url = f"{self.base_url}/job-sets/{job_id}"
         headers = self._get_headers(jwt_token)
 
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, impersonate="chrome")
         try:
             data = response.json()
             first_job = data['jobs'][0]
@@ -379,7 +379,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Kling 2.5 Turbo Generate")
         
         data = response.json()
@@ -430,7 +430,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Get job status")
         
         data = response.json()
@@ -485,7 +485,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Generate video")
         
         data = response.json()
@@ -590,7 +590,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
         
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Kling 2.5 Turbo I2V")
         
         data = response.json()
@@ -629,7 +629,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
         
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Kling O1 I2V")
         
         data = response.json()
@@ -669,7 +669,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
         
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Kling 2.6 T2V")
         
         data = response.json()
@@ -712,7 +712,7 @@ class HiggsfieldClient:
         headers = self._get_headers(jwt_token)
         headers['content-type'] = 'application/json'
         
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
         self._handle_response(response, "Kling 2.6 I2V")
         
         data = response.json()

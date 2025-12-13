@@ -27,3 +27,4 @@ __pycache__/
 *.db
 
 *test*
+*debug*

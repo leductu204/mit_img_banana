@@ -20,7 +20,7 @@ from pydantic import BaseModel
 router = APIRouter(tags=["video"])
 
 # Maximum concurrent pending/processing jobs per user
-MAX_CONCURRENT_JOBS = 2
+MAX_CONCURRENT_JOBS = 1
 
 
 def check_concurrent_limit(user_id: str):

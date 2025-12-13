@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 
 # Maximum concurrent pending/processing jobs per user
-MAX_CONCURRENT_JOBS = 2
+MAX_CONCURRENT_JOBS = 1
 
 router = APIRouter(tags=["image"])
 
