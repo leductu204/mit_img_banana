@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/api';
+import { getToken } from '@/lib/auth';
 
 export interface ConcurrentLimitDetails {
     total: number;
@@ -10,7 +11,7 @@ export interface ConcurrentLimitDetails {
 
 export interface UserLimitsResponse {
     plan_id: string;
-    plan_name?: string;  // Optional: Free, Starter, Professional, Business
+    plan_name?: string;
     limits: ConcurrentLimitDetails;
     active_counts: ConcurrentLimitDetails;
     pending_counts: ConcurrentLimitDetails;
@@ -24,7 +25,7 @@ export function useConcurrencyLimits(refreshInterval = 0) {
     const fetchLimits = async () => {
         try {
             // Check if we have a token first (simple check to avoid 401 loops on public pages)
-            const token = localStorage.getItem('token');
+            const token = getToken();
             if (!token) {
                 setIsLoading(false);
                 return;
