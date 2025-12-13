@@ -58,7 +58,7 @@ export const ConcurrentLimitIndicator = () => {
             <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3 flex items-center justify-between">
                 <span>Quản lý các luồng</span>
                 <span className="text-purple-400 text-[10px] px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded-full">
-                    {limits.plan_id}
+                    {limits.plan_name || {1: 'Free', 2: 'Starter', 3: 'Professional', 4: 'Business'}[limits.plan_id] || 'Free'}
                 </span>
             </h3>
             

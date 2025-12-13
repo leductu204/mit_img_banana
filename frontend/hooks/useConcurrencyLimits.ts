@@ -10,6 +10,7 @@ export interface ConcurrentLimitDetails {
 
 export interface UserLimitsResponse {
     plan_id: string;
+    plan_name?: string;  // Optional: Free, Starter, Professional, Business
     limits: ConcurrentLimitDetails;
     active_counts: ConcurrentLimitDetails;
     pending_counts: ConcurrentLimitDetails;
