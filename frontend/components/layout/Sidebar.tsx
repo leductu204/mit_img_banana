@@ -35,6 +35,7 @@ export default function Sidebar() {
                     <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
                         Trạm Sáng Tạo
                     </span>
+                    <span className="text-[10px] text-gray-500 ml-2">v2.0</span>
                 </div>
             </div>
             
