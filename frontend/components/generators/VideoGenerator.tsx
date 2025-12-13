@@ -30,6 +30,7 @@ export function VideoGenerator() {
     const [audio, setAudio] = useState(false)
     const [speed, setSpeed] = useState("slow")
     const [showCreditsModal, setShowCreditsModal] = useState(false)
+    const [currentJobStatus, setCurrentJobStatus] = useState<string>("") // Add status tracking
 
     // Update state when model changes
     useEffect(() => {
@@ -191,6 +192,7 @@ export function VideoGenerator() {
                 const checkStatus = async () => {
                     try {
                         const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
+                        setCurrentJobStatus(statusRes.status)
                         if (statusRes.status === 'completed' && statusRes.result) {
                             setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
                             setLoading(false)
@@ -274,17 +276,21 @@ export function VideoGenerator() {
             // Poll for completion
             const checkStatus = async () => {
                 try {
-                    const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/jobs/${genRes.job_id}`)
+                    const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`)
+                    
+                    setCurrentJobStatus(statusRes.status)
+                    
                     if (statusRes.status === 'completed' && statusRes.result) {
                         setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
                         setLoading(false)
                         toast.success('✅ Tạo video thành công!')
                     } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                        setError("Tạo video thất bại. Credits đã được hoàn lại")
+                        const errorMsg = statusRes.error_message || "Tạo video thất bại. Credits đã được hoàn lại"
+                        setError(errorMsg)
                         setLoading(false)
-                        toast.error('Tạo video thất bại. Credits đã được hoàn lại')
+                        toast.error(errorMsg)
                     } else {
-                        setTimeout(checkStatus, 15000)
+                        setTimeout(checkStatus, 35000) // Poll every 35s
                     }
                 } catch (e: any) {
                     const errorMsg = e.message || "Failed to check status"
@@ -294,7 +300,8 @@ export function VideoGenerator() {
                 }
             }
             
-            checkStatus()
+            // Start checking status after initial delay (not immediately)
+            setTimeout(checkStatus, 35000) // Wait 35s before first check
             
         } catch (e: any) {
             console.error(e)
@@ -360,7 +367,7 @@ export function VideoGenerator() {
                                     }`}
                                     onClick={() => setSpeed('slow')}
                                 >
-                                    Chậm - RẺ
+                                    Bình Thường
                                 </button>
                             </div>
                         </div>
@@ -503,7 +510,11 @@ export function VideoGenerator() {
                                 <div className="relative">
                                     <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
                                 </div>
-                                <p className="text-sm font-medium">Đang tạo video... Vui lòng đợi trong khi hệ thống đang xử lý</p>
+                                <p className="text-sm font-medium">
+                                    {currentJobStatus === 'pending'
+                                        ? 'Đang chờ xử lý (Hàng đợi)... Vui lòng đợi'
+                                        : 'Đang tạo video... Vui lòng đợi trong khi hệ thống đang xử lý'}
+                                </p>
                             </div>
                         ) : result?.video_url ? (
                             <VideoPreview videoUrl={result.video_url} />

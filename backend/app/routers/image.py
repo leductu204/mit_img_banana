@@ -2,6 +2,7 @@
 """Image generation endpoints with model-specific routes."""
 
 import json
+import uuid
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form
 from typing import Optional, List
 
@@ -16,12 +17,11 @@ from app.schemas.users import UserInDB
 from app.deps import get_current_user
 from app.services.credits_service import credits_service, InsufficientCreditsError
 from app.services.cost_calculator import CostCalculationError
+from app.services.concurrency_service import ConcurrencyService
 from app.repositories import jobs_repo
 from pydantic import BaseModel
 
 
-# Maximum concurrent pending/processing jobs per user
-MAX_CONCURRENT_JOBS = 1
 
 router = APIRouter(tags=["image"])
 
@@ -134,21 +134,9 @@ async def generate_nano_banana(
     Cost: 1-2 credits based on aspect ratio.
     """
     model = "nano-banana"
+    job_type = "i2i" if request.input_images else "t2i"
     
     try:
-        # 0. Check concurrent job limit
-        pending_count = jobs_repo.count_pending_by_user(current_user.user_id)
-        if pending_count >= MAX_CONCURRENT_JOBS:
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "Too many pending jobs",
-                    "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
-                    "pending_count": pending_count,
-                    "max_allowed": MAX_CONCURRENT_JOBS
-                }
-            )
-        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,
@@ -170,27 +158,49 @@ async def generate_nano_banana(
                     "available": current_balance
                 }
             )
+            
+        # 3. Check Concurrent limits (Plan Limits)
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check["allowed"]
         
-        # 3. Generate image via Higgsfield API
-        # fast -> use_unlim=False (standard queue)
-        # slow -> use_unlim=True (relaxed queue)
-        use_unlim = True if request.speed == "slow" else False
+        # Prepare Job ID (Local UUID)
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
         
-        job_id = higgsfield_client.generate_image(
-            prompt=request.prompt,
-            input_images=request.input_images or [],
-            aspect_ratio=request.aspect_ratio,
-            model=model,
-            use_unlim=use_unlim
-        )
+        if can_start:
+            # 4. Generate image via Higgsfield API (Only if allowed)
+            # fast -> use_unlim=False (standard queue)
+            # slow -> use_unlim=True (relaxed queue)
+            use_unlim = True if request.speed == "slow" else False
+            
+            # Debug (commented out)
+            # print(f"\n=== SENDING JOB TO HIGGSFIELD ===")
+            # print(f"Model: {model}")
+            # print(f"Prompt: {request.prompt}")
+            # print(f"Aspect Ratio: {request.aspect_ratio}")
+            # print(f"Speed: {request.speed} (use_unlim={use_unlim})")
+            # print(f"Input Images: {len(request.input_images or [])}")
+            
+            provider_job_id = higgsfield_client.generate_image(
+                prompt=request.prompt,
+                input_images=request.input_images or [],
+                aspect_ratio=request.aspect_ratio,
+                model=model,
+                use_unlim=use_unlim
+            )
+            
+            # Debug (commented out)
+            # print(f"Provider Job ID received: {provider_job_id}")
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create job on provider")
+            
+            status = "processing"
+            # Debug (commented out)
+            # print(f"Job status: {status}")
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create job")
-        
-        # 4. Determine job type
-        job_type = "i2i" if request.input_images else "t2i"
-        
-        # 5. Create job in database FIRST (before credit transaction to satisfy FK)
+        # 5. Create job in database
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -202,9 +212,13 @@ async def generate_nano_banana(
                 "speed": request.speed
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        # Pass explicit status ('processing' if started, 'pending' if queued)
+        jobs_repo.create(job_data, status=status)
+        # Debug (commented out)
+        # print(f"Job created in DB: {job_id} with status={status}")
         
         # 6. Deduct credits (creates credit_transaction with FK to job)
         reason = f"Image generation: {model} {request.aspect_ratio} ({request.speed})"
@@ -215,6 +229,10 @@ async def generate_nano_banana(
             job_id=job_id,
             reason=reason
         )
+        
+        # Debug (commented out)
+        # print(f"Credits deducted: {cost}, new balance: {new_balance}")
+        # print(f"=== JOB CREATION COMPLETE ===\n")
         
         return GenerateResponse(
             job_id=job_id,
@@ -256,21 +274,9 @@ async def generate_nano_banana_pro(
     Cost: 3-12 credits based on resolution and aspect ratio.
     """
     model = "nano-banana-pro"
+    job_type = "i2i" if request.input_images else "t2i"
     
     try:
-        # 0. Check concurrent job limit
-        pending_count = jobs_repo.count_pending_by_user(current_user.user_id)
-        if pending_count >= MAX_CONCURRENT_JOBS:
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "Too many pending jobs",
-                    "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
-                    "pending_count": pending_count,
-                    "max_allowed": MAX_CONCURRENT_JOBS
-                }
-            )
-        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,
@@ -293,28 +299,37 @@ async def generate_nano_banana_pro(
                     "available": current_balance
                 }
             )
+            
+        # 3. Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check["allowed"]
         
-        # 3. Generate image via Higgsfield API
-        # fast -> use_unlim=False (standard)
-        # slow -> use_unlim=True (relaxed)
-        use_unlim = True if request.speed == "slow" else False
+        # Prepare Job ID (Local UUID)
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
         
-        job_id = higgsfield_client.generate_image(
-            prompt=request.prompt,
-            input_images=request.input_images or [],
-            aspect_ratio=request.aspect_ratio,
-            resolution=request.resolution,
-            model=model,
-            use_unlim=use_unlim
-        )
+        if can_start:
+            # 4. Generate image via Higgsfield API
+            # fast -> use_unlim=False (standard)
+            # slow -> use_unlim=True (relaxed)
+            use_unlim = True if request.speed == "slow" else False
+            
+            provider_job_id = higgsfield_client.generate_image(
+                prompt=request.prompt,
+                input_images=request.input_images or [],
+                aspect_ratio=request.aspect_ratio,
+                resolution=request.resolution,
+                model=model,
+                use_unlim=use_unlim
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create job on provider")
+            
+            status = "processing"
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create job")
-        
-        # 4. Determine job type
-        job_type = "i2i" if request.input_images else "t2i"
-        
-        # 5. Create job in database FIRST (before credit transaction to satisfy FK)
+        # 5. Create job in database
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -326,11 +341,13 @@ async def generate_nano_banana_pro(
                 "resolution": request.resolution
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
         
-        # 6. Deduct credits (creates credit_transaction with FK to job)
+        jobs_repo.create(job_data, status=status)
+        
+        # 6. Deduct credits
         reason = f"Image generation: {model} {request.aspect_ratio} {request.resolution}"
         
         new_balance = credits_service.deduct_credits(

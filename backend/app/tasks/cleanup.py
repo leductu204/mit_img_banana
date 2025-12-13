@@ -5,12 +5,12 @@ from app.services.credits_service import credits_service
 
 logger = logging.getLogger(__name__)
 
-async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minutes: int = 45):
+async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minutes: int = 30):
     """
     Background task to cleanup stale pending jobs.
     
     Checks for jobs that have been in 'pending' state for longer than 
-    stale_minutes. Marks them as 'failed' and refunds credits.
+    stale_minutes (default 30). Marks them as 'failed' and refunds credits.
     """
     logger.info(f"Starting pending jobs cleanup task (interval={check_interval_seconds}s, stale={stale_minutes}m)")
     

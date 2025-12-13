@@ -70,3 +70,18 @@ class UserCreditsResponse(BaseModel):
     """Response with user's current credits."""
     user_id: str
     credits: int
+
+
+class ConcurrentLimitDetails(BaseModel):
+    """Details for concurrent limits or usage."""
+    total: int
+    image: int
+    video: int
+
+
+class UserLimitsResponse(BaseModel):
+    """Response with user's concurrent limits and usage."""
+    plan_id: str
+    limits: ConcurrentLimitDetails
+    active_counts: ConcurrentLimitDetails
+    pending_counts: ConcurrentLimitDetails

@@ -8,12 +8,13 @@ from app.database.db import fetch_one, fetch_all, execute, get_db_context
 from app.schemas.jobs import JobCreate, JobInDB
 
 
-def create(job_data: JobCreate) -> dict:
+def create(job_data: JobCreate, status: str = 'pending') -> dict:
     """
     Create a new job record.
     
     Args:
         job_data: Job creation data
+        status: Initial status (pending or processing)
         
     Returns:
         Created job record as dictionary
@@ -25,20 +26,23 @@ def create(job_data: JobCreate) -> dict:
             """
             INSERT INTO jobs (
                 job_id, user_id, type, model, status, prompt,
-                input_params, input_images, credits_cost, created_at
+                input_params, input_images, credits_cost, created_at,
+                provider_job_id
             )
-            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job_data.job_id,
                 job_data.user_id,
                 job_data.type,
                 job_data.model,
+                status,
                 job_data.prompt,
                 job_data.input_params,
                 job_data.input_images,
                 job_data.credits_cost,
-                now
+                now,
+                job_data.provider_job_id
             )
         )
     
@@ -148,6 +152,15 @@ def update_status(
             """,
             (status, error_message, now, job_id)
         )
+    elif status == "processing":
+        affected = execute(
+            """
+            UPDATE jobs 
+            SET status = ?, started_processing_at = ?
+            WHERE job_id = ?
+            """,
+            (status, now, job_id)
+        )
     else:
         affected = execute(
             "UPDATE jobs SET status = ? WHERE job_id = ?",
@@ -155,6 +168,14 @@ def update_status(
         )
     
     return affected > 0
+
+
+def set_provider_id(job_id: str, provider_job_id: str) -> bool:
+    """Set the provider job ID for a job."""
+    return execute(
+        "UPDATE jobs SET provider_job_id = ? WHERE job_id = ?",
+        (provider_job_id, job_id)
+    ) > 0
 
 
 def mark_refunded(job_id: str) -> bool:
@@ -199,16 +220,7 @@ def count_by_user(user_id: str) -> int:
     return result["count"] if result else 0
 
 
-def count_pending_by_user(user_id: str) -> int:
-    """Get count of pending/processing jobs for a user (for concurrency limiting)."""
-    result = fetch_one(
-        """
-        SELECT COUNT(*) as count FROM jobs 
-        WHERE user_id = ? AND status IN ('pending', 'processing')
-        """,
-        (user_id,)
-    )
-    return result["count"] if result else 0
+
 
 def get_recent_by_user(user_id: str, limit: int = 10) -> List[dict]:
     """Get most recent jobs for a user."""
@@ -256,16 +268,17 @@ def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
 
 def get_active_jobs() -> List[dict]:
     """
-    Get all jobs that are currently pending or processing.
-    Used by the job monitor background task.
+    Get all jobs that are currently pending or processing AND are actively running on provider.
+    Used by the job monitor background task to poll external status.
     
     Returns:
-        List of active jobs
+        List of active jobs with provider_job_id
     """
     return fetch_all(
         """
         SELECT * FROM jobs 
         WHERE status IN ('pending', 'processing')
+        AND provider_job_id IS NOT NULL
         ORDER BY created_at ASC
         """
     )

@@ -18,11 +18,12 @@ export function ImageGenerator() {
     const [prompt, setPrompt] = useState("")
     const [aspectRatio, setAspectRatio] = useState("9:16")
     const [referenceImages, setReferenceImages] = useState<File[]>([])
-    const [model, setModel] = useState("nano-banana-pro")
+    const [model, setModel] = useState("nano-banana")
     const [quality, setQuality] = useState("2k")
     const [speed, setSpeed] = useState("slow")
     const [keepStyle, setKeepStyle] = useState(true)
     const [showCreditsModal, setShowCreditsModal] = useState(false)
+    const [currentJobStatus, setCurrentJobStatus] = useState<string>("")
 
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateImage()
     const { 
@@ -186,18 +187,21 @@ export function ImageGenerator() {
                 // 3. Poll Status
                 const checkStatus = async () => {
                     try {
-                        const statusRes = await apiRequest<{ status: string, result?: string }>(`/api/jobs/${genRes.job_id}`)
+                        const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`)
+                        
+                        setCurrentJobStatus(statusRes.status) // Update status
                         
                         if (statusRes.status === 'completed' && statusRes.result) {
                             setResult({ image_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
                             setLoading(false)
                             toast.success('✅ Tạo ảnh thành công!')
                         } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                            setError("Tạo ảnh thất bại. Credits đã được hoàn lại")
+                            const errorMsg = statusRes.error_message || "Tạo ảnh thất bại. Credits đã được hoàn lại"
+                            setError(errorMsg)
                             setLoading(false)
-                            toast.error('Tạo ảnh thất bại. Credits đã được hoàn lại')
+                            toast.error(errorMsg)
                         } else {
-                            setTimeout(checkStatus, 6000)
+                            setTimeout(checkStatus, 35000) // Poll every 35s
                         }
                     } catch (e: any) {
                         setError(`Failed to check status: ${e.message}`)
@@ -205,7 +209,8 @@ export function ImageGenerator() {
                     }
                 }
 
-                checkStatus()
+                // Start checking status after initial delay (not immediately)
+                setTimeout(checkStatus, 35000) // Wait 35s before first check
                 return
             } catch (e: any) {
                 console.error(e)
@@ -282,7 +287,7 @@ export function ImageGenerator() {
                                 }`}
                                 onClick={() => setSpeed('slow')}
                             >
-                                Chậm - Rẻ
+                                Bình Thường
                             </button>
                         </div>
                     </div>
@@ -402,7 +407,11 @@ export function ImageGenerator() {
                                 <div className="relative">
                                     <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
                                 </div>
-                                <p className="text-sm font-medium">Đang tạo ảnh...</p>
+                                <p className="text-sm font-medium">
+                                    {currentJobStatus === 'pending'
+                                        ? 'Đang chờ xử lý (Hàng đợi)... Vui lòng đợi'
+                                        : 'Đang tạo ảnh...'}
+                                </p>
                             </div>
                         ) : result?.image_url ? (
                             <img

@@ -12,6 +12,14 @@ class HiggsfieldClient:
         self.cookie = settings.HIGGSFIELD_COOKIE
         self.base_url = "https://fnf.higgsfield.ai"
         self.clerk_url = "https://clerk.higgsfield.ai"
+    
+    def reload_credentials(self):
+        """Reload credentials from .env file (called after admin updates)."""
+        from dotenv import load_dotenv
+        load_dotenv(override=True)  # Force reload from .env
+        import os
+        self.sses = os.getenv("HIGGSFIELD_SSES", "")
+        self.cookie = os.getenv("HIGGSFIELD_COOKIE", "")
 
     def _get_headers(self, auth_token: str = None):
         headers = {
@@ -289,11 +297,25 @@ class HiggsfieldClient:
             if status == 'completed':
                 result = first_job['results']['raw']['url']
             
-            return {"status": status, "result": result}
+            error_msg = None
+            if status in ('failed', 'error', 'cancelled'):
+                # Try to find error detail
+                if 'error' in first_job:
+                    error_msg = str(first_job['error'])
+                elif 'failure_reason' in first_job:
+                    error_msg = str(first_job['failure_reason'])
+                elif 'message' in first_job:
+                    error_msg = str(first_job['message'])
+            
+            return {"status": status, "result": result, "error": error_msg}
         except (json.JSONDecodeError, ValueError) as e:
             raise Exception(f"Failed to parse job status response: {e}, Response: {response.text[:200]}")
-        except (KeyError, IndexError, TypeError):
-            return {"status": "error", "result": None}
+        except (KeyError, IndexError, TypeError) as e:
+            # Debug logging (commented out - uncomment only when needed)
+            # print(f"[higgsfield_client.get_job_status] Exception parsing response: {e}")
+            # print(f"[higgsfield_client.get_job_status] Raw response: {response.text[:500]}")
+            # Return processing status instead of error - let the job_monitor keep polling
+            return {"status": "processing", "result": None, "error": None}
 
     def _parse_duration(self, duration: str) -> int:
         """Convert duration string to integer (e.g., '5s' -> 5)"""

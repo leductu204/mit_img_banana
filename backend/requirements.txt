@@ -4,7 +4,8 @@ uvicorn[standard]>=0.24.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 
-# HTTP Client
+# HTTP Client (curl_cffi for Cloudflare bypass)
+curl_cffi>=0.6.0
 requests>=2.31.0
 httpx>=0.25.0
 

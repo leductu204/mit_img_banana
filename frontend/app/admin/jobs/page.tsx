@@ -301,6 +301,44 @@ export default function AdminJobsPage() {
                 </div>
              )}
 
+             {selectedJob.input_images && (() => {
+                try {
+                    const images = JSON.parse(selectedJob.input_images);
+                    if (images && images.length > 0) {
+                        return (
+                            <div className="space-y-2">
+                                <p className="text-gray-500 text-sm font-medium">Input Images ({images.length})</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {images.map((img: any, idx: number) => {
+                                        const url = typeof img === 'string' ? img : img.url || img.public_url;
+                                        return url ? (
+                                            <div key={idx} className="bg-gray-950 rounded-lg p-3 border border-gray-800">
+                                                <img 
+                                                    src={url} 
+                                                    alt={`Input ${idx + 1}`} 
+                                                    className="w-full h-32 object-cover rounded-lg mb-2"
+                                                />
+                                                <a 
+                                                    href={url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-teal-400 hover:text-teal-300 text-xs font-mono break-all underline"
+                                                >
+                                                    {url.slice(0, 50)}...
+                                                </a>
+                                            </div>
+                                        ) : null;
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                } catch {
+                    return null;
+                }
+             })()}
+
              {selectedJob.output_url && (
                 <div className="space-y-2">
                     <p className="text-gray-500 text-sm font-medium">Output URL</p>

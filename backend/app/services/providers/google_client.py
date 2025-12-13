@@ -56,11 +56,18 @@ class GoogleVeoClient:
         self.cookie = getattr(settings, 'GOOGLE_VEO_COOKIE', '')
         if not self.cookie:
             print("WARNING: GOOGLE_VEO_COOKIE is not set!")
-        else:
-            print(f"INFO: Google Veo Cookie loaded (len: {len(self.cookie)})")
             
         # Current access token
         self._access_token = None
+        self._token_expiry = 0
+    
+    def reload_credentials(self):
+        """Reload credentials from .env file (called after admin updates)."""
+        from dotenv import load_dotenv
+        load_dotenv(override=True)  # Force reload from .env
+        import os
+        self.cookie = os.getenv("GOOGLE_VEO_COOKIE", "")
+        self._access_token = None  # Clear cached token
         self._token_expiry = 0
 
     def _generate_random_string(self) -> str:

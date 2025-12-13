@@ -110,17 +110,145 @@ def init_database() -> None:
         # Migration: Update jobs table CHECK constraint to include 'cancelled'
         migrate_jobs_table_for_cancelled_status(conn)
         
-        # Also initialize admin tables
+        # Initialize admin tables
         init_admin_tables(conn)
         
         # Initialize API Key tables (Public API)
         init_api_key_tables(conn)
+
+        # Initialize Subscription tables and migrate users/jobs
+        init_subscription_tables(conn)
         
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
     finally:
         conn.close()
+
+
+def init_subscription_tables(conn=None) -> None:
+    """
+    Initialize subscription plan tables and migrate users/jobs tables.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+
+    try:
+        # 1. Create Subscription Plans table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS subscription_plans (
+                plan_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE, -- e.g. Free, Starter
+                price REAL NOT NULL DEFAULT 0.0,
+                total_concurrent_limit INTEGER NOT NULL,
+                image_concurrent_limit INTEGER NOT NULL,
+                video_concurrent_limit INTEGER NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 2. Seed Default Plans
+        seed_subscription_plans(conn)
+
+        # 3. Migrate Users Table
+        # Check if plan_id column exists
+        cursor = conn.execute("PRAGMA table_info(users)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'plan_id' not in columns:
+            print("Migrating users table for subscriptions...")
+            conn.execute("ALTER TABLE users ADD COLUMN plan_id INTEGER REFERENCES subscription_plans(plan_id)")
+            conn.execute("ALTER TABLE users ADD COLUMN plan_started_at TIMESTAMP")
+            conn.execute("ALTER TABLE users ADD COLUMN plan_expires_at TIMESTAMP")
+            
+            # Set default plan (Free) for existing users
+            # Assuming Free plan has ID 1 (will be verified in seed)
+            conn.execute("UPDATE users SET plan_id = 1 WHERE plan_id IS NULL")
+        
+        # 4. Migrate Jobs Table
+        cursor = conn.execute("PRAGMA table_info(jobs)")
+        job_columns = [row[1] for row in cursor.fetchall()]
+        
+        migrated_jobs = False
+        if 'plan_id_snapshot' not in job_columns:
+            print("Migrating jobs table for subscriptions (plan_id)...")
+            conn.execute("ALTER TABLE jobs ADD COLUMN plan_id_snapshot INTEGER")
+            conn.execute("ALTER TABLE jobs ADD COLUMN started_processing_at TIMESTAMP")
+            migrated_jobs = True
+            
+        if 'provider_job_id' not in job_columns:
+            print("Migrating jobs table for subscriptions (provider_job_id)...")
+            conn.execute("ALTER TABLE jobs ADD COLUMN provider_job_id TEXT")
+            # For existing jobs, the job_id IS the provider_job_id
+            conn.execute("UPDATE jobs SET provider_job_id = job_id WHERE provider_job_id IS NULL")
+            migrated_jobs = True
+            
+        conn.commit()
+        print("Subscription tables initialized/migrated successfully")
+
+    except Exception as e:
+        print(f"Error initializing subscription tables: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
+
+
+def seed_subscription_plans(conn):
+    """
+    Seed default subscription plans if they don't exist.
+    """
+    plans = [
+        # ID 1: Free
+        {
+            "name": "Free",
+            "price": 0.0,
+            "total_concurrent_limit": 2,
+            "image_concurrent_limit": 1,
+            "video_concurrent_limit": 1,
+            "description": "Basic plan for casual users"
+        },
+        # ID 2: Starter
+        {
+            "name": "Starter",
+            "price": 49000.0,
+            "total_concurrent_limit": 2,
+            "image_concurrent_limit": 1,
+            "video_concurrent_limit": 1,
+            "description": "Gói Trải Nghiệm"
+        },
+        # ID 3: Professional
+        {
+            "name": "Professional",
+            "price": 149000.0,
+            "total_concurrent_limit": 4,
+            "image_concurrent_limit": 2,
+            "video_concurrent_limit": 2,
+            "description": "Gói Tiết Kiệm"
+        },
+        # ID 4: Business
+        {
+            "name": "Business",
+            "price": 499000.0,
+            "total_concurrent_limit": 6,
+            "image_concurrent_limit": 3,
+            "video_concurrent_limit": 3,
+            "description": "Gói Sáng Tạo"
+        }
+    ]
+
+    for plan in plans:
+        conn.execute("""
+            INSERT OR IGNORE INTO subscription_plans 
+            (name, price, total_concurrent_limit, image_concurrent_limit, video_concurrent_limit, description)
+            VALUES (:name, :price, :total_concurrent_limit, :image_concurrent_limit, :video_concurrent_limit, :description)
+        """, plan)
+        
+        # If the plan exists but parameters might have changed (optional: update logic could go here)
+        # For now, we rely on name uniqueness and ignore if exists.
 
 
 def migrate_jobs_table_for_cancelled_status(conn) -> None:

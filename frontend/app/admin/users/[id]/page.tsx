@@ -25,6 +25,17 @@ interface User {
   is_banned: boolean;
   created_at: string;
   last_login_at?: string;
+  plan_id?: number;
+}
+
+interface Plan {
+  plan_id: number;
+  name: string;
+  price: number;
+  total_concurrent_limit: number;
+  image_concurrent_limit: number;
+  video_concurrent_limit: number;
+  description?: string;
 }
 
 interface Job {
@@ -68,6 +79,11 @@ export default function AdminUserDetailPage() {
   const [showDeductCredits, setShowDeductCredits] = useState(false);
   const [creditsAmount, setCreditsAmount] = useState('');
   const [creditsReason, setCreditsReason] = useState('');
+  
+  // Tier management
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [showTierModal, setShowTierModal] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
   const fetchUser = async () => {
     try {
@@ -86,8 +102,24 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const token = getAdminToken();
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/subscription-plans`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(data.plans);
+      }
+    } catch (err) {
+      console.error('Failed to fetch plans:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUser();
+    fetchPlans();
   }, [userId]);
 
   const handleAddCredits = async () => {
@@ -172,6 +204,36 @@ export default function AdminUserDetailPage() {
       });
 
       if (!res.ok) throw new Error('Action failed');
+      fetchUser();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTierChange = async () => {
+    if (!selectedPlanId) return;
+    
+    setActionLoading(true);
+    try {
+      const token = getAdminToken();
+      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/${userId}/tier`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          plan_id: selectedPlanId,
+          reason: 'Admin changed subscription tier'
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to change tier');
+      
+      setShowTierModal(false);
+      setSelectedPlanId(null);
       fetchUser();
     } catch (err) {
       console.error(err);
@@ -266,15 +328,36 @@ export default function AdminUserDetailPage() {
               <Ban className="w-4 h-4" />
               {user.is_banned ? 'Unban' : 'Ban'}
             </button>
+            <button
+              onClick={() => {
+                setSelectedPlanId(user.plan_id || 1);
+                setShowTierModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              Change Tier
+            </button>
           </div>
         </div>
 
         {/* Credits */}
-        <div className="mt-6 p-4 bg-gray-700/30 rounded-lg flex items-center gap-4">
-          <CreditCard className="w-8 h-8 text-teal-400" />
-          <div>
-            <p className="text-3xl font-bold text-white">{user.credits}</p>
-            <p className="text-gray-400">Current Credits</p>
+        <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className="p-4 bg-gray-700/30 rounded-lg flex items-center gap-4">
+            <CreditCard className="w-8 h-8 text-teal-400" />
+            <div>
+              <p className="text-3xl font-bold text-white">{user.credits}</p>
+              <p className="text-gray-400">Current Credits</p>
+            </div>
+          </div>
+          <div className="p-4 bg-gray-700/30 rounded-lg flex items-center gap-4">
+            <Settings className="w-8 h-8 text-purple-400" />
+            <div>
+              <p className="text-2xl font-bold text-white">
+                {plans.find(p => p.plan_id === user.plan_id)?.name || 'Free'}
+              </p>
+              <p className="text-gray-400">Subscription Tier</p>
+            </div>
           </div>
         </div>
       </div>
@@ -438,6 +521,89 @@ export default function AdminUserDetailPage() {
                   className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
                 >
                   {actionLoading ? 'Removing...' : 'Remove Credits'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Tier Modal */}
+      {showTierModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-white mb-4">Change Subscription Tier</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Select Plan</label>
+                {plans.length === 0 ? (
+                  <div className="text-center py-4 text-gray-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    Loading plans...
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {plans.map((plan) => (
+                      <button
+                        key={plan.plan_id}
+                        onClick={() => setSelectedPlanId(plan.plan_id)}
+                        className={`w-full text-left p-4 rounded-lg border transition-all ${
+                          selectedPlanId === plan.plan_id
+                            ? 'border-purple-500 bg-purple-500/20 text-white ring-2 ring-purple-500'
+                            : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500 hover:bg-gray-600'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-base">{plan.name}</p>
+                              {plan.price === 0 && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded-full">FREE</span>
+                              )}
+                            </div>
+                            {plan.description && (
+                              <p className="text-xs text-gray-400 mb-2">{plan.description}</p>
+                            )}
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className="flex items-center gap-1">
+                                <span className="text-gray-400">Total:</span>
+                                <span className="font-medium text-purple-400">{plan.total_concurrent_limit}</span>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="text-gray-400">Img:</span>
+                                <span className="font-medium text-blue-400">{plan.image_concurrent_limit}</span>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="text-gray-400">Vid:</span>
+                                <span className="font-medium text-green-400">{plan.video_concurrent_limit}</span>
+                              </span>
+                            </div>
+                          </div>
+                          {plan.price > 0 && (
+                            <div className="ml-3 text-right">
+                              <span className="text-sm font-medium text-white">{plan.price.toLocaleString()}đ</span>
+                              <p className="text-xs text-gray-400">/month</p>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowTierModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTierChange}
+                  disabled={actionLoading || !selectedPlanId || plans.length === 0}
+                  className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                >
+                  {actionLoading ? 'Updating...' : 'Update Tier'}
                 </button>
               </div>
             </div>

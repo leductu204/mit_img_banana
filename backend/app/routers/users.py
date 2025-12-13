@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
 
 from app.deps import get_current_user
-from app.schemas.users import UserInDB, UserProfile, UserCreditsResponse
+from app.schemas.users import UserInDB, UserProfile, UserCreditsResponse, UserLimitsResponse, ConcurrentLimitDetails
 from app.schemas.jobs import JobListResponse, JobInfo
 from app.schemas.transactions import TransactionListResponse, CreditTransaction
 from app.repositories import users_repo, jobs_repo, transactions_repo
+from app.services.concurrency_service import ConcurrencyService
 
 
 router = APIRouter()
@@ -126,6 +127,35 @@ async def get_transactions(
         limit=limit
     )
 
+
+
+
+@router.get("/me/limits", response_model=UserLimitsResponse)
+async def get_limits(
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get current user's concurrent limits and active usage."""
+    plan_limits = ConcurrencyService.get_user_plan_limits(current_user.user_id)
+    active_counts = ConcurrencyService.get_active_job_counts(current_user.user_id)
+    
+    return UserLimitsResponse(
+        plan_id=plan_limits.get("plan_name", "Unknown"),
+        limits=ConcurrentLimitDetails(
+            total=plan_limits["total_concurrent_limit"],
+            image=plan_limits["image_concurrent_limit"],
+            video=plan_limits["video_concurrent_limit"]
+        ),
+        active_counts=ConcurrentLimitDetails(
+            total=active_counts["total_active"],
+            image=active_counts["image_active"],
+            video=active_counts["video_active"]
+        ),
+        pending_counts=ConcurrentLimitDetails(
+            total=active_counts.get("total_pending", 0),
+            image=active_counts.get("image_pending", 0),
+            video=active_counts.get("video_pending", 0)
+        )
+    )
 
 @router.get("/me/stats")
 async def get_stats(

@@ -2,6 +2,7 @@
 """Video generation endpoints with authentication and credits."""
 
 import json
+import uuid
 from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
 from typing import Optional, List
 
@@ -13,29 +14,14 @@ from app.schemas.users import UserInDB
 from app.deps import get_current_user
 from app.services.credits_service import credits_service, InsufficientCreditsError
 from app.services.cost_calculator import CostCalculationError
+from app.services.concurrency_service import ConcurrencyService
 from app.repositories import jobs_repo
 from pydantic import BaseModel
 
 
 router = APIRouter(tags=["video"])
 
-# Maximum concurrent pending/processing jobs per user
-MAX_CONCURRENT_JOBS = 1
 
-
-def check_concurrent_limit(user_id: str):
-    """Check if user has reached concurrent job limit. Raises HTTPException if exceeded."""
-    pending_count = jobs_repo.count_pending_by_user(user_id)
-    if pending_count >= MAX_CONCURRENT_JOBS:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "Too many pending jobs",
-                "message": f"You can have at most {MAX_CONCURRENT_JOBS} jobs in progress. Please wait for current jobs to complete.",
-                "pending_count": pending_count,
-                "max_allowed": MAX_CONCURRENT_JOBS
-            }
-        )
 
 
 # ============================================
@@ -97,9 +83,6 @@ async def generate_video(
     Requires authentication and sufficient credits.
     """
     try:
-        # 0. Check concurrent job limit
-        check_concurrent_limit(current_user.user_id)
-        
         # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=request.model,
@@ -124,44 +107,54 @@ async def generate_video(
                     "available": current_balance
                 }
             )
-        
-        # 3. Generate video via appropriate API
-        veo_models = ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]
-        
-        if request.model in veo_models:
-            # Route to Google Veo 3.1 API
-            input_image = None
-            if request.input_images and len(request.input_images) > 0:
-                input_image = request.input_images[0]
             
-            job_id = google_veo_client.generate_video(
-                prompt=request.prompt,
-                model=request.model,
-                aspect_ratio=request.aspect_ratio or "9:16",
-                input_image=input_image
-            )
-        else:
-            # Route to Higgsfield (Kling models)
-            use_unlim = True if request.speed == "slow" else False
-            
-            job_id = higgsfield_client.generate_video(
-                prompt=request.prompt,
-                model=request.model,
-                duration=request.duration,
-                resolution=request.resolution or "720p",
-                aspect_ratio=request.aspect_ratio or "16:9",
-                audio=request.audio if request.audio is not None else True,
-                input_images=request.input_images or [],
-                use_unlim=use_unlim
-            )
-        
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
-        
-        # 4. Determine job type
+        # 3. Check Concurrent limits
         job_type = "i2v" if request.input_images else "t2v"
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check["allowed"]
         
-        # 5. Create job in database FIRST (before credit transaction to satisfy FK)
+        # Prepare Job ID (Local UUID)
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            # 4. Generate video via appropriate API
+            veo_models = ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]
+            
+            if request.model in veo_models:
+                # Route to Google Veo 3.1 API
+                input_image = None
+                if request.input_images and len(request.input_images) > 0:
+                    input_image = request.input_images[0]
+                
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=request.prompt,
+                    model=request.model,
+                    aspect_ratio=request.aspect_ratio or "9:16",
+                    input_image=input_image
+                )
+            else:
+                # Route to Higgsfield (Kling models)
+                use_unlim = True if request.speed == "slow" else False
+                
+                provider_job_id = higgsfield_client.generate_video(
+                    prompt=request.prompt,
+                    model=request.model,
+                    duration=request.duration,
+                    resolution=request.resolution or "720p",
+                    aspect_ratio=request.aspect_ratio or "16:9",
+                    audio=request.audio if request.audio is not None else True,
+                    input_images=request.input_images or [],
+                    use_unlim=use_unlim
+                )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
+        
+        # 5. Create job in database
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -175,9 +168,10 @@ async def generate_video(
                 "audio": request.audio
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # 6. Deduct credits (creates credit_transaction with FK to job)
         reason = f"Video generation: {request.model} {request.duration}"
@@ -237,9 +231,6 @@ async def generate_kling_turbo_i2v(
 ):
     """Kling 2.5 Turbo Image-to-Video (form-based)."""
     try:
-        # Check concurrent job limit
-        check_concurrent_limit(current_user.user_id)
-        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="kling-2.5-turbo",
@@ -255,23 +246,35 @@ async def generate_kling_turbo_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        # Determine unlimited usage
-        use_unlim = True if speed == "slow" else False
-
-        # Generate
-        job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
-            prompt=prompt,
-            duration=duration,
-            resolution=resolution,
-            img_id=img_id,
-            img_url=img_url,
-            width=width,
-            height=height,
-            use_unlim=use_unlim
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            # Determine unlimited usage
+            use_unlim = True if speed == "slow" else False
+
+            # Generate
+            provider_job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
+                prompt=prompt,
+                duration=duration,
+                resolution=resolution,
+                img_id=img_id,
+                img_url=img_url,
+                width=width,
+                height=height,
+                use_unlim=use_unlim
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -282,9 +285,10 @@ async def generate_kling_turbo_i2v(
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "resolution": resolution, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -300,7 +304,7 @@ async def generate_kling_turbo_i2v(
     except Exception as e:
         import traceback
         print(f"Kling 2.5 Turbo I2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/kling-o1/i2v", response_model=GenerateResponse)
@@ -329,21 +333,33 @@ async def generate_kling_o1_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        use_unlim = True if speed == "slow" else False
-
-        job_id = higgsfield_client.send_job_kling_o1_i2v(
-            prompt=prompt,
-            duration=duration,
-            aspect_ratio=aspect_ratio,
-            img_id=img_id,
-            img_url=img_url,
-            width=width,
-            height=height,
-            use_unlim=use_unlim
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            use_unlim = True if speed == "slow" else False
+
+            provider_job_id = higgsfield_client.send_job_kling_o1_i2v(
+                prompt=prompt,
+                duration=duration,
+                aspect_ratio=aspect_ratio,
+                img_id=img_id,
+                img_url=img_url,
+                width=width,
+                height=height,
+                use_unlim=use_unlim
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -354,9 +370,10 @@ async def generate_kling_o1_i2v(
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -372,7 +389,7 @@ async def generate_kling_o1_i2v(
     except Exception as e:
         import traceback
         print(f"Kling O1 I2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/kling-2.6/t2v", response_model=GenerateResponse)
@@ -397,18 +414,30 @@ async def generate_kling_2_6_t2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        use_unlim = True if speed == "slow" else False
-
-        job_id = higgsfield_client.send_job_kling_2_6_t2v(
-            prompt=prompt,
-            duration=duration,
-            aspect_ratio=aspect_ratio,
-            sound=sound,
-            use_unlim=use_unlim
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "t2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            use_unlim = True if speed == "slow" else False
+
+            provider_job_id = higgsfield_client.send_job_kling_2_6_t2v(
+                prompt=prompt,
+                duration=duration,
+                aspect_ratio=aspect_ratio,
+                sound=sound,
+                use_unlim=use_unlim
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -419,9 +448,10 @@ async def generate_kling_2_6_t2v(
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "sound": sound, "speed": speed}),
             input_images=None,
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -437,7 +467,7 @@ async def generate_kling_2_6_t2v(
     except Exception as e:
         import traceback
         print(f"Kling 2.6 T2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/kling-2.6/i2v", response_model=GenerateResponse)
@@ -465,21 +495,33 @@ async def generate_kling_2_6_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        use_unlim = True if speed == "slow" else False
-
-        job_id = higgsfield_client.send_job_kling_2_6_i2v(
-            prompt=prompt,
-            duration=duration,
-            sound=sound,
-            img_id=img_id,
-            img_url=img_url,
-            width=width,
-            height=height,
-            use_unlim=use_unlim
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            use_unlim = True if speed == "slow" else False
+
+            provider_job_id = higgsfield_client.send_job_kling_2_6_i2v(
+                prompt=prompt,
+                duration=duration,
+                sound=sound,
+                img_id=img_id,
+                img_url=img_url,
+                width=width,
+                height=height,
+                use_unlim=use_unlim
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -490,9 +532,10 @@ async def generate_kling_2_6_i2v(
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "sound": sound, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -508,7 +551,7 @@ async def generate_kling_2_6_i2v(
     except Exception as e:
         import traceback
         print(f"Kling 2.6 I2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 # ============================================
@@ -523,9 +566,6 @@ async def generate_veo31_low_t2v(
 ):
     """Veo 3.1 LOW Text-to-Video (form-based)."""
     try:
-        # Check concurrent job limit
-        check_concurrent_limit(current_user.user_id)
-        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="veo3.1-low",
@@ -540,16 +580,28 @@ async def generate_veo31_low_t2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        # Generate via Google Veo client
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-low",
-            aspect_ratio=aspect_ratio,
-            input_image=None  # T2V mode
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "t2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            # Generate via Google Veo client
+            provider_job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-low",
+                aspect_ratio=aspect_ratio,
+                input_image=None  # T2V mode
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -559,9 +611,10 @@ async def generate_veo31_low_t2v(
             model="veo3.1-low",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -577,7 +630,7 @@ async def generate_veo31_low_t2v(
     except Exception as e:
         import traceback
         print(f"Veo 3.1 LOW T2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/veo3_1-low/i2v", response_model=GenerateResponse)
@@ -589,10 +642,6 @@ async def generate_veo31_low_i2v(
 ):
     """Veo 3.1 LOW Image-to-Video (form-based)."""
     try:
-        # Calculate cost
-        # Check concurrent job limit
-        check_concurrent_limit(current_user.user_id)
-        
         # Calculate cost
         cost = credits_service.calculate_generation_cost(
             model="veo3.1-low",
@@ -607,16 +656,28 @@ async def generate_veo31_low_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        # Generate via Google Veo client with image
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-low",
-            aspect_ratio=aspect_ratio,
-            input_image={"url": img_url}
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            # Generate via Google Veo client with image
+            provider_job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-low",
+                aspect_ratio=aspect_ratio,
+                input_image={"url": img_url}
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -627,9 +688,10 @@ async def generate_veo31_low_i2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"url": img_url}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         # Deduct credits AFTER job exists
         new_balance = credits_service.deduct_credits(
@@ -645,7 +707,7 @@ async def generate_veo31_low_i2v(
     except Exception as e:
         import traceback
         print(f"Veo 3.1 LOW I2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/veo3_1-fast/t2v", response_model=GenerateResponse)
@@ -668,15 +730,28 @@ async def generate_veo31_fast_t2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-fast",
-            aspect_ratio=aspect_ratio,
-            input_image=None
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "t2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-fast",
+                aspect_ratio=aspect_ratio,
+                input_image=None
+            )
+            provider_job_id = job_id
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         job_data = JobCreate(
             job_id=job_id,
@@ -685,9 +760,10 @@ async def generate_veo31_fast_t2v(
             model="veo3.1-fast",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -702,7 +778,7 @@ async def generate_veo31_fast_t2v(
     except Exception as e:
         import traceback
         print(f"Veo 3.1 FAST T2V error: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Failed to generate video")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
 @router.post("/veo3_1-fast/i2v", response_model=GenerateResponse)
@@ -726,15 +802,28 @@ async def generate_veo31_fast_i2v(
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
         
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-fast",
-            aspect_ratio=aspect_ratio,
-            input_image={"url": img_url}
-        )
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if can_start:
+            job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-fast",
+                aspect_ratio=aspect_ratio,
+                input_image={"url": img_url}
+            )
+            provider_job_id = job_id
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         job_data = JobCreate(
             job_id=job_id,
@@ -744,9 +833,10 @@ async def generate_veo31_fast_i2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"url": img_url}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -783,16 +873,29 @@ async def generate_veo31_high_t2v(
         )
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
+            
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "t2v")
+        can_start = limit_check["allowed"]
         
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-high",
-            aspect_ratio=aspect_ratio,
-            input_image=None
-        )
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        if can_start:
+            job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-high",
+                aspect_ratio=aspect_ratio,
+                input_image=None
+            )
+            provider_job_id = job_id
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         job_data = JobCreate(
             job_id=job_id,
@@ -801,9 +904,10 @@ async def generate_veo31_high_t2v(
             model="veo3.1-high",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -841,16 +945,29 @@ async def generate_veo31_high_i2v(
         )
         if not has_enough:
             raise HTTPException(status_code=402, detail="Insufficient credits")
+            
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        can_start = limit_check["allowed"]
         
-        job_id = google_veo_client.generate_video(
-            prompt=prompt,
-            model="veo3.1-high",
-            aspect_ratio=aspect_ratio,
-            input_image={"url": img_url}
-        )
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
         
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to create video job")
+        if can_start:
+            job_id = google_veo_client.generate_video(
+                prompt=prompt,
+                model="veo3.1-high",
+                aspect_ratio=aspect_ratio,
+                input_image={"url": img_url}
+            )
+            provider_job_id = job_id
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
         
         job_data = JobCreate(
             job_id=job_id,
@@ -860,9 +977,10 @@ async def generate_veo31_high_i2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"url": img_url}]),
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=provider_job_id
         )
-        jobs_repo.create(job_data)
+        jobs_repo.create(job_data, status=status)
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,

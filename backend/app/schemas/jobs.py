@@ -33,6 +33,7 @@ class JobCreate(JobBase):
     job_id: str
     user_id: str
     credits_cost: int
+    provider_job_id: Optional[str] = None
 
 
 class JobInDB(JobBase):
@@ -40,6 +41,7 @@ class JobInDB(JobBase):
     job_id: str
     user_id: str
     status: JobStatus = "pending"
+    provider_job_id: Optional[str] = None
     output_url: Optional[str] = None
     credits_cost: int
     credits_refunded: bool = False

@@ -41,67 +41,71 @@ def map_external_status(external_status: str) -> str:
     return "processing"
 
 
+@router.get("", response_model=dict)
+async def list_jobs(
+    page: int = 1,
+    limit: int = 20,
+    status: Optional[str] = None,
+    type: Optional[str] = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    List jobs for the current user.
+    """
+    jobs, total = jobs_repo.get_by_user(
+        user_id=current_user.user_id,
+        page=page,
+        limit=limit,
+        status=status,
+        job_type=type
+    )
+    
+    return {
+        "items": jobs,
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
+
+
 @router.get("/{job_id}")
 async def get_job_status(
     job_id: str,
     current_user: Optional[UserInDB] = Depends(get_current_user_optional)
 ):
     """
-    Get job status with automatic refund on failure.
+    Get job status from our database.
     
-    If authenticated, also checks job ownership and triggers refund for failed jobs.
+    The job_monitor background task is responsible for polling external APIs
+    and updating the database. This endpoint just returns the current DB status.
     """
     try:
-        # Determine which client to use based on job_id format
-        # Veo3 jobs have format: "operation_name|scene_id"
-        if "|" in job_id:
-            # Veo3 job - use Google client
-            result = google_veo_client.get_job_status(job_id)
-        else:
-            # Kling job - use Higgsfield client
-            result = higgsfield_client.get_job_status(job_id)
+        # 1. First, get job from our database
+        job = jobs_repo.get_by_id(job_id)
         
-        # If user is authenticated, update our database
-        if current_user:
-            # Try to load job from our database
-            job = jobs_repo.get_by_id(job_id)
-            
-            if job:
-                # Check ownership
-                if job["user_id"] != current_user.user_id:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="You don't have access to this job"
-                    )
-                
-                # Map external status to our internal values
-                external_status = result.get("status", "processing")
-                new_status = map_external_status(external_status)
-                output_url = result.get("result")
-                
-                if new_status != job["status"]:
-                    # Status changed - update database
-                    if new_status == "completed":
-                        jobs_repo.update_status(job_id, new_status, output_url=output_url)
-                    elif new_status == "failed":
-                        error_msg = result.get("error", "Generation failed")
-                        jobs_repo.update_status(job_id, new_status, error_message=error_msg)
-                        
-                        # Trigger refund if not already refunded
-                        if not job.get("credits_refunded", False):
-                            refund_result = credits_service.refund_credits(
-                                user_id=current_user.user_id,
-                                job_id=job_id
-                            )
-                            if refund_result is not None:
-                                result["refunded"] = True
-                                result["new_balance"] = refund_result
-                    else:
-                        jobs_repo.update_status(job_id, new_status)
-                
-                # Add credits info to response
-                result["credits_cost"] = job["credits_cost"]
-                result["job_id"] = job_id
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # 2. Check ownership if authenticated
+        if current_user and job["user_id"] != current_user.user_id:
+            raise HTTPException(status_code=403, detail="You don't have access to this job")
+        
+        # 3. Build response from database state
+        result = {
+            "status": job["status"],
+            "result": job.get("output_url"),
+            "error_message": job.get("error_message"),
+            "job_id": job_id,
+            "credits_cost": job.get("credits_cost"),
+            "created_at": job.get("created_at"),
+            "completed_at": job.get("completed_at"),
+        }
+        
+        # 4. Add refund info if job failed
+        if job["status"] == "failed" and job.get("credits_refunded"):
+            result["refunded"] = True
+            if current_user:
+                result["new_balance"] = users_repo.get_credits(current_user.user_id)
         
         return result
         

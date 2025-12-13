@@ -84,6 +84,11 @@ class BulkCreditsResponse(BaseModel):
     message: str
 
 
+class UpdateTierRequest(BaseModel):
+    plan_id: int
+    reason: str = "Admin changed subscription tier"
+
+
 # ============================================
 # User Management Endpoints
 # ============================================
@@ -562,3 +567,72 @@ async def bulk_update_credits(
         amount=body.amount,
         message=f"{operation_text} ({affected_users} users updated)"
     )
+
+
+# ============================================
+# Subscription Tier Management
+# ============================================
+
+@router.get("/subscription-plans")
+async def get_subscription_plans(
+    current_admin: AdminInDB = Depends(get_current_admin)
+):
+    """Get all subscription plans for tier management dropdown."""
+    plans = fetch_all("""
+        SELECT plan_id, name, price, total_concurrent_limit, 
+               image_concurrent_limit, video_concurrent_limit, description
+        FROM subscription_plans
+        ORDER BY plan_id
+    """)
+    return {"plans": [dict(p) for p in plans]}
+
+
+@router.post("/{user_id}/tier")
+async def update_user_tier(
+    user_id: str,
+    request: Request,
+    body: UpdateTierRequest,
+    current_admin: AdminInDB = Depends(get_current_admin)
+):
+    """Update a user's subscription tier."""
+    # Verify user exists
+    user_data = users_repo.get_by_id(user_id)
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify plan exists
+    plan = fetch_one("SELECT * FROM subscription_plans WHERE plan_id = ?", (body.plan_id,))
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    
+    old_plan_id = user_data.get("plan_id", 1)
+    
+    # Update user's plan
+    execute(
+        "UPDATE users SET plan_id = ? WHERE user_id = ?",
+        (body.plan_id, user_id)
+    )
+    
+    # Log admin action
+    log_action(AuditLogCreate(
+        admin_id=current_admin.admin_id,
+        action="update_user_tier",
+        target_type="user",
+        target_id=user_id,
+        details={
+            "old_plan_id": old_plan_id,
+            "new_plan_id": body.plan_id,
+            "new_plan_name": plan["name"],
+            "reason": body.reason
+        },
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    ))
+    
+    return {
+        "message": f"User tier updated to {plan['name']}",
+        "user_id": user_id,
+        "old_plan_id": old_plan_id,
+        "new_plan_id": body.plan_id,
+        "new_plan_name": plan["name"]
+    }

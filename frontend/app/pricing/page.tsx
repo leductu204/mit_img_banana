@@ -26,7 +26,8 @@ function PricingContent() {
             name: 'GÓI TRẢI NGHIỆM',
             price: '49.000',
             currency: 'VNĐ',
-            credits: '1000',
+            credits: '600',
+            highlightCredits: '1200',
             duration: 'Thời hạn: 1 tháng',
             color: 'bg-blue-500',
             borderColor: 'border-blue-500',
@@ -34,11 +35,14 @@ function PricingContent() {
             highlightBg: 'bg-blue-100',
             hexColor: '#3B82F6', // blue-500
             hexBg: '#DBEAFE', // blue-100
+            link: 'https://zalo.me/0352143210',
+            cornerBadgeText: 'X2 CREDITS',
             features: [
-                { text: '1000 credits khởi đầu' },
-                { text: 'Tạo ~500 ảnh mỗi tháng' },
-                { text: 'Tạo ~100 video Veo3' },
-                { text: 'Hỗ trợ kỹ thuật' },
+                { text: '1200 credits hàng tháng', highlightText: '1200 credits' },
+                { text: 'Tạo ~240 ảnh Nano Banana', highlightText: '~240 ảnh' },
+                { text: 'Tạo ~120 video Veo3', highlightText: '~120 video' },
+                { text: 'Tạo ~40 video Kling', highlightText: '~40 video' },
+                { text: 'Quyền truy cập Fast Mode' },
             ],
             onSelect: handleSelect
         },
@@ -47,7 +51,8 @@ function PricingContent() {
             name: 'GÓI TIẾT KIỆM',
             price: '149.000',
             currency: 'VNĐ',
-            credits: '4000',
+            credits: '2000',
+            highlightCredits: '4000',
             duration: 'Thời hạn: 1 tháng',
             badge: 'PHỔ BIẾN',
             color: 'bg-purple-600',
@@ -56,42 +61,51 @@ function PricingContent() {
             highlightBg: 'bg-purple-100',
             hexColor: '#9333EA', // purple-600
             hexBg: '#F3E8FF', // purple-100
+            link: 'https://zalo.me/0352143210',
+            cornerBadgeText: 'X2 CREDITS',
             features: [
-                { text: '4000 credits khởi đầu' },
-                { text: 'Tạo ~1000 ảnh mỗi tháng' },
-                { text: 'Tạo ~400 video Veo3' },
-                { text: 'Hỗ trợ kỹ thuật' },
-                { text: 'Hàng đợi xử lý nhanh hơn' },
-                { text: 'Bonus credit miễn phí mỗi ngày' },
+                { text: '4000 credits hàng tháng', highlightText: '4000 credits' },
+                { text: 'Tạo ~800 ảnh mỗi tháng', highlightText: '~800 ảnh' },
+                { text: 'Tạo ~400 video Veo3', highlightText: '~400 video' },
+                { text: 'Tạo ~130 video Kling', highlightText: '~130 video' },
+                { text: 'Quyền truy cập Fast Mode' },
+                { text: 'Luồng xử lý song song'},
+                { text: 'Ưu tiên trải nghiệm trước model mới' },
             ],
             onSelect: handleSelect
         },
         {
             id: 'business',
-            name: 'GÓI DOANH NGHIỆP',
-            price: 'SLL',
-            currency: '',
-            credits: 'Không giới hạn',
-            duration: 'Thời hạn: Linh hoạt',
+            name: 'GÓI SÁNG TẠO',
+            price: '499.000',
+            currency: 'VNĐ',
+            credits: '7500',
+            highlightCredits: '15000',
+            duration: 'Thời hạn: 1 tháng',
+            badge: 'HOT',
             color: 'bg-green-600',
             borderColor: 'border-green-600',
             ringColor: 'ring-green-600',
             highlightBg: 'bg-green-100',
             hexColor: '#16A34A', // green-600
             hexBg: '#DCFCE7', // green-100
+            link: 'https://zalo.me/0352143210',
+            cornerBadgeText: 'X2 CREDITS',
             features: [
-                { text: 'Credit không giới hạn' },
-                { text: 'Chất lượng 4K premium' },
-                { text: 'Hỗ trợ VIP 24/7' },
-                { text: 'Hàng đợi xử lý nhanh hơn' },
-                { text: 'Bonus credit miễn phí mỗi ngày' },
+                { text: '15000 credits hàng tháng', highlightText: '15000 credits' },
+                { text: 'Tạo ~3000 ảnh mỗi tháng', highlightText: '~3000 ảnh' },
+                { text: 'Tạo ~1500 video Veo3', highlightText: '~1500 video' },
+                { text: 'Tạo ~500 video Kling', highlightText: '~500 video' },
+                { text: 'Quyền truy cập Fast Mode' },
+                { text: 'Luồng xử lý song song' },
+                { text: 'Ưu tiên trải nghiệm trước model mới' },
             ],
             onSelect: handleSelect
         },
         {
             id: 'unlimited',
-            name: 'GÓI KHÔNG GIỚI HẠN',
-            price: 'KHÔNG GIỚI HẠN',
+            name: 'UNLIMITED (coming soon)',
+            price: 'INCOMING',
             currency: 'VNĐ',
             credits: 'Toàn bộ',
             duration: 'Thời hạn: 1 Năm',
@@ -101,6 +115,7 @@ function PricingContent() {
             highlightBg: 'bg-orange-100',
             hexColor: '#FF4D00',
             hexBg: '#FFEDD5', // orange-100
+            link: '#', // Placeholder or empty
             features: [
                 { text: 'Toàn bộ Credit' },
                 { text: 'Tất cả tính năng cao cấp' },
@@ -113,7 +128,7 @@ function PricingContent() {
     ];
 
     return (
-        <div className="relative max-w-[1400px] mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="relative max-w-[1600px] mx-auto px-4 py-8 sm:px-6 lg:px-8">
             {/* Banner */}
             <div className="mb-8 rounded-xl bg-orange-50 border border-orange-100 p-4 flex flex-col md:flex-row items-center justify-center gap-4 shadow-sm text-center">
                 <div className="p-2 bg-white rounded-lg shadow-sm">
@@ -121,11 +136,11 @@ function PricingContent() {
                 </div>
                 <div>
                     <h3 className="text-gray-900 font-bold text-base">
-                        OPEN BETA - Tặng 20% Credits!
+                        OPEN WEEK - Khuyến mãi X2 Credit!
                     </h3>
                     <p className="text-gray-600 text-sm">
-                        Nạp credit ngay hôm nay để nhận khuyến mãi<span className="text-orange-500 font-bold">20%</span> số credits. 
-                        Ưu đãi có hiệu lực đến hết <span className="text-orange-500 font-bold">21/12/2025</span>.
+                        Nạp credit ngay hôm nay để nhận khuyến mãi <span className="text-orange-500 font-bold">X2 Credits</span>.
+                        Ưu đãi có hiệu lực đến <span className="text-orange-500 font-bold">21/12/2025</span>.
                     </p>
                 </div>
             </div>

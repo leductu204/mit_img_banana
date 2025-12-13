@@ -87,7 +87,21 @@ async def update_env_settings(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update .env: {str(e)}")
 
-    return {"message": "Settings updated successfully", "updated": updated_keys}
+    # Reload credentials in clients so they use new values immediately
+    try:
+        from app.services.providers.higgsfield_client import higgsfield_client
+        from app.services.providers.google_client import google_veo_client
+        
+        if "HIGGSFIELD_SSES" in updated_keys or "HIGGSFIELD_COOKIE" in updated_keys:
+            higgsfield_client.reload_credentials()
+        
+        if "GOOGLE_VEO_COOKIE" in updated_keys:
+            google_veo_client.reload_credentials()
+    except Exception as e:
+        # Don't fail the request if reload fails - just log it
+        print(f"Warning: Failed to reload client credentials: {e}")
+
+    return {"message": "Settings updated successfully", "updated": updated_keys, "reloaded": True}
 
 
 # ============================================

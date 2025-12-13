@@ -36,7 +36,6 @@ export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
                 }
             } catch (corsError) {
                 // CORS blocked, fall through to direct open
-                console.log('CORS blocked, opening directly:', corsError);
             }
             
             // Fallback: Open video in new tab for manual download

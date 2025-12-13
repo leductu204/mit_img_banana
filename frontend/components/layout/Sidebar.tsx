@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Sparkles, Video, User, BookOpenText, CreditCard } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
+import { ConcurrentLimitIndicator } from '../common/ConcurrentLimitIndicator';
+import QueueStatus from '../common/QueueStatus';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Sidebar() {
@@ -59,9 +61,17 @@ export default function Sidebar() {
                 })}
             </nav>
 
+            {/* Concurrent Limits */}
+            {isAuthenticated && (
+                <div className="px-1 mb-4">
+                    <ConcurrentLimitIndicator />
+                    <QueueStatus />
+                </div>
+            )}
+
             {/* Credits section at bottom */}
             {isAuthenticated && user && (
-                <div className="pt-4 border-t border-border mt-4">
+                <div className="pt-4 border-t border-border mt-0">
                     <div className="flex flex-col gap-2 px-2">
                         <div className="flex items-center gap-2">
                             {user.avatar_url ? (
