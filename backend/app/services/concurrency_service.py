@@ -32,7 +32,7 @@ class ConcurrencyService:
                 "total_concurrent_limit": 2,
                 "image_concurrent_limit": 1,
                 "video_concurrent_limit": 1,
-                "plan_name": "Free (Fallback)"
+                "plan_name": "Free"
             }
 
     @staticmethod

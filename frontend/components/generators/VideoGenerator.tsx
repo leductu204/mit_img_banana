@@ -23,6 +23,7 @@ import { getModelConfig } from "@/lib/models-config"
 export function VideoGenerator() {
     const [prompt, setPrompt] = useState("")
     const [referenceImages, setReferenceImages] = useState<File[]>([])
+    const [endFrameImages, setEndFrameImages] = useState<File[]>([]) // Add state for End Frame
     const [model, setModel] = useState("kling-2.6")
     const [duration, setDuration] = useState("5s")
     const [quality, setQuality] = useState("720p")
@@ -93,7 +94,7 @@ export function VideoGenerator() {
         // Check if model only supports I2V
         const i2vOnlyModels = ['kling-2.5-turbo', 'kling-o1-video']
         if (i2vOnlyModels.includes(model) && !isImageToVideo) {
-            alert('Model này chỉ hỗ trợ Image to Video. Vui lòng tải lên hình ảnh tham khảo.')
+            alert('Model này chỉ hỗ trợ Image to Video. Vui lòng tải lên hình ảnh tham chiếu.')
             return
         }
         
@@ -225,6 +226,37 @@ export function VideoGenerator() {
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
                 formData.append('speed', speed)
+
+                // Handle End Frame for 1080p (Pro Mode)
+                if (quality === '1080p' && endFrameImages.length > 0) {
+                    const endFile = endFrameImages[0]
+                    
+                    // Upload End Frame
+                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
+                        method: 'POST'
+                    })
+                    
+                    const uploadResponse = await fetch(uploadInfo.upload_url, {
+                        method: 'PUT',
+                        body: endFile,
+                        headers: { 'Content-Type': 'image/jpeg' }
+                    })
+                    
+                    if (!uploadResponse.ok) throw new Error(`End frame upload failed: ${uploadResponse.statusText}`)
+                    
+                    await apiRequest('/api/generate/image/upload/check', {
+                        method: 'POST',
+                        body: JSON.stringify({ img_id: uploadInfo.id })
+                    })
+                    
+                    // Get dimensions
+                    const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
+                    
+                    formData.append('end_img_id', uploadInfo.id)
+                    formData.append('end_img_url', uploadInfo.url)
+                    formData.append('end_width', endWidth.toString())
+                    formData.append('end_height', endHeight.toString())
+                }
             } else if (model === 'kling-o1-video') {
                 endpoint = '/api/generate/video/kling-o1/i2v'
                 formData.append('aspect_ratio', aspectRatio)
@@ -233,6 +265,37 @@ export function VideoGenerator() {
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
                 formData.append('speed', speed)
+
+                // Handle Optional End Frame for Kling O1
+                if (endFrameImages.length > 0) {
+                    const endFile = endFrameImages[0]
+                    
+                    // Upload End Frame
+                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
+                        method: 'POST'
+                    })
+                    
+                    const uploadResponse = await fetch(uploadInfo.upload_url, {
+                        method: 'PUT',
+                        body: endFile,
+                        headers: { 'Content-Type': 'image/jpeg' }
+                    })
+                    
+                    if (!uploadResponse.ok) throw new Error(`End frame upload failed: ${uploadResponse.statusText}`)
+                    
+                    await apiRequest('/api/generate/image/upload/check', {
+                        method: 'POST',
+                        body: JSON.stringify({ img_id: uploadInfo.id })
+                    })
+                    
+                    // Get dimensions
+                    const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
+                    
+                    formData.append('end_img_id', uploadInfo.id)
+                    formData.append('end_img_url', uploadInfo.url)
+                    formData.append('end_width', endWidth.toString())
+                    formData.append('end_height', endHeight.toString())
+                }
             } else if (model === 'kling-2.6') {
                 formData.append('sound', audio.toString())
                 formData.append('speed', speed)
@@ -339,7 +402,35 @@ export function VideoGenerator() {
                     </div>
 
                     {/* Reference Image Section */}
-                    <ImageUpload onImagesSelected={setReferenceImages} maxImages={1} />
+                    {(model === 'kling-2.5-turbo' && quality === '1080p') || model === 'kling-o1-video' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">
+                                    Khung hình bắt đầu <span className="text-red-500">*</span>
+                                </label>
+                                <ImageUpload 
+                                    onImagesSelected={setReferenceImages} 
+                                    maxImages={1} 
+                                    label={null}
+                                    description="Tải lên ảnh bắt đầu"
+                                />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                                    Khung kết thúc <span className="text-xs text-muted-foreground font-normal">(Tùy chọn)</span>
+                                </label>
+                                <ImageUpload 
+                                    onImagesSelected={setEndFrameImages} 
+                                    maxImages={1} 
+                                    label={null}
+                                    description="Tải lên ảnh kết thúc"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <ImageUpload onImagesSelected={setReferenceImages} maxImages={1} />
+                    )}
 
                     {/* Model Selector */}
                     <ModelSelector value={model} onChange={setModel} mode="video" />

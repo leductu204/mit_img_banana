@@ -44,7 +44,7 @@ class HiggsfieldClient:
         """Sanitize HTTP errors to prevent exposing internal URLs"""
         try:
             response.raise_for_status()
-        except requests.HTTPError:
+        except requests.exceptions.HTTPError:
             raise Exception(f"{operation} failed with status {response.status_code}: {response.text}")
 
     def get_jwt_token(self) -> str:
@@ -576,6 +576,7 @@ class HiggsfieldClient:
     
     def send_job_kling_2_5_turbo_i2v(self, prompt: str, duration: int, resolution: str,
                                       img_id: str, img_url: str, width: int, height: int,
+                                      input_image_end: dict = None, mode: str = "std",
                                       use_unlim: bool = True) -> str:
         """
         Kling 2.5 Turbo I2V - matches send_job_i2v_kling_2_5_turbo in higgsfield_api.py
@@ -592,6 +593,7 @@ class HiggsfieldClient:
                     "width": width,
                     "height": height
                 },
+                "input_image_end": input_image_end,
                 "width": width,
                 "height": height,
                 "prompt": prompt,
@@ -603,8 +605,7 @@ class HiggsfieldClient:
                 "resolution": resolution,
                 "motion_id": "7077cde8-7947-46d6-aea2-dbf2ff9d441c",
                 "enhance_prompt": False,
-                "mode": "std",
-                "input_image_end": None
+                "mode": mode,
             },
             "use_unlim": use_unlim
         }
@@ -622,6 +623,7 @@ class HiggsfieldClient:
 
     def send_job_kling_o1_i2v(self, prompt: str, duration: int, aspect_ratio: str,
                               img_id: str, img_url: str, width: int, height: int,
+                              input_image_end: dict = None,
                               use_unlim: bool = True) -> str:
         """
         Kling O1 I2V - matches send_job_i2v_kling_o1 in higgsfield_api.py
@@ -640,7 +642,7 @@ class HiggsfieldClient:
                     "type": "media_input",
                     "url": img_url
                 },
-                "input_image_end": None,
+                "input_image_end": input_image_end,
                 "height": height,
                 "width": width,
                 "use_unlim": use_unlim

@@ -151,8 +151,8 @@ def calculate_video_cost(
         base_key = f"{resolution}-{duration_key}"
         
     elif model == "kling-o1-video":
-        # Duration + resolution (repo keys same format as 2.5 turbo mostly)
-        base_key = f"{resolution}-{duration_key}"
+        # Duration only (repo keys: 5s-fast, 10s-slow)
+        base_key = f"{duration_key}"
     
     elif model == "kling-2.6":
         # Duration + optional audio (resolution not supported)

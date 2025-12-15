@@ -39,16 +39,18 @@ def fix_plans():
                 """, p)
                 print(f"Inserted Plan {p[0]}: {p[1]}")
 
-        # 2. Check User Plan
-        print("\nChecking user 'leductummo@gmail.com'...")
+        # 2. Force Update User Plan
+        print("\nUpdating user 'leductummo@gmail.com' to Professional (Plan 3)...")
+        cursor.execute("UPDATE users SET plan_id = 3 WHERE email='leductummo@gmail.com'")
+        
         cursor.execute("SELECT plan_id FROM users WHERE email='leductummo@gmail.com'")
         row = cursor.fetchone()
         if row:
-            print(f"User plan_id is: {row[0]}")
+            print(f"User plan_id is now: {row[0]}")
             if row[0] == 3:
-                 print("User is correctly on Professional plan.")
+                 print("SUCCESS: User is set to Professional plan.")
             else:
-                 print(f"WARNING: User is on plan {row[0]}, expected 3 (Professional).")
+                 print(f"WARNING: User is on plan {row[0]}.")
         else:
             print("User not found.")
 

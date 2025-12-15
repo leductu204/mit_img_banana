@@ -88,6 +88,12 @@ def seed_default_costs() -> None:
         ("kling-2.5-turbo", "720p-10s-fast", 8),
         ("kling-2.5-turbo", "720p-10s-slow", 8),
         
+        # Kling 2.5 Turbo 1080p (Pro Mode)
+        ("kling-2.5-turbo", "1080p-5s-fast", 10),
+        ("kling-2.5-turbo", "1080p-5s-slow", 10),
+        ("kling-2.5-turbo", "1080p-10s-fast", 15),
+        ("kling-2.5-turbo", "1080p-10s-slow", 15),
+        
         # Kling O1 Video - Flat structure
         ("kling-o1-video", "5s-fast", 6),
         ("kling-o1-video", "5s-slow", 6),

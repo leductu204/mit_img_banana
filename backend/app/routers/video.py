@@ -227,6 +227,11 @@ async def generate_kling_turbo_i2v(
     img_url: str = Form(...),
     width: int = Form(...),
     height: int = Form(...),
+    # Optional End Frame parameters
+    end_img_id: Optional[str] = Form(None),
+    end_img_url: Optional[str] = Form(None),
+    end_width: Optional[int] = Form(None),
+    end_height: Optional[int] = Form(None),
     speed: str = Form("fast")
 ):
     """Kling 2.5 Turbo Image-to-Video (form-based)."""
@@ -255,9 +260,27 @@ async def generate_kling_turbo_i2v(
         provider_job_id = None
         status = "pending"
         
+        input_images_data = [{"id": img_id, "url": img_url, "width": width, "height": height}]
+        
         if can_start:
             # Determine unlimited usage
             use_unlim = True if speed == "slow" else False
+
+            # Determine mode and end frame
+            mode = "std"
+            input_image_end = None
+            
+            if resolution == "1080p":
+                mode = "pro"
+                if end_img_id and end_img_url:
+                    input_image_end = {
+                        "type": "media_input",
+                        "id": end_img_id,
+                        "url": end_img_url,
+                        "width": end_width if end_width else width,
+                        "height": end_height if end_height else height
+                    }
+                    input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
 
             # Generate
             provider_job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
@@ -268,6 +291,8 @@ async def generate_kling_turbo_i2v(
                 img_url=img_url,
                 width=width,
                 height=height,
+                input_image_end=input_image_end,
+                mode=mode,
                 use_unlim=use_unlim
             )
             
@@ -283,8 +308,8 @@ async def generate_kling_turbo_i2v(
             type="i2v",
             model="kling-2.5-turbo",
             prompt=prompt,
-            input_params=json.dumps({"duration": duration, "resolution": resolution, "speed": speed}),
-            input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
+            input_params=json.dumps({"duration": duration, "resolution": resolution, "speed": speed, "mode": mode}),
+            input_images=json.dumps(input_images_data),
             credits_cost=cost,
             provider_job_id=provider_job_id
         )
@@ -317,6 +342,11 @@ async def generate_kling_o1_i2v(
     img_url: str = Form(...),
     width: int = Form(...),
     height: int = Form(...),
+    # Optional End Frame parameters
+    end_img_id: Optional[str] = Form(None),
+    end_img_url: Optional[str] = Form(None),
+    end_width: Optional[int] = Form(None),
+    end_height: Optional[int] = Form(None),
     speed: str = Form("fast")
 ):
     """Kling O1 Video Image-to-Video (form-based)."""
@@ -325,7 +355,7 @@ async def generate_kling_o1_i2v(
             model="kling-o1-video",
             duration=f"{duration}s",
             aspect_ratio=aspect_ratio,
-            resolution="720p",
+            resolution="1080p",
             speed=speed
         )
         
@@ -342,8 +372,23 @@ async def generate_kling_o1_i2v(
         provider_job_id = None
         status = "pending"
         
+        input_images_data = [{"id": img_id, "url": img_url, "width": width, "height": height}]
+        
         if can_start:
             use_unlim = True if speed == "slow" else False
+
+            # Prepare end frame
+            input_image_end = None
+            if end_img_id and end_img_url:
+                input_image_end = {
+                    "type": "media_input",
+                    "id": end_img_id,
+                    "url": end_img_url,
+                    # Fallback to start image dims if end image dims missing
+                    "width": end_width if end_width else width,
+                    "height": end_height if end_height else height
+                }
+                input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
 
             provider_job_id = higgsfield_client.send_job_kling_o1_i2v(
                 prompt=prompt,
@@ -353,6 +398,7 @@ async def generate_kling_o1_i2v(
                 img_url=img_url,
                 width=width,
                 height=height,
+                input_image_end=input_image_end,
                 use_unlim=use_unlim
             )
             
@@ -369,7 +415,7 @@ async def generate_kling_o1_i2v(
             model="kling-o1-video",
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
-            input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
+            input_images=json.dumps(input_images_data),
             credits_cost=cost,
             provider_job_id=provider_job_id
         )

@@ -4,11 +4,21 @@ import { Upload, X, Image as ImageIcon, Plus } from 'lucide-react';
 interface ImageUploadProps {
     onImagesSelected: (files: File[]) => void;
     maxImages?: number;
+    label?: React.ReactNode;
+    description?: string;
 }
 
-export default function ImageUpload({ onImagesSelected, maxImages = 5 }: ImageUploadProps) {
+export default function ImageUpload({ 
+    onImagesSelected, 
+    maxImages = 5,
+    label = "Hình ảnh tham chiếu",
+    description 
+}: ImageUploadProps) {
     const [previews, setPreviews] = useState<{ id: string; url: string; file: File }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const defaultDescription = `Tải lên tối đa ${maxImages} hình ảnh tham chiếu.`;
+    const finalDescription = description !== undefined ? description : defaultDescription;
 
     // Cleanup object URLs to avoid memory leaks
     useEffect(() => {
@@ -64,7 +74,7 @@ export default function ImageUpload({ onImagesSelected, maxImages = 5 }: ImageUp
 
     return (
         <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Hình ảnh tham chiếu</label>
+            {label && <label className="text-sm font-medium text-foreground">{label}</label>}
             
             <div className="flex flex-wrap gap-3">
                 {/* Image Thumbnails */}
@@ -104,8 +114,8 @@ export default function ImageUpload({ onImagesSelected, maxImages = 5 }: ImageUp
                     </div>
                 )}
             </div>
-            {previews.length === 0 && (
-                <p className="text-xs text-muted-foreground">Tải lên tối đa {maxImages} hình ảnh làm tham chiếu.</p>
+            {previews.length === 0 && finalDescription && (
+                <p className="text-xs text-muted-foreground">{finalDescription}</p>
             )}
         </div>
     );

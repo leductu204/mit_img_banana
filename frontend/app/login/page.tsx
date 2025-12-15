@@ -77,7 +77,7 @@ export default function LoginPage() {
                     {/* Promo Text */}
                     <div className="mt-6 p-4 rounded-lg bg-[#0F766E]/5 border border-[#0F766E]/20">
                         <p className="text-sm text-center text-foreground">
-                            🎁 <span className="font-semibold">Nhận 1000 credits miễn phí</span>
+                            🎁 <span className="font-semibold">Nhận 100 credits miễn phí</span>
                             <br />
                             <span className="text-muted-foreground">khi đăng ký lần đầu!</span>
                         </p>
