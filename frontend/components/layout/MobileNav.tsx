@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Video, Menu, X, User, BookOpenText, CreditCard } from 'lucide-react';
+import { Sparkles, Video, Menu, X, User, BookOpenText, CreditCard, Palette } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -14,6 +14,7 @@ export default function MobileNav() {
 
     const navItems = [
         { href: '/create-image', icon: Sparkles, label: 'Tạo ảnh' },
+        { href: '/studio', icon: Palette, label: 'Studio' },
         { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/create-video', icon: Video, label: 'Tạo Video' },
         { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },

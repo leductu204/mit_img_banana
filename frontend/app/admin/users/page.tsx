@@ -24,6 +24,7 @@ interface User {
   is_banned: boolean;
   created_at: string;
   last_login_at?: string;
+  plan_id?: number;
 }
 
 interface UsersResponse {
@@ -38,6 +39,11 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'banned'>('all');
+  const [tierFilter, setTierFilter] = useState<number | 'all'>('all');
+  const [plans, setPlans] = useState<any[]>([]);
+  
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   
   // Bulk credits modal
@@ -47,16 +53,37 @@ export default function AdminUsersPage() {
   const [bulkReason, setBulkReason] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  // Fetch plans for filter
+  useEffect(() => {
+     getAdminToken(); // Ensure token helper is available
+     async function fetchPlans() {
+        try {
+            const token = getAdminToken();
+            const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users/subscription-plans`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPlans(data.plans);
+            }
+        } catch (e) { console.error("Failed to fetch plans", e); }
+     }
+     fetchPlans();
+  }, []);
+
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
       const token = getAdminToken();
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20'
+        limit: '20',
+        sort_by: sortBy,
+        order: sortOrder
       });
       if (search) params.append('search', search);
       if (status !== 'all') params.append('status', status);
+      if (tierFilter !== 'all') params.append('plan_id', tierFilter.toString());
 
       const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/users?${params}`, {
         headers: {
@@ -77,12 +104,27 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, status]);
+  }, [page, status, tierFilter, sortBy, sortOrder]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     fetchUsers();
+  };
+  
+  const toggleSort = (field: string) => {
+      if (sortBy === field) {
+          setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+      } else {
+          setSortBy(field);
+          setSortOrder('desc');
+      }
+      setPage(1);
+  };
+  
+  const renderSortIcon = (field: string) => {
+      if (sortBy !== field) return <div className="w-4 h-4" />; // spacer
+      return sortOrder === 'asc' ? <ChevronLeft className="w-4 h-4 rotate-90" /> : <ChevronLeft className="w-4 h-4 -rotate-90" />;
   };
 
   const handleBulkCredits = async () => {
@@ -153,6 +195,18 @@ export default function AdminUsersPage() {
             />
           </div>
         </form>
+        
+        {/* Tier Filter */}
+        <select
+            value={tierFilter}
+            onChange={(e) => { setTierFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setPage(1); }}
+            className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+            <option value="all">All Tiers</option>
+            {plans.map(p => (
+                <option key={p.plan_id} value={p.plan_id}>{p.name}</option>
+            ))}
+        </select>
 
         {/* Status Filter */}
         <div className="flex gap-2">
@@ -183,9 +237,23 @@ export default function AdminUsersPage() {
             <thead className="bg-gray-800">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">User</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Credits</th>
+                <th 
+                    className="px-6 py-4 text-left text-sm font-medium text-gray-400 cursor-pointer hover:text-white transition-colors select-none"
+                    onClick={() => toggleSort('credits')}
+                >
+                    <div className="flex items-center gap-1">
+                        Credits {renderSortIcon('credits')}
+                    </div>
+                </th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Joined</th>
+                <th 
+                    className="px-6 py-4 text-left text-sm font-medium text-gray-400 cursor-pointer hover:text-white transition-colors select-none"
+                    onClick={() => toggleSort('created_at')}
+                >
+                    <div className="flex items-center gap-1">
+                        Joined {renderSortIcon('created_at')}
+                    </div>
+                </th>
                 <th className="px-6 py-4 text-right text-sm font-medium text-gray-400">Actions</th>
               </tr>
             </thead>
@@ -203,7 +271,14 @@ export default function AdminUsersPage() {
                       )}
                       <div>
                         <p className="text-white font-medium">{user.email}</p>
-                        <p className="text-gray-400 text-sm">{user.username || 'No username'}</p>
+                        <div className="flex items-center gap-2">
+                             <p className="text-gray-400 text-sm">{user.username || 'No username'}</p>
+                             {user.plan_id && user.plan_id > 1 && (
+                                 <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider border border-purple-500/30">
+                                     {plans.find(p => p.plan_id === user.plan_id)?.name || 'Premium'}
+                                 </span>
+                             )}
+                        </div>
                       </div>
                     </div>
                   </td>

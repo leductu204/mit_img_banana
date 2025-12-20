@@ -28,3 +28,5 @@ __pycache__/
 
 *test*
 *debug*
+backend/kling_automation_gui.py
+backend/verify_automation_logic.py

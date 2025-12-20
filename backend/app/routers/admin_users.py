@@ -100,13 +100,13 @@ async def list_users(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None)  # active, banned, all
+    status: Optional[str] = Query(None),  # active, banned, all
+    plan_id: Optional[int] = Query(None),
+    sort_by: Optional[str] = Query("created_at"), # created_at, credits, last_login_at
+    order: Optional[str] = Query("desc") # asc, desc
 ):
     """
-    List all users with search and filtering.
-    
-    - search: Filter by email or username (partial match)
-    - status: Filter by active/banned status
+    List all users with search, filtering, and sorting.
     """
     offset = (page - 1) * limit
     
@@ -122,8 +122,23 @@ async def list_users(
         conditions.append("(is_banned = FALSE OR is_banned IS NULL)")
     elif status == "banned":
         conditions.append("is_banned = TRUE")
+        
+    if plan_id is not None:
+        conditions.append("plan_id = ?")
+        params.append(plan_id)
     
     where_clause = " AND ".join(conditions) if conditions else "1=1"
+    
+    # Validate sort_by
+    allowed_sorts = ["created_at", "credits", "last_login_at", "email"]
+    if sort_by not in allowed_sorts:
+        sort_by = "created_at"
+        
+    # Validate order
+    if order.lower() not in ["asc", "desc"]:
+        order = "desc"
+        
+    order_clause = f"{sort_by} {order.upper()}"
     
     # Get total count
     count_result = fetch_one(
@@ -138,7 +153,7 @@ async def list_users(
                COALESCE(is_banned, FALSE) as is_banned, plan_id, created_at, last_login_at
         FROM users 
         WHERE {where_clause}
-        ORDER BY created_at DESC
+        ORDER BY {order_clause}
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])

@@ -98,6 +98,28 @@ def seed_default_costs() -> None:
         ("kling-o1-video", "5s-fast", 6),
         ("kling-o1-video", "5s-slow", 6),
         ("kling-o1-video", "10s-fast", 10),
+        
+        # Status Flags (1=Enabled, 0=Disabled) - For ALL models
+        ("nano-banana", "is_enabled", 1),
+        ("nano-banana-pro", "is_enabled", 1),
+        ("kling-2.5-turbo", "is_enabled", 1),
+        ("kling-2.6", "is_enabled", 1),
+        ("kling-o1-video", "is_enabled", 1),
+        ("veo3.1-low", "is_enabled", 1),
+        ("veo3.1-fast", "is_enabled", 1),
+        ("veo3.1-high", "is_enabled", 1),
+
+        # Slow Mode Feature Flags (1=Enabled, 0=Disabled)
+        ("kling-2.5-turbo", "is_slow_mode_enabled", 1),
+        ("kling-2.6", "is_slow_mode_enabled", 1),
+        ("kling-o1-video", "is_slow_mode_enabled", 1),
+        ("veo3.1-low", "is_slow_mode_enabled", 1),
+        ("veo3.1-fast", "is_slow_mode_enabled", 1),
+        ("veo3.1-high", "is_slow_mode_enabled", 1),
+        ("nano-banana", "is_slow_mode_enabled", 1),
+        ("nano-banana-pro", "is_slow_mode_enabled_1k", 1),
+        ("nano-banana-pro", "is_slow_mode_enabled_2k", 1),
+        ("nano-banana-pro", "is_slow_mode_enabled_4k", 1),
         ("kling-o1-video", "10s-slow", 10),
         
         # Kling 2.6 - Flat structure

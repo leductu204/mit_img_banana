@@ -6,13 +6,14 @@ interface ModelSelectorProps {
     value: string;
     onChange: (value: string) => void;
     mode: 'image' | 'video';
+    options?: any[]; // Optional override for dynamic filtering
 }
 
-export default function ModelSelector({ value, onChange, mode }: ModelSelectorProps) {
+export default function ModelSelector({ value, onChange, mode, options: customOptions }: ModelSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const options = mode === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
+    const options = customOptions || (mode === 'image' ? IMAGE_MODELS : VIDEO_MODELS);
     const selectedOption = options.find(opt => opt.value === value) || options[0];
 
     useEffect(() => {

@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Job } from '@/hooks/useJobs';
 import { CheckCircle, XCircle, Clock, Loader2, ChevronLeft, ChevronRight, Ban, X } from 'lucide-react';
 import Button from '../common/Button';
+import { cleanPrompt } from '@/lib/prompt-utils';
 import { TableSkeleton } from '../common/SkeletonLoader';
 import JobDetailsModal from './JobDetailsModal';
 
@@ -138,7 +139,7 @@ export default function JobHistoryTable({
                                         </td>
                                         <td className="px-4 py-3 max-w-[200px]">
                                             <span className="text-sm text-muted-foreground truncate block" title={job.prompt}>
-                                                {job.prompt.length > 50 ? `${job.prompt.slice(0, 50)}...` : job.prompt}
+                                                {cleanPrompt(job.prompt).length > 50 ? `${cleanPrompt(job.prompt).slice(0, 50)}...` : cleanPrompt(job.prompt)}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">

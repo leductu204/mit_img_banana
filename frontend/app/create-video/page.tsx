@@ -7,7 +7,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute"
 
 export default function CreateVideoPage() {
     return (
-        <ProtectedRoute>
             <div className="flex min-h-screen bg-background">
                 <MobileNav />
                 <Sidebar />
@@ -15,6 +14,5 @@ export default function CreateVideoPage() {
                     <VideoGenerator />
                 </main>
             </div>
-        </ProtectedRoute>
     )
 }

@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import Plyr from 'plyr-react';
 import 'plyr-react/plyr.css';
-import { Download } from 'lucide-react';
+import 'plyr-react/plyr.css';
 import { useToast } from '@/hooks/useToast';
 
 interface VideoPreviewProps {
@@ -74,9 +74,9 @@ export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
     };
 
     return (
-        <div className="w-full flex flex-col items-center gap-6 p-6 lg:p-10">
-            {/* Fixed Video Box - Matches Image Box Size */}
-            <div className="w-full max-w-3xl aspect-[3/4] max-h-[calc(100vh-14rem)] rounded-xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden flex items-center justify-center relative shadow-sm">
+        <div className="w-full h-full flex items-center justify-center p-0">
+            {/* Fixed Video Box */}
+            <div className="w-full max-w-3xl aspect-[3/4] max-h-[calc(100vh-14rem)] rounded-xl overflow-hidden flex items-center justify-center relative shadow-sm">
                 <style jsx global>{`
                     .video-box .plyr {
                         width: 100%;
@@ -100,15 +100,6 @@ export default function VideoPreview({ videoUrl }: VideoPreviewProps) {
                     />
                 </div>
             </div>
-
-            {/* Download Button */}
-            <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-                <Download className="w-5 h-5" />
-                <span className="font-medium">Tải xuống video</span>
-            </button>
         </div>
     );
 }

@@ -198,3 +198,44 @@ async def seed_default_costs(
         return {"message": "Default costs seeded successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class DeleteCostRequest(BaseModel):
+    model: str
+    config_key: str
+
+
+@router.post("/delete-bulk")
+async def delete_costs_bulk(
+    request: Request,
+    items: List[DeleteCostRequest],
+    current_admin: AdminInDB = Depends(get_current_admin)
+):
+    """Delete multiple model cost entries."""
+    deleted_count = 0
+    try:
+        for item in items:
+            if model_costs_repo.delete_cost(item.model, item.config_key):
+                deleted_count += 1
+        
+        # Invalidate cache
+        invalidate_cache()
+        
+        # Log action
+        log_action(AuditLogCreate(
+            admin_id=current_admin.admin_id,
+            action="delete_cost_bulk",
+            target_type="model_cost",
+            target_id="bulk_delete",
+            details={
+                "count": deleted_count,
+                "items": [i.dict() for i in items]
+            },
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        ))
+        
+        return {"message": f"Successfully deleted {deleted_count} items"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
