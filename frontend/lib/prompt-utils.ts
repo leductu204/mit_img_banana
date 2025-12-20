@@ -6,17 +6,21 @@
 export function cleanPrompt(prompt: string): string {
     if (!prompt) return "Untitled";
     
+    const p = prompt.trim();
+    const lp = p.toLowerCase();
+    
     // Check for "Restore Photo" system prompt
-    if (prompt.includes("CRITICAL TASK: Restore")) return "Restore Old Photo";
+    if (lp.includes("critical task: restore")) return "Restore Old Photo";
     
     // Check for "Upscale Image" system prompt
-    if (prompt.includes("Upscale this image")) return "Upscale Image";
+    if (lp.includes("upscale this image")) return "Upscale Image";
     
     // Check for "Expand Image" system prompt
-    if (prompt.includes("Expand the image with request:")) {
-        const match = prompt.match(/request: (.*?)\. Expand/);
-        return match ? match[1] : prompt;
+    if (lp.includes("expand the image with request:")) {
+        const match = p.match(/request: (.*?)\. Expand/i);
+        return match ? match[1] : p;
     }
     
-    return prompt;
+    return p;
 }
+

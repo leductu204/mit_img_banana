@@ -286,7 +286,8 @@ export default function UpscaleImageForm() {
                     details={{
                         prompt: `Nâng cấp ảnh lên chất lượng ${scale === '4' ? '4K' : '2K'}`,
                         model,
-                        aspectRatio
+                        aspectRatio,
+                        resolution: scale === '4' ? '4k' : '2k'
                     }}
                 />
             </div>

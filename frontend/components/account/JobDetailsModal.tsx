@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, ExternalLink, Image as ImageIcon, Film, FileText, Calendar, Activity, Sliders, AlertTriangle, Download } from 'lucide-react';
 import { Job } from '@/hooks/useJobs';
+import { cleanPrompt } from '@/lib/prompt-utils';
 
 interface JobDetailsModalProps {
     job: Job;
@@ -108,14 +109,24 @@ export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalP
                     </div>
 
                     {/* Prompt */}
-                    <div>
-                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-foreground">
-                            <FileText className="w-4 h-4 text-primary" /> Prompt
-                        </h4>
-                        <div className="bg-muted p-3 rounded-lg text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
-                            {job.prompt}
-                        </div>
-                    </div>
+                    {(() => {
+                        const cleaned = cleanPrompt(job.prompt);
+                        const isSystemPrompt = ["Restore Old Photo", "Upscale Image"].includes(cleaned) || 
+                                              (job.prompt && job.prompt.toLowerCase().includes("critical task:"));
+                        
+                        if (isSystemPrompt && job.type !== 't2i') return null;
+
+                        return (
+                            <div>
+                                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-foreground">
+                                    <FileText className="w-4 h-4 text-primary" /> Prompt
+                                </h4>
+                                <div className="bg-muted p-3 rounded-lg text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                                    {cleaned}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Failed Message */}
                     {job.status === 'failed' && job.error_message && (
@@ -159,13 +170,29 @@ export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalP
                     )}
 
                     {/* Config Parameters */}
-                    {Object.keys(inputParams).length > 0 && (
+                    {Object.keys(inputParams).filter(k => {
+                        if (k === 'prompt') {
+                            const cleaned = cleanPrompt(inputParams[k]);
+                            return !(["Restore Old Photo", "Upscale Image"].includes(cleaned) || 
+                                     (inputParams[k] && inputParams[k].toLowerCase().includes("critical task:")));
+                        }
+                        return true;
+                    }).length > 0 && (
                         <div>
                             <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-foreground">
                                 <Sliders className="w-4 h-4 text-primary" /> Configuration
                             </h4>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                {Object.entries(inputParams).map(([k, v]) => (
+                                {Object.entries(inputParams)
+                                    .filter(([k, v]) => {
+                                        if (k === 'prompt') {
+                                            const cleaned = cleanPrompt(String(v));
+                                            return !(["Restore Old Photo", "Upscale Image"].includes(cleaned) || 
+                                                     (String(v).toLowerCase().includes("critical task:")));
+                                        }
+                                        return true;
+                                    })
+                                    .map(([k, v]) => (
                                     <div key={k} className="flex justify-between py-1 border-b border-border/50">
                                         <span className="text-muted-foreground">{formatKey(k)}</span>
                                         <span className="font-mono text-foreground">{String(v)}</span>

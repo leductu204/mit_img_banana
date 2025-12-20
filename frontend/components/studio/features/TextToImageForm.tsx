@@ -115,7 +115,7 @@ export default function TextToImageForm() {
 
 
   // State for metadata display
-  const [lastUsedParams, setLastUsedParams] = useState<{prompt: string; model: string; aspectRatio: string} | null>(null);
+  const [lastUsedParams, setLastUsedParams] = useState<{prompt: string; model: string; aspectRatio: string; resolution?: string} | null>(null);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -130,16 +130,18 @@ export default function TextToImageForm() {
     setCurrentJobStatus("starting");
 
     // Capture params at start of generation
+    const modelConfig = getModelConfig(model, 'image');
+    const isPro = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
+
     setLastUsedParams({
         prompt,
         model,
-        aspectRatio
+        aspectRatio,
+        resolution: isPro ? quality : undefined
     });
 
     try {
       // API Logic (Dynamic based on ImageGenerator.tsx)
-      const modelConfig = getModelConfig(model, 'image');
-      const isPro = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
       
       // Dynamic endpoint based on model
       const endpoint = `/api/generate/image/${model}/generate`;

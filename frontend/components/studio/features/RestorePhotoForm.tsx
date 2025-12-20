@@ -18,6 +18,7 @@ import { useStudio } from "../StudioContext";
 export default function RestorePhotoForm() {
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const [speed, setSpeed] = useState<any>("fast");
+  const [quality, setQuality] = useState("2k");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
   
@@ -47,8 +48,8 @@ export default function RestorePhotoForm() {
   // ... existing code ...
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost(model, aspectRatio, "2k", speed);
-  }, [model, aspectRatio, speed, estimateImageCost]);
+    return estimateImageCost(model, aspectRatio, quality, speed);
+  }, [model, aspectRatio, quality, speed, estimateImageCost]);
 
   const handleGenerate = async () => {
     // ... existing handleGenerate code ...
@@ -102,6 +103,7 @@ export default function RestorePhotoForm() {
             prompt: "CRITICAL TASK: Restore and colorize this old photograph.\n1. **Colorization**: This is the most important step. **Colorize the photo with natural, realistic colors.** The final image MUST be in full color, not black and white or sepia.\n2. **Damage Repair**: Fix all visible damage including scratches, tears, folds, stains, and any physical deterioration.\n3. **Detail Enhancement**: Sharpen details and enhance facial features.\n4. **Quality Improvement**: Increase resolution and overall image quality.\n5. **Natural Look**: Ensure the result looks like a professionally restored and colorized photograph.",
             input_images: inputImages,
             aspect_ratio: aspectRatio,
+            resolution: quality,
             speed: speed,
             keep_style: true
         };
@@ -171,6 +173,31 @@ export default function RestorePhotoForm() {
           <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground flex gap-2">
             <Wand2 className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
             <p>AI sẽ tự động khử nhiễu, làm nét khuôn mặt và cân bằng màu sắc.</p>
+          </div>
+
+          {/* Quality Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Độ phân giải</label>
+            <div className="grid grid-cols-3 gap-2">
+                {['1k', '2k', '4k'].map((q) => (
+                    <button
+                        key={q}
+                        onClick={() => setQuality(q)}
+                        className={`py-2 rounded-lg border text-sm font-medium transition-all ${
+                            quality === q 
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                                : 'bg-background hover:bg-muted border-border text-muted-foreground'
+                        }`}
+                    >
+                        {q.toUpperCase()}
+                    </button>
+                ))}
+            </div>
+            {quality === '4k' && (
+                <p className="text-[10px] text-pink-500 font-medium">
+                    * 4K tiêu tốn nhiều credits hơn
+                </p>
+            )}
           </div>
 
            {/* Speed Selector */}
@@ -269,7 +296,8 @@ export default function RestorePhotoForm() {
                     details={{
                         prompt: "Restore & Colorize Photo",
                         model,
-                        aspectRatio
+                        aspectRatio,
+                        resolution: quality
                     }}
                 />
             </div>

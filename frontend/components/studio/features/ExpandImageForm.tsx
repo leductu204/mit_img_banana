@@ -19,6 +19,7 @@ export default function ExpandImageForm() {
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
   const [speed, setSpeed] = useState<any>("fast");
+  const [quality, setQuality] = useState("2k");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
   
@@ -29,8 +30,8 @@ export default function ExpandImageForm() {
   const model = "nano-banana-pro";
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost(model, aspectRatio, "2k", speed);
-  }, [model, aspectRatio, speed, estimateImageCost]);
+    return estimateImageCost(model, aspectRatio, quality, speed);
+  }, [model, aspectRatio, quality, speed, estimateImageCost]);
 
   // History Selection Integration
   const { selectedHistoryJob } = useStudio();
@@ -106,6 +107,7 @@ export default function ExpandImageForm() {
             prompt: fullPrompt,
             input_images: inputImages,
             aspect_ratio: aspectRatio,
+            resolution: quality,
             speed: speed,
             keep_style: true
         };
@@ -188,6 +190,31 @@ export default function ExpandImageForm() {
               placeholder="Rừng cây xanh, bầu trời đầy sao..."
               className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background p-3 text-sm focus:ring-primary focus-visible:outline-none focus-visible:ring-2"
             />
+          </div>
+
+          {/* Quality Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Độ phân giải</label>
+            <div className="grid grid-cols-3 gap-2">
+                {['1k', '2k', '4k'].map((q) => (
+                    <button
+                        key={q}
+                        onClick={() => setQuality(q)}
+                        className={`py-2 rounded-lg border text-sm font-medium transition-all ${
+                            quality === q 
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                                : 'bg-background hover:bg-muted border-border text-muted-foreground'
+                        }`}
+                    >
+                        {q.toUpperCase()}
+                    </button>
+                ))}
+            </div>
+            {quality === '4k' && (
+                <p className="text-[10px] text-pink-500 font-medium">
+                    * 4K tiêu tốn nhiều credits hơn
+                </p>
+            )}
           </div>
 
           {/* Speed Selector */}
@@ -273,7 +300,7 @@ export default function ExpandImageForm() {
             onRegenerate={handleGenerate}
             placeholderTitle="Kết quả mở rộng"
             placeholderDesc="Ảnh sau khi mở rộng khung hình sẽ hiển thị tại đây."
-            details={{ prompt, model, aspectRatio }}
+            details={{ prompt, model, aspectRatio, resolution: quality }}
          />
       </div>
     </div>

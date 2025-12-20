@@ -18,6 +18,7 @@ interface ResultPreviewProps {
     width?: number;
     height?: number;
     aspectRatio?: string;
+    resolution?: string;
   };
 }
 
@@ -133,6 +134,12 @@ export default function ResultPreview({
                                           <div>
                                               <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest block mb-1">Ratio</span>
                                               <span className="text-xs font-semibold">{details.aspectRatio}</span>
+                                          </div>
+                                      )}
+                                      {details.resolution && (
+                                          <div>
+                                              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest block mb-1">Quality</span>
+                                              <span className="text-xs font-semibold">{details.resolution}</span>
                                           </div>
                                       )}
                                   </div>
