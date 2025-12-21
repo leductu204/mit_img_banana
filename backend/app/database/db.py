@@ -89,6 +89,65 @@ def execute_in_transaction(operations: Callable[[sqlite3.Connection], Any]) -> A
         conn.close()
 
 
+def init_higgsfield_accounts_table(conn=None) -> None:
+    """
+    Initialize Higgsfield Accounts table for managing multiple provider accounts.
+    Also migrates jobs table to add account_id foreign key.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    
+    try:
+        # Create higgsfield_accounts table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS higgsfield_accounts (
+                account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                sses TEXT NOT NULL,
+                cookie TEXT NOT NULL,
+                max_parallel_images INTEGER NOT NULL DEFAULT 8,
+                max_parallel_videos INTEGER NOT NULL DEFAULT 8,
+                max_slow_images INTEGER NOT NULL DEFAULT 4,
+                max_slow_videos INTEGER NOT NULL DEFAULT 4,
+                priority INTEGER NOT NULL DEFAULT 100,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # Create index for active accounts lookup
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_higgsfield_accounts_active 
+            ON higgsfield_accounts(is_active, priority DESC);
+        """)
+        
+        # Migrate jobs table to add account_id column
+        cursor = conn.execute("PRAGMA table_info(jobs)")
+        job_columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'account_id' not in job_columns:
+            print("Migrating jobs table to add account_id...")
+            conn.execute("""
+                ALTER TABLE jobs 
+                ADD COLUMN account_id INTEGER 
+                REFERENCES higgsfield_accounts(account_id)
+            """)
+            print("Jobs table migrated successfully")
+        
+        conn.commit()
+        print("Higgsfield accounts table initialized/migrated successfully")
+        
+    except Exception as e:
+        print(f"Error initializing higgsfield accounts table: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
+
+
 def init_database() -> None:
     """
     Initialize the database schema.
@@ -118,6 +177,9 @@ def init_database() -> None:
 
         # Initialize Subscription tables and migrate users/jobs
         init_subscription_tables(conn)
+        
+        # Initialize Higgsfield Accounts table
+        init_higgsfield_accounts_table(conn)
         
     except Exception as e:
         print(f"Error initializing database: {e}")

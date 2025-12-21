@@ -69,6 +69,84 @@ export default function JobHistoryTable({
 
 
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+    const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const toggleSelectJob = (jobId: string) => {
+        const newSelected = new Set(selectedJobIds);
+        if (newSelected.has(jobId)) {
+            newSelected.delete(jobId);
+        } else {
+            newSelected.add(jobId);
+        }
+        setSelectedJobIds(newSelected);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedJobIds.size === jobs.length) {
+            setSelectedJobIds(new Set());
+        } else {
+            setSelectedJobIds(new Set(jobs.map(j => j.job_id)));
+        }
+    };
+
+    const handleBatchDelete = async () => {
+        if (selectedJobIds.size === 0) return;
+        
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedJobIds.size} công việc đã chọn?`)) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/batch-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(Array.from(selectedJobIds)),
+            });
+
+            if (!response.ok) throw new Error('Failed to delete');
+
+            setSelectedJobIds(new Set());
+            // Trigger parent refresh by changing filter
+            onFilterChange(selectedFilter);
+        } catch (error) {
+            console.error('Batch delete failed:', error);
+            alert('Không thể xóa các công việc. Vui lòng thử lại.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (jobs.length === 0) return;
+        
+        if (!confirm(`Bạn có chắc muốn xóa TẤT CẢ ${jobs.length} công việc?`)) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const allJobIds = jobs.map(j => j.job_id);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/batch-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(allJobIds),
+            });
+
+            if (!response.ok) throw new Error('Failed to delete');
+
+            setSelectedJobIds(new Set());
+            onFilterChange(selectedFilter);
+        } catch (error) {
+            console.error('Delete all failed:', error);
+            alert('Không thể xóa tất cả công việc. Vui lòng thử lại.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -77,22 +155,52 @@ export default function JobHistoryTable({
                 <h3 className="text-lg font-semibold text-foreground mb-3">Lịch sử tạo ảnh/video</h3>
                 
                 {/* Filters */}
-                <div className="flex gap-2 flex-wrap">
-                    {filters.map((filter) => (
-                        <button
-                            key={filter.value ?? 'all'}
-                            onClick={() => onFilterChange(filter.value)}
-                            className={`
-                                px-3 py-1.5 text-sm rounded-lg transition-colors
-                                ${selectedFilter === filter.value
-                                    ? 'bg-[#0F766E] text-white'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                }
-                            `}
-                        >
-                            {filter.label}
-                        </button>
-                    ))}
+                <div className="flex gap-2 flex-wrap items-center justify-between">
+                    <div className="flex gap-2 flex-wrap">
+                        {filters.map((filter) => (
+                            <button
+                                key={filter.value ?? 'all'}
+                                onClick={() => onFilterChange(filter.value)}
+                                className={`
+                                    px-3 py-1.5 text-sm rounded-lg transition-colors
+                                    ${selectedFilter === filter.value
+                                        ? 'bg-[#0F766E] text-white'
+                                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                    }
+                                `}
+                            >
+                                {filter.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Delete Buttons */}
+                    <div className="flex gap-2">
+                        {selectedJobIds.size > 0 && (
+                            <Button
+                                onClick={handleBatchDelete}
+                                disabled={isDeleting}
+                                className="h-8 px-3 text-sm bg-red-500 hover:bg-red-600 text-white"
+                            >
+                                {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : null}
+                                Xóa đã chọn ({selectedJobIds.size})
+                            </Button>
+                        )}
+                        {jobs.length > 0 && (
+                            <Button
+                                onClick={handleDeleteAll}
+                                disabled={isDeleting}
+                                className="h-8 px-3 text-sm bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : null}
+                                Xóa tất cả
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -101,6 +209,14 @@ export default function JobHistoryTable({
                 <table className="w-full">
                     <thead className="bg-muted/50">
                         <tr>
+                            <th className="px-4 py-3 text-left">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedJobIds.size === jobs.length && jobs.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-border"
+                                />
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Loại</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Model</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Prompt</th>
@@ -129,6 +245,14 @@ export default function JobHistoryTable({
                                 
                                 return (
                                     <tr key={job.job_id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedJobIds.has(job.job_id)}
+                                                onChange={() => toggleSelectJob(job.job_id)}
+                                                className="w-4 h-4 rounded border-border"
+                                            />
+                                        </td>
                                         <td className="px-4 py-3">
                                             <span className="text-sm text-foreground">
                                                 {typeLabels[job.type] || job.type.toUpperCase()}

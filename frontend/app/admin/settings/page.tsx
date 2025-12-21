@@ -287,12 +287,6 @@ export default function AdminSettingsPage() {
                                     ⚠️ Warning: Updating these values will modify the server environment. Changes might require a server restart to take full effect.
                                 </p>
 
-                                {/* Higgsfield Cookie */}
-                                {renderSecretInput("Higgsfield Cookie", "HIGGSFIELD_COOKIE", "Enter Higgsfield Cookie")}
-
-                                {/* Higgsfield SSES */}
-                                {renderSecretInput("Higgsfield SSES Token", "HIGGSFIELD_SSES", "Enter Higgsfield SSES")}
-
                                 {/* Google Veo Cookie */}
                                 {renderSecretInput("Google Veo Cookie (Video Gen)", "GOOGLE_VEO_COOKIE", "Enter Google Veo Cookie")}
 

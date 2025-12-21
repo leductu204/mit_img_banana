@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import auth, image, video, jobs, users, health, costs, api_keys, public_api
-from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys, admin_settings
+from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys, admin_settings, admin_accounts
 from .routers import settings as public_settings
 from .config import settings
 from .database.db import init_database
@@ -14,6 +14,7 @@ from .services.admin_service import create_initial_admin
 from .repositories import model_costs_repo
 from .tasks.cleanup import run_pending_jobs_cleanup
 from .tasks.job_monitor import run_job_monitor
+from .tasks.old_jobs_cleanup import run_old_jobs_cleanup
 import asyncio
 
 
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     print("Starting background tasks...")
     cleanup_task = asyncio.create_task(run_pending_jobs_cleanup())
     job_monitor_task = asyncio.create_task(run_job_monitor())
+    old_jobs_cleanup_task = asyncio.create_task(run_old_jobs_cleanup())
     
     yield
     
@@ -64,6 +66,7 @@ async def lifespan(app: FastAPI):
     # Cancel background tasks
     cleanup_task.cancel()
     job_monitor_task.cancel()
+    old_jobs_cleanup_task.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
@@ -72,6 +75,10 @@ async def lifespan(app: FastAPI):
         await job_monitor_task
     except asyncio.CancelledError:
         print("Job monitor task cancelled")
+    try:
+        await old_jobs_cleanup_task
+    except asyncio.CancelledError:
+        print("Old jobs cleanup task cancelled")
 
 
 app = FastAPI(
@@ -175,6 +182,7 @@ app.include_router(admin_costs.router, prefix="/api")  # /api/admin/model-costs
 app.include_router(admin_logs.router, prefix="/api")  # /api/admin/audit-logs
 app.include_router(admin_api_keys.router, prefix="/api")  # /api/admin/keys
 app.include_router(admin_settings.router, prefix="/api")  # /api/admin/settings
+app.include_router(admin_accounts.router, prefix="/api/admin/higgsfield", tags=["admin-higgsfield"])  # /api/admin/higgsfield/accounts
 
 app.include_router(public_settings.router, prefix="/api")  # /api/settings/public
 

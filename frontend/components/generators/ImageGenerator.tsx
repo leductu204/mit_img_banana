@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import Button from "../common/Button"
 import { Share2, Sparkles, RefreshCw, Download, Coins, AlertCircle, Loader2, Settings, ChevronDown, ChevronUp, Copy, Info } from "lucide-react"
 import { useGenerateImage } from "@/hooks/useGenerateImage"
@@ -31,6 +31,7 @@ export function ImageGenerator() {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
     const { isAuthenticated, login } = useAuth()
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
 
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateImage()
     const { 
@@ -323,26 +324,26 @@ export function ImageGenerator() {
     })
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:overflow-hidden">
             {/* Left Panel - Controls (20%) */}
-            <div className="w-full lg:w-[20%] min-w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 flex flex-col overflow-y-auto shrink-0 custom-scrollbar">
+            <div ref={scrollContainerRef} className="w-full lg:w-[20%] min-w-full lg:min-w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-4 lg:p-6 flex flex-col shrink-0 custom-scrollbar lg:overflow-y-auto lg:h-full lg:max-h-none relative">
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="h-5 w-5 text-primary" />
                         <h1 className="text-xl font-semibold text-foreground">Trải nghiệm "Chuối" PRO</h1>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        {isImageToImage ? "Image to Image Mode" : "Text to Image Mode"}
+                    <p className="text-xs text-muted-foreground">
+                        {isImageToImage ? "Chế độ Hình ảnh sang Hình ảnh" : "Chế độ Văn bản sang Hình ảnh"}
                     </p>
                 </div>
 
-                <div className="flex-1 space-y-6">
+                <div className="space-y-6">
                     {/* Prompt Section */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Prompt</label>
                         <textarea
                             placeholder="Nhập prompt ảnh bạn muốn tạo..."
-                            className="min-h-[120px] w-full resize-none rounded-md border border-input bg-input p-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="min-h-[100px] md:min-h-[120px] w-full resize-none rounded-md border border-input bg-input p-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                         />
@@ -370,7 +371,17 @@ export function ImageGenerator() {
                     {/* Collapsible Settings */}
                     <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
                         <button 
-                            onClick={() => setShowSettings(!showSettings)}
+                            onClick={() => {
+                                setShowSettings(!showSettings);
+                                if (!showSettings) {
+                                    setTimeout(() => {
+                                        scrollContainerRef.current?.scrollTo({ 
+                                            top: scrollContainerRef.current.scrollHeight, 
+                                            behavior: 'smooth' 
+                                        });
+                                    }, 100);
+                                }
+                            }}
                             className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
                         >
                             <div className="flex items-center gap-3">
@@ -456,10 +467,8 @@ export function ImageGenerator() {
                             <span>{error}</span>
                         </div>
                     )}
-                </div>
-
-                {/* Generate Button */}
-                <div className="mt-8 pt-6 border-t border-border sticky bottom-0 bg-card z-10">
+                                    {/* Generate Button (Static Flow) */}
+                <div className="mt-8 p-4 bg-card border-t border-border z-10">
                     {/* Cost Estimate - Only show for auth users */}
                     {isAuthenticated && (
                         <div className="mb-4 p-3 rounded-lg bg-muted/50 space-y-2">
@@ -510,6 +519,9 @@ export function ImageGenerator() {
                         )}
                     </Button>
                 </div>
+                </div>
+
+
 
                 {/* Insufficient Credits Modal */}
                 <InsufficientCreditsModal
@@ -521,9 +533,9 @@ export function ImageGenerator() {
             </div>
 
             {/* Right Group: Preview (Full width) + History (Fixed) */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col md:flex-row lg:overflow-hidden">
                 {/* Center Panel - Main Preview (Flexible) */}
-                <div className="flex-1 bg-background/50 p-6 lg:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar">
+                <div className="flex-1 bg-background/50 p-4 md:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar">
                     <div className="w-full max-w-3xl flex flex-col gap-4">
                         {/* Result Card Container */}
                         <div className={`
@@ -631,7 +643,7 @@ export function ImageGenerator() {
 
                             {/* Action Bar - Inside Card */}
                             {result?.image_url && !loading && (
-                                <div className="p-4 border-t border-border/50 bg-background/30 backdrop-blur-sm flex items-center justify-center gap-4">
+                                <div className="p-3 md:p-4 border-t border-border/50 bg-background/30 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
                                     <Button
                                         onClick={handleGenerate}
                                         className="h-10 px-6 rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground shadow-sm transition-all duration-200 hover:scale-[1.02]"
@@ -672,8 +684,8 @@ export function ImageGenerator() {
                     </div>
                 </div>
 
-                {/* Right Panel - History Sidebar (20%) */}
-                <div className="w-[20%] min-w-[300px] shrink-0 h-full hidden lg:block">
+                {/* Right Panel - History Sidebar (Collapsible) */}
+                <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
                     <HistorySidebar 
                         type="image" 
                         onSelect={(job) => {

@@ -8,7 +8,8 @@ export interface BackgroundPreset {
   id: string;
   label: string;
   image: string; // Thumbnail URL
-  prompt: string; // The instruction for the AI
+  prompt: string; // The specific scene description
+  basePrompt?: string; // The instruction prefix (e.g. "Change the background of this image to...")
 }
 
 interface BackgroundPresetGridProps {
@@ -37,6 +38,9 @@ export default function BackgroundPresetGrid({ presets, selectedId, onSelect }: 
               src={preset.image} 
               alt={preset.label}
               className="w-full h-full object-cover transition-transform group-hover:scale-110"
+              onError={(e) => {
+                e.currentTarget.src = "https://placehold.co/150x150/2a2a2a/white?text=" + encodeURIComponent(preset.label.substring(0, 10));
+              }}
             />
             
             {/* Overlay Gradient */}

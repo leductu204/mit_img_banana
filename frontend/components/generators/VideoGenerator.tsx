@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Button from "../common/Button"
 import { Sparkles, Video, Loader2, Volume2, Coins, AlertCircle, Settings, ChevronDown, ChevronUp, Copy, Info, Download } from "lucide-react"
 import { useGenerateVideo } from "@/hooks/useGenerateVideo"
@@ -111,6 +111,7 @@ export function VideoGenerator() {
     const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
     const toast = useToast()
     const { isAuthenticated, login } = useAuth()
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
 
     // Calculate estimated cost based on current selections
     const estimatedCost = useMemo(() => {
@@ -460,26 +461,26 @@ export function VideoGenerator() {
     })
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:overflow-hidden">
             {/* Left Panel - Controls (20%) */}
-            <div className="w-full lg:w-[20%] min-w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 flex flex-col overflow-y-auto shrink-0 custom-scrollbar">
+            <div ref={scrollContainerRef} className="w-full lg:w-[20%] min-w-full lg:min-w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-4 lg:p-6 flex flex-col shrink-0 custom-scrollbar lg:overflow-y-auto lg:h-full lg:max-h-none relative">
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-2">
                         <Video className="h-5 w-5 text-primary" />
                         <h1 className="text-xl font-semibold text-foreground">Tạo Video Tự Động</h1>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                         {isImageToVideo ? "Chế độ Hình ảnh thành Video" : "Chế độ Văn bản thành Video"}
                     </p>
                 </div>
 
-                <div className="flex-1 space-y-6">
+                <div className="space-y-6">
                     {/* Prompt Section */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Mô tả video</label>
                         <textarea
                             placeholder="Nhập nội dung video bạn muốn tạo..."
-                            className="min-h-[120px] w-full resize-none rounded-md border border-input bg-input p-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="min-h-[100px] md:min-h-[120px] w-full resize-none rounded-md border border-input bg-input p-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                         />
@@ -537,7 +538,17 @@ export function VideoGenerator() {
                                 {/* Collapsible Settings */}
                                 <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
                                     <button 
-                                        onClick={() => setShowSettings(!showSettings)}
+                                        onClick={() => {
+                                            setShowSettings(!showSettings);
+                                            if (!showSettings) {
+                                                setTimeout(() => {
+                                                    scrollContainerRef.current?.scrollTo({ 
+                                                        top: scrollContainerRef.current.scrollHeight, 
+                                                        behavior: 'smooth' 
+                                                    });
+                                                }, 100);
+                                            }
+                                        }}
                                         className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -597,60 +608,59 @@ export function VideoGenerator() {
                                                 </div>
                                             </div>
 
-                                            {/* Duration Selector */}
-                                            {modelConfig?.durations && modelConfig.durations.length > 0 && (
-                                                <DurationSelector 
-                                                    value={duration} 
-                                                    onChange={setDuration} 
-                                                    options={modelConfig.durations}
-                                                />
-                                            )}
+                                    {/* Duration Selector */}
+                                    {modelConfig?.durations && modelConfig.durations.length > 0 && (
+                                        <DurationSelector 
+                                            value={duration} 
+                                            onChange={setDuration} 
+                                            options={modelConfig.durations}
+                                        />
+                                    )}
 
-                                            {/* Quality Selector */}
-                                            {modelConfig?.qualities && modelConfig.qualities.length > 0 && (
-                                                <QualitySelector 
-                                                    value={quality} 
-                                                    onChange={setQuality} 
-                                                    options={modelConfig.qualities}
-                                                />
-                                            )}
+                                    {/* Quality Selector */}
+                                    {modelConfig?.qualities && modelConfig.qualities.length > 0 && (
+                                        <QualitySelector 
+                                            value={quality} 
+                                            onChange={setQuality} 
+                                            options={modelConfig.qualities}
+                                        />
+                                    )}
 
-                                            {/* Audio Selector */}
-                                            {modelConfig?.audio && (
-                                                 <div className="flex items-center justify-between p-3 border border-border/50 rounded-xl bg-background/50 hover:bg-background/80 transition-colors animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                                            <Volume2 className="h-4 w-4" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <label htmlFor="audio-toggle" className="text-sm font-medium text-foreground cursor-pointer select-none">
-                                                                Âm thanh
-                                                            </label>
-                                                            <span className="text-xs text-muted-foreground">Tạo video kèm âm thanh</span>
-                                                        </div>
-                                                    </div>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        id="audio-toggle" 
-                                                        checked={audio}
-                                                        onChange={(e) => setAudio(e.target.checked)}
-                                                        className="h-5 w-5 rounded border-input text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer transition-all"
-                                                    />
+                                    {/* Audio Selector */}
+                                    {modelConfig?.audio && (
+                                         <div className="flex items-center justify-between p-3 border border-border/50 rounded-xl bg-background/50 hover:bg-background/80 transition-colors animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                                    <Volume2 className="h-4 w-4" />
                                                 </div>
-                                            )}
+                                                <div className="flex flex-col">
+                                                    <label htmlFor="audio-toggle" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                                                        Âm thanh
+                                                    </label>
+                                                    <span className="text-[10px] text-muted-foreground">Tạo video kèm âm thanh</span>
+                                                </div>
+                                            </div>
+                                            <input 
+                                                type="checkbox" 
+                                                id="audio-toggle" 
+                                                checked={audio}
+                                                onChange={(e) => setAudio(e.target.checked)}
+                                                className="h-5 w-5 rounded border-input text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer transition-all"
+                                            />
                                         </div>
                                     )}
                                 </div>
-                            </>
-                        );
-                    })()}
+                            )}
+                        </div>
+                    </>
+                );
+            })()}
 
-                    {/* Error Message */}
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                 </div>
 
-                {/* Generate Button */}
-                <div className="mt-8 pt-6 border-t border-border sticky bottom-0 bg-card z-10">
+                {/* Generate Button (Static Flow) */}
+                <div className="mt-8 p-4 bg-card border-t border-border z-10">
                     {/* Cost Estimate - Only show for auth users */}
                     {isAuthenticated && (
                         <div className="mb-4 p-3 rounded-lg bg-muted/50 space-y-2">
@@ -713,9 +723,9 @@ export function VideoGenerator() {
             </div>
 
             {/* Right Group: Preview (Full width) + History (Fixed) */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col md:flex-row lg:overflow-hidden relative">
                 {/* Center Panel - Main Preview (Flexible) */}
-                <div className="flex-1 bg-background/50 p-6 lg:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar">
+                <div className="flex-1 bg-background/50 p-4 md:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar z-0 py-8 lg:py-10">
                     <div className="w-full max-w-4xl flex flex-col gap-4">
                          {/* Result Card Container */}
                          <div className={`
@@ -835,7 +845,7 @@ export function VideoGenerator() {
 
                             {/* Action Bar - Inside Card */}
                             {result?.video_url && !loading && (
-                                <div className="p-4 border-t border-border/50 bg-background/30 backdrop-blur-sm flex items-center justify-center gap-4">
+                                <div className="p-3 md:p-4 border-t border-border/50 bg-background/30 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
                                     <Button
                                         onClick={handleGenerate}
                                         className="h-10 px-6 rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground shadow-sm transition-all duration-200 hover:scale-[1.02]"
@@ -872,18 +882,24 @@ export function VideoGenerator() {
                     </div>
                 </div>
 
-                {/* Right Panel - History Sidebar (20%) */}
-                <div className="w-[20%] min-w-[300px] shrink-0 h-full hidden lg:block">
-                    <HistorySidebar 
+
+                 {/* Right Panel - History Sidebar (Collapsible) */}
+                <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
+                     <HistorySidebar 
                         type="video" 
                         onSelect={(job) => {
-                            if (job.status === 'completed' && job.output_url) {
+                             if (job.status === 'completed' && job.output_url) {
                                 setResult({ 
                                     video_url: job.output_url, 
                                     job_id: job.job_id, 
                                     status: 'completed' 
                                 })
-                                setSelectedJob(job)
+                                setSelectedJob({
+                                    ...job,
+                                    input_params: typeof job.input_params === 'string' 
+                                        ? JSON.parse(job.input_params || '{}') 
+                                        : job.input_params
+                                })
                             }
                         }}
                         selectedJobId={result?.job_id}

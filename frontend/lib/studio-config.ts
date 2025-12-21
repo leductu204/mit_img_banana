@@ -32,7 +32,7 @@ export interface StudioFeature {
 
 export const STUDIO_CATEGORIES: { id: StudioCategory; label: string; icon: any }[] = [
   { id: 'create', label: 'Tạo & Sửa ảnh', icon: Palette },
-  // { id: 'background', label: 'Background', icon: Layers },
+  { id: 'background', label: 'Background', icon: Layers },
   // { id: 'portrait', label: 'Chân dung', icon: User },
   // { id: 'fashion', label: 'Thời trang', icon: Shirt },
   // { id: 'product', label: 'Sản phẩm', icon: ShoppingBag },

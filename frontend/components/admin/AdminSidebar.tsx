@@ -11,13 +11,15 @@ import {
   FileText,
   History,
   LogOut,
-  Shield
+  Shield,
+  Server
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/keys', label: 'API Keys', icon: Users },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/model-costs', label: 'Model Costs', icon: CreditCard },
+  { href: '/admin/higgsfield-accounts', label: 'Accounts', icon: Server },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
   { href: '/admin/logs', label: 'Audit Logs', icon: History },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

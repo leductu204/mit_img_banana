@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # Google Veo API Cookie (for Veo 3.1 video generation)
     GOOGLE_VEO_COOKIE: Optional[str] = Field(default="", env="GOOGLE_VEO_COOKIE")
     
+    # Recaptcha API Authentication (Bearer token)
+    RECAPTCHA_AUTH_KEY: Optional[str] = Field(default="", env="RECAPTCHA_AUTH_KEY")
+    
     @model_validator(mode='after')
     def validate_jwt_secret(self):
         """Warn if using default JWT_SECRET"""

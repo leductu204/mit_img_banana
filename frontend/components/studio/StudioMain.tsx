@@ -63,7 +63,7 @@ function StudioContent() {
             case 'upscale-image': return <UpscaleImageForm />;
             case 'restore-photo': return <RestorePhotoForm />;
             case 'expand-image': return <ExpandImageForm />;
-            case 'festival-backgrounds': return <FestivalBackgroundsForm />;
+            case 'festival-bg': return <FestivalBackgroundsForm />;
 
             // Priority 3
             case 'profile-image-generator': return <ProfileImageGeneratorForm />;

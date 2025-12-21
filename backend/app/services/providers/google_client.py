@@ -84,13 +84,13 @@ class GoogleVeoClient:
             'origin': 'https://labs.google',
             'priority': 'u=1, i',
             'referer': 'https://labs.google/',
-            'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+            'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'cross-site',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
             'x-browser-channel': 'stable',
             'x-browser-copyright': 'Copyright 2025 Google LLC. All Rights reserved.',
             'x-browser-validation': 'Aj9fzfu+SaGLBY9Oqr3S7RokOtM=', 
@@ -110,13 +110,13 @@ class GoogleVeoClient:
             'accept-language': 'vi,zh-CN;q=0.9,zh;q=0.8,fr-FR;q=0.7,fr;q=0.6,en-US;q=0.5,en;q=0.4,zh-TW;q=0.3',
             'content-type': 'application/json',
             'priority': 'u=1, i',
-            'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+            'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
             'Cookie': self.cookie
         }
         
@@ -171,7 +171,8 @@ class GoogleVeoClient:
         media_id: str,
         aspect_ratio: str,
         model_name: str,
-        prompt: str
+        prompt: str,
+        recaptchaToken: str
     ) -> Tuple[str, str]:
         """Start I2V video generation."""
         token = self.get_jwt_token()
@@ -197,6 +198,7 @@ class GoogleVeoClient:
         
         payload = {
             "clientContext": {
+                "recaptchaToken": recaptchaToken,
                 "sessionId": f";{int(time.time() * 1000)}",
                 "projectId": "5d27bce6-e7b7-4a6a-9352-999aa1d43a2d",
                 "tool": "PINHOLE",
@@ -225,7 +227,8 @@ class GoogleVeoClient:
         self,
         aspect_ratio: str,
         model_name: str,
-        prompt: str
+        prompt: str,
+        recaptchaToken: str
     ) -> Tuple[str, str]:
         """Start T2V video generation."""
         token = self.get_jwt_token()
@@ -248,6 +251,7 @@ class GoogleVeoClient:
         
         payload = {
             "clientContext": {
+                "recaptchaToken": recaptchaToken,
                 "sessionId": f";{int(time.time() * 1000)}",
                 "projectId": "9d293984-e8a6-4e3c-b911-e31027cce6f1",
                 "tool": "PINHOLE",
@@ -328,6 +332,7 @@ class GoogleVeoClient:
     def generate_video(
         self,
         prompt: str,
+        recaptchaToken: str,
         model: str = "veo3.1-high",
         aspect_ratio: str = "9:16",
         input_image: dict = None
@@ -360,7 +365,8 @@ class GoogleVeoClient:
                 media_id=media_id,
                 aspect_ratio=aspect_ratio,
                 model_name=model_name,
-                prompt=prompt
+                prompt=prompt,
+                recaptchaToken=recaptchaToken
             )
         else:
             # T2V
@@ -373,7 +379,8 @@ class GoogleVeoClient:
             operation_name, scene_id = self.generate_t2v_video(
                 aspect_ratio=aspect_ratio,
                 model_name=model_name,
-                prompt=prompt
+                prompt=prompt,
+                recaptchaToken=recaptchaToken
             )
             
         return f"{operation_name}|{scene_id}"

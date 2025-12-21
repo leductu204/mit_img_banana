@@ -41,6 +41,39 @@ def map_external_status(external_status: str) -> str:
     return "processing"
 
 
+def extract_user_prompt(full_prompt: str) -> str:
+    """
+    Extract only the user's original prompt from the full technical prompt.
+    Hides base/system prompts like 'CRITICAL TASK...' from users.
+    
+    Args:
+        full_prompt: The full prompt stored in database (may include base prompt)
+    
+    Returns:
+        User's original prompt or empty string if technical base prompt detected
+    """
+    if not full_prompt:
+        return ""
+    
+    # Normalize prompt for checking (remove asterisks, quotes, etc.)
+    normalized = full_prompt[:300].replace("*", "").replace('"', "").replace("'", "").upper()
+    
+    # If prompt contains technical keywords, return empty string
+    technical_keywords = [
+        "CRITICAL TASK",
+        "COLORIZATION",
+        "DAMAGE REPAIR",
+        "RESTORE AND COLORIZE",
+        "THIS IS THE MOST IMPORTANT STEP"
+    ]
+    
+    for keyword in technical_keywords:
+        if keyword in normalized:
+            return ""
+    
+    return full_prompt
+
+
 @router.get("", response_model=dict)
 async def list_jobs(
     page: int = 1,
@@ -60,8 +93,16 @@ async def list_jobs(
         job_type=type
     )
     
+    # Filter out technical base prompts from the response
+    filtered_jobs = []
+    for job in jobs:
+        job_copy = dict(job)
+        if "prompt" in job_copy:
+            job_copy["prompt"] = extract_user_prompt(job_copy["prompt"])
+        filtered_jobs.append(job_copy)
+    
     return {
-        "items": jobs,
+        "items": filtered_jobs,
         "total": total,
         "page": page,
         "limit": limit
@@ -99,6 +140,7 @@ async def get_job_status(
             "credits_cost": job.get("credits_cost"),
             "created_at": job.get("created_at"),
             "completed_at": job.get("completed_at"),
+            "prompt": extract_user_prompt(job.get("prompt", "")),  # Filter technical prompt
         }
         
         # 4. Add refund info if job failed
@@ -152,5 +194,65 @@ async def cancel_job(
         "job_id": job_id,
         "status": "cancelled",
         "message": "Job cancelled successfully"
+    }
+
+
+@router.delete("/{job_id}")
+async def delete_job(
+    job_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Delete a job from history.
+    
+    Only the job owner can delete their jobs.
+    This permanently removes the job from the database.
+    """
+    # Check if job exists and belongs to user
+    job = jobs_repo.get_by_id(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job["user_id"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="You don't have access to this job")
+    
+    # Delete the job
+    deleted = jobs_repo.delete_job(job_id, current_user.user_id)
+    
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to delete job")
+    
+    return {
+        "job_id": job_id,
+        "message": "Job deleted successfully"
+    }
+
+
+@router.post("/batch-delete")
+async def batch_delete_jobs(
+    job_ids: list[str],
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Delete multiple jobs at once.
+    
+    Only deletes jobs that belong to the current user.
+    Returns count of successfully deleted jobs.
+    """
+    if not job_ids:
+        raise HTTPException(status_code=400, detail="No job IDs provided")
+    
+    deleted_count = 0
+    for job_id in job_ids:
+        # Verify ownership and delete
+        job = jobs_repo.get_by_id(job_id)
+        if job and job["user_id"] == current_user.user_id:
+            if jobs_repo.delete_job(job_id, current_user.user_id):
+                deleted_count += 1
+    
+    return {
+        "deleted_count": deleted_count,
+        "message": f"Successfully deleted {deleted_count} job(s)"
     }
 

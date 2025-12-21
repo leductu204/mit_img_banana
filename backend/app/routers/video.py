@@ -8,6 +8,7 @@ from typing import Optional, List
 
 from app.services.providers.higgsfield_client import higgsfield_client
 from app.services.providers.google_client import google_veo_client
+from app.services.providers.recaptcha import get_recaptcha_token
 from app.schemas.higgsfield import GenerateVideoRequest
 from app.schemas.jobs import GenerateResponse, JobCreate
 from app.schemas.users import UserInDB
@@ -128,11 +129,15 @@ async def generate_video(
                 if request.input_images and len(request.input_images) > 0:
                     input_image = request.input_images[0]
                 
+                # Fetch recaptcha token for Google Veo
+                recaptcha_token = get_recaptcha_token()
+                
                 provider_job_id = google_veo_client.generate_video(
                     prompt=request.prompt,
                     model=request.model,
                     aspect_ratio=request.aspect_ratio or "9:16",
-                    input_image=input_image
+                    input_image=input_image,
+                    recaptchaToken=recaptcha_token
                 )
             else:
                 # Route to Higgsfield (Kling models)
@@ -636,12 +641,16 @@ async def generate_veo31_low_t2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             # Generate via Google Veo client
             provider_job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-low",
                 aspect_ratio=aspect_ratio,
-                input_image=None  # T2V mode
+                input_image=None,  # T2V mode
+                recaptchaToken=recaptcha_token
             )
             
             if not provider_job_id:
@@ -712,12 +721,16 @@ async def generate_veo31_low_i2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             # Generate via Google Veo client with image
             provider_job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-low",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url}
+                input_image={"url": img_url},
+                recaptchaToken=recaptcha_token
             )
             
             if not provider_job_id:
@@ -786,11 +799,15 @@ async def generate_veo31_fast_t2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-fast",
                 aspect_ratio=aspect_ratio,
-                input_image=None
+                input_image=None,
+                recaptchaToken=recaptcha_token
             )
             provider_job_id = job_id
             
@@ -858,11 +875,15 @@ async def generate_veo31_fast_i2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-fast",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url}
+                input_image={"url": img_url},
+                recaptchaToken=recaptcha_token
             )
             provider_job_id = job_id
             
@@ -930,11 +951,15 @@ async def generate_veo31_high_t2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-high",
                 aspect_ratio=aspect_ratio,
-                input_image=None
+                input_image=None,
+                recaptchaToken=recaptcha_token
             )
             provider_job_id = job_id
             
@@ -1002,11 +1027,15 @@ async def generate_veo31_high_i2v(
         status = "pending"
         
         if can_start:
+            # Fetch recaptcha token
+            recaptcha_token = get_recaptcha_token()
+            
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-high",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url}
+                input_image={"url": img_url},
+                recaptchaToken=recaptcha_token
             )
             provider_job_id = job_id
             

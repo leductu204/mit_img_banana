@@ -22,11 +22,11 @@ export default function ImageEditorForm() {
   const settings = feature?.settings || {};
 
   const [showSettings, setShowSettings] = useState(false);
-  const [model, setModel] = useState("nano-banana");
+  const [model, setModel] = useState("nano-banana-pro");
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState(settings.aspectRatio?.default || "9:16");
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
-  const [speed, setSpeed] = useState<any>(settings.speed?.default || "slow");
+  const [speed, setSpeed] = useState<any>("slow");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
 
@@ -157,8 +157,7 @@ export default function ImageEditorForm() {
             prompt,
             input_images: inputImages,
             aspect_ratio: aspectRatio,
-            speed: speed,
-            keep_style: true // Editor implies keeping style mostly
+            speed: speed
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, {

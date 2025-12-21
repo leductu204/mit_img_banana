@@ -17,7 +17,7 @@ import { useStudio } from "../StudioContext";
 export default function UpscaleImageForm() {
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const [scale, setScale] = useState("2"); // 2 stands for 2k, 4 for 4k
-  const [speed, setSpeed] = useState<any>("fast");
+  const [speed, setSpeed] = useState<any>("slow");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
   
@@ -103,8 +103,7 @@ export default function UpscaleImageForm() {
             input_images: inputImages,
             aspect_ratio: aspectRatio,
             resolution: scale === '4' ? '4k' : '2k',
-            speed: speed,
-            keep_style: true
+            speed: speed
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, {

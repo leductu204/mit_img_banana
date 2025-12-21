@@ -7,14 +7,68 @@ from io import BytesIO
 from app.config import settings
 
 class HiggsfieldClient:
-    def __init__(self):
-        self.sses = settings.HIGGSFIELD_SSES
-        self.cookie = settings.HIGGSFIELD_COOKIE
+    def __init__(self, sses: str, cookie: str):
+        """
+        Initialize Higgsfield client with credentials.
+        
+        Args:
+            sses: Higgsfield SSES session token
+            cookie: Higgsfield authentication cookie
+        """
+        self.sses = sses
+        self.cookie = cookie
         self.base_url = "https://fnf.higgsfield.ai"
         self.clerk_url = "https://clerk.higgsfield.ai"
     
+    @classmethod
+    def create_from_account(cls, account_id: int):
+        """
+        Create client instance from database account.
+        
+        Args:
+            account_id: ID of Higgsfield account in database
+            
+        Returns:
+            HiggsfieldClient instance
+            
+        Raises:
+            ValueError: If account not found or inactive
+        """
+        from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
+        
+        account = higgsfield_accounts_repo.get_account(account_id)
+        if not account:
+            raise ValueError(f"Higgsfield account {account_id} not found")
+        
+        if not account['is_active']:
+            raise ValueError(f"Higgsfield account {account_id} is inactive")
+        
+        return cls(sses=account['sses'], cookie=account['cookie'])
+    
+    @classmethod
+    def create_default(cls):
+        """
+        Create client instance from .env settings (fallback).
+        
+        Returns:
+            HiggsfieldClient instance
+            
+        Raises:
+            ValueError: If credentials not set in .env
+        """
+        sses = settings.HIGGSFIELD_SSES
+        cookie = settings.HIGGSFIELD_COOKIE
+        
+        if not sses or not cookie:
+            raise ValueError("HIGGSFIELD_SSES and HIGGSFIELD_COOKIE must be set in .env")
+        
+        return cls(sses=sses, cookie=cookie)
+    
     def reload_credentials(self):
-        """Reload credentials from .env file (called after admin updates)."""
+        """
+        Reload credentials from .env file (called after admin updates).
+        Note: This only works for instances created with create_default().
+        """
         from dotenv import load_dotenv
         load_dotenv(override=True)  # Force reload from .env
         import os
@@ -744,5 +798,7 @@ class HiggsfieldClient:
             return data['job_sets'][0]['id']
         return None
 
-higgsfield_client = HiggsfieldClient()
+# Singleton instance for backward compatibility (uses .env credentials)
+# For multi-account support, use Higgsfield Client.create_from_account(account_id)
+higgsfield_client = HiggsfieldClient.create_default()
 

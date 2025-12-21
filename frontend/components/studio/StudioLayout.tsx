@@ -71,8 +71,8 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                         {children}
                     </main>
 
-                     {/* Right Panel - History Sidebar (Desktop) */}
-                    <div className="w-[300px] shrink-0 h-full hidden xl:block border-l border-border bg-card">
+                     {/* Right Panel - History Sidebar (Collapsible) */}
+                    <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden xl:block border-l border-border bg-card relative group z-20">
                        <HistorySidebarWrapper />
                     </div>
                 </div>

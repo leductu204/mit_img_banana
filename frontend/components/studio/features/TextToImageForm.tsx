@@ -23,11 +23,11 @@ export default function TextToImageForm() {
 
   // State with config defaults
   const [showSettings, setShowSettings] = useState(false);
-  const [model, setModel] = useState("nano-banana");
+  const [model, setModel] = useState("nano-banana-pro");
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState(settings.aspectRatio?.default || "9:16");
   const [quality, setQuality] = useState(settings.quality?.default || "2k");
-  const [speed, setSpeed] = useState<any>(settings.speed?.default || "slow");
+  const [speed, setSpeed] = useState<any>("slow");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
 

@@ -1,30 +1,118 @@
 "use client"
 
-import React, { useState } from "react";
+import { Layers, Plus, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
+import { useGenerateImage } from "@/hooks/useGenerateImage";
+import { useCredits } from "@/hooks/useCredits";
+import { apiRequest } from "@/lib/api";
+import InsufficientCreditsModal from "@/components/common/InsufficientCreditsModal";
+import React, { useState, useMemo } from "react";
 import Button from "@/components/common/Button";
 import FeatureHeader from "../shared/FeatureHeader";
 import ImageUpload from "@/components/generators/ImageUpload";
 import ResultPreview from "../shared/ResultPreview";
-import { Layers, Plus } from "lucide-react";
-import { useToast } from "@/hooks/useToast";
 
 export default function CombineProductForm() {
   const [productImages, setProductImages] = useState<File[]>([]);
   const [modelImages, setModelImages] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | undefined>(undefined);
+  const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   
   const toast = useToast();
+  const { result, loading, error, setResult, setLoading, setError } = useGenerateImage();
+  const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
+
+  const estimatedCost = useMemo(() => {
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+  }, [estimateImageCost]);
+
+  const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => resolve({ width: img.width, height: img.height })
+        img.onerror = reject
+        img.crossOrigin = 'anonymous'
+        img.src = url
+    })
+  }
 
   const handleGenerate = async () => {
     if (productImages.length === 0 || modelImages.length === 0) return;
+
+    if (!hasEnoughCredits(estimatedCost)) {
+      setShowCreditsModal(true);
+      return;
+    }
+
     setLoading(true);
-    
-    setTimeout(() => {
-        setResult("https://placehold.co/1024x1024/png?text=Product+Combined");
+    setError(null);
+    setCurrentJobStatus("uploading");
+
+    try {
+        // 1. Upload product and background
+        const uploadProd = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
+        await fetch(uploadProd.upload_url, { method: 'PUT', body: productImages[0], headers: { 'Content-Type': 'image/jpeg' } });
+        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadProd.id }) });
+        const prodDim = await getImageDimensionsFromUrl(uploadProd.url);
+
+        const uploadBase = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
+        await fetch(uploadBase.upload_url, { method: 'PUT', body: modelImages[0], headers: { 'Content-Type': 'image/jpeg' } });
+        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadBase.id }) });
+        const baseDim = await getImageDimensionsFromUrl(uploadBase.url);
+
+        // 2. Start Job
+        const payload = {
+            prompt: "Product placement: integrate the product into the given background or model naturally. Perfect lighting, shadows, and composition. Professional commercial look.",
+            input_images: [
+                { type: "media_input", id: uploadProd.id, url: uploadProd.url, width: prodDim.width, height: prodDim.height, label: "product" },
+                { type: "media_input", id: uploadBase.id, url: uploadBase.url, width: baseDim.width, height: baseDim.height, label: "background" }
+            ],
+            aspect_ratio: "auto",
+            resolution: "2k",
+            speed: "slow"
+        };
+
+        const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        setCurrentJobStatus("pending");
+        toast.info(`Đang ghép sản phẩm... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000);
+        
+        if (genRes.credits_remaining !== undefined) {
+             updateCredits(genRes.credits_remaining);
+        }
+
+        // 3. Status Polling
+        const checkStatus = async () => {
+            try {
+                const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`);
+                setCurrentJobStatus(statusRes.status);
+                
+                if (statusRes.status === 'completed' && statusRes.result) {
+                    setResult({ image_url: statusRes.result, job_id: genRes.job_id, status: 'completed' });
+                    setLoading(false);
+                    toast.success('✅ Ghép sản phẩm thành công!');
+                } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
+                    const errorMsg = statusRes.error_message || "Ghép sản phẩm thất bại.";
+                    setError(errorMsg);
+                    setLoading(false);
+                    toast.error(errorMsg);
+                } else {
+                    setTimeout(checkStatus, 15000);
+                }
+            } catch (e: any) {
+                setError(e.message);
+                setLoading(false);
+            }
+        };
+
+        setTimeout(checkStatus, 5000);
+    } catch (e: any) {
+        setError(e.message || "Lỗi khi xử lý");
         setLoading(false);
-        toast.success('✅ Ghép sản phẩm thành công!');
-    }, 3000);
+    }
   };
 
   return (
@@ -57,27 +145,52 @@ export default function CombineProductForm() {
                 label="Ảnh nền / Người mẫu"
             />
           </div>
+
+          {error && (
+            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 pt-4 border-t border-border">
+             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                <span>Chi phí: {estimatedCost} credits</span>
+                <span>Số dư: {balance}</span>
+             </div>
+             
              <Button
                 onClick={handleGenerate}
-                disabled={loading || productImages.length === 0 || modelImages.length === 0}
-                className="w-full py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all"
+                disabled={loading || productImages.length === 0 || modelImages.length === 0 || balance < estimatedCost}
+                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                    balance < estimatedCost 
+                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
+                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                }`}
             >
                 {loading ? "Đang xử lý..." : "Ghép Sản Phẩm"}
             </Button>
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden">
+      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex flex-col">
          <ResultPreview 
             loading={loading} 
-            resultUrl={result} 
+            resultUrl={result?.image_url} 
+            status={currentJobStatus}
+            onRegenerate={handleGenerate}
             placeholderTitle="Kết quả ghép"
             placeholderDesc="Ảnh sau khi ghép sẽ hiển thị tại đây."
          />
       </div>
+
+      <InsufficientCreditsModal
+            isOpen={showCreditsModal}
+            onClose={() => setShowCreditsModal(false)}
+            required={estimatedCost}
+            available={balance}
+        />
     </div>
   );
 }

@@ -18,7 +18,7 @@ export default function ExpandImageForm() {
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
-  const [speed, setSpeed] = useState<any>("fast");
+  const [speed, setSpeed] = useState<any>("slow");
   const [quality, setQuality] = useState("2k");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
@@ -108,8 +108,7 @@ export default function ExpandImageForm() {
             input_images: inputImages,
             aspect_ratio: aspectRatio,
             resolution: quality,
-            speed: speed,
-            keep_style: true
+            speed: speed
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, {

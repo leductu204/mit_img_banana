@@ -2,10 +2,17 @@
 """Repository for job database operations."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 from app.database.db import fetch_one, fetch_all, execute, get_db_context
 from app.schemas.jobs import JobCreate, JobInDB
+
+
+def get_local_now() -> str:
+    """Get current time in Vietnam timezone (UTC+7) as ISO string."""
+    utc_now = datetime.utcnow()
+    vietnam_time = utc_now + timedelta(hours=7)
+    return vietnam_time.isoformat()
 
 
 def create(job_data: JobCreate, status: str = 'pending') -> dict:
@@ -19,7 +26,7 @@ def create(job_data: JobCreate, status: str = 'pending') -> dict:
     Returns:
         Created job record as dictionary
     """
-    now = datetime.utcnow().isoformat()
+    now = get_local_now()
     
     with get_db_context() as conn:
         conn.execute(
@@ -101,8 +108,18 @@ def get_by_user(
         ORDER BY created_at DESC 
         LIMIT ? OFFSET ?
         """,
-        tuple(params + [limit, offset])
+            tuple(params + [limit, offset])
     )
+    
+    # Ensure list of dicts
+    if jobs is None:
+        jobs = []
+    
+    # DEBUG: Print query info if items empty but total likely > 0
+    if not jobs:
+        print(f"DEBUG: jobs fetch returned 0 items. Params: {params + [limit, offset]}")
+
+
     
     # Get total count
     total_result = fetch_one(
@@ -132,7 +149,7 @@ def update_status(
     Returns:
         True if update succeeded
     """
-    now = datetime.utcnow().isoformat()
+    now = get_local_now()
     
     if status == "completed":
         affected = execute(
@@ -254,7 +271,8 @@ def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
     # Let's use Python to calculate the cutoff time string to be safe and consistent
     
     from datetime import timedelta
-    cutoff = (datetime.utcnow() - timedelta(minutes=minutes)).isoformat()
+    utc_cutoff = datetime.utcnow() - timedelta(minutes=minutes)
+    cutoff = (utc_cutoff + timedelta(hours=7)).isoformat()
     
     return fetch_all(
         """
@@ -295,7 +313,7 @@ def cancel_job(job_id: str, user_id: str) -> bool:
     Returns:
         True if cancelled successfully, False otherwise
     """
-    now = datetime.utcnow().isoformat()
+    now = get_local_now()
     
     affected = execute(
         """
@@ -308,4 +326,53 @@ def cancel_job(job_id: str, user_id: str) -> bool:
         (now, job_id, user_id)
     )
     return affected > 0
+
+
+def delete_job(job_id: str, user_id: str) -> bool:
+    """
+    Delete a job permanently.
+    
+    Args:
+        job_id: Job ID to delete
+        user_id: User ID (for ownership check)
+        
+    Returns:
+        True if deleted successfully, False otherwise
+    """
+    affected = execute(
+        """
+        DELETE FROM jobs 
+        WHERE job_id = ? AND user_id = ?
+        """,
+        (job_id, user_id)
+    )
+    return affected > 0
+
+
+def delete_old_jobs(days: int = 7) -> int:
+    """
+    Delete jobs older than specified days.
+    
+    Args:
+        days: Number of days to keep jobs (delete older than this)
+        
+    Returns:
+        Number of jobs deleted
+    """
+    # Calculate cutoff date in Vietnam time
+    utc_cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = (utc_cutoff + timedelta(hours=7)).isoformat()
+    
+    affected = execute(
+        """
+        DELETE FROM jobs 
+        WHERE created_at < ?
+        """,
+        (cutoff,)
+    )
+    
+    if affected > 0:
+        print(f"🗑️  Auto-cleanup: Deleted {affected} jobs older than {days} days")
+    
+    return affected
 

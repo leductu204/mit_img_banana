@@ -104,7 +104,7 @@ export default function VideoGenerationForm() {
              <Button
                 onClick={handleGenerate}
                 disabled={loading || (mode === 'text' && !prompt) || (mode === 'image' && referenceImages.length === 0)}
-                className="w-full py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all"
+                className="w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 bg-[#0F766E] hover:bg-[#0D655E] text-white"
             >
                 {loading ? "Đang xử lý..." : "Tạo Video"}
             </Button>
