@@ -25,7 +25,7 @@ export interface Job {
 }
 
 export interface JobsResponse {
-    items: Job[];
+    jobs: Job[];
     total: number;
     page: number;
     limit: number;
@@ -70,11 +70,11 @@ export function useJobs() {
             }
 
             const data: JobsResponse = await response.json();
-            setJobs(data.items || []);
+            setJobs(data.jobs || []);
             setPagination({
-                total: data.total,
-                pages: data.pages,
-                page: data.page,
+                total: data.total || 0,
+                pages: data.pages || 0,
+                page: data.page || 1,
             });
             return data;
         } catch (err: any) {
