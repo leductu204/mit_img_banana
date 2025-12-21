@@ -537,7 +537,7 @@ export default function AdminModelCostsPage() {
                           // Nano Banana & Kling Models: ONLY show fast/slow keys
                           // This hides legacy keys like '1k', '16:9', 'default', '720p-10s' (without suffix) etc.
                           // Allow new models to pass through by default or add them here if they follow the standard pattern
-                          if (model.startsWith('nano-banana') || model.startsWith('kling') || model.startsWith('veo') || model.startsWith('wand')) {
+                          if (model.startsWith('nano-banana') || model.startsWith('kling') || model.startsWith('wand')) {
                               if (!c.config_key.endsWith('-fast') && !c.config_key.endsWith('-slow')) {
                                   return false;
                               }

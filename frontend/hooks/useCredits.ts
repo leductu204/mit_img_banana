@@ -55,9 +55,9 @@ export function useCredits() {
                     "kling-2.6": {
                         "720p": { "5s": 8, "10s": 14, "5s-audio": 10, "10s-audio": 18 }
                     },
-                    "veo3.1-low": { "8s": 5 },
-                    "veo3.1-fast": { "8s": 5 },
-                    "veo3.1-high": { "8s": 10 }
+                    "veo3.1-low": { "default-fast": 20, "default-slow": 2 },
+                    "veo3.1-fast": { "default-fast": 30, "default-slow": 2 },
+                    "veo3.1-high": { "default-fast": 80, "default-slow": 5 }
                 });
                 setCostsLoaded(true);
             }
@@ -156,6 +156,10 @@ export function useCredits() {
              // Universal flat fallback (matches Kling O1 new structure: 5s-fast)
              keysToTry.push(`${dur}-${spd}`);
              
+             // Fallback for models without duration (Veo using Admin 'default-fast' key)
+             keysToTry.push(`default-${spd}`);
+             keysToTry.push(`default`);
+
              // Fallback for Veo (8s)
              keysToTry.push(`${dur}`);
              keysToTry.push("8s"); 
