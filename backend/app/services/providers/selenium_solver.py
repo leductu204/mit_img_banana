@@ -17,16 +17,11 @@ _persistent_driver = None
 _driver_init_time = 0
 
 
-def _initialize_persistent_chrome():
+def _create_chrome_options():
     """
-    Initialize Chrome with auto-detection.
-    Tries auto-detect first, then falls back to v138 (VPS) or v143 (local).
+    Create fresh ChromeOptions object.
+    IMPORTANT: Cannot reuse ChromeOptions - must create new one each time.
     """
-    global _persistent_driver, _driver_init_time
-    
-    print("[*] Initializing undetected Chrome...")
-    
-    # Configure Chrome options
     options = uc.ChromeOptions()
     
     # Essential flags for running as root on VPS
@@ -46,11 +41,26 @@ def _initialize_persistent_chrome():
     # User agent
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
     
+    return options
+
+
+def _initialize_persistent_chrome():
+    """
+    Initialize Chrome with auto-detection.
+    Tries auto-detect first, then falls back to v138 (VPS) or v143 (local).
+    """
+    global _persistent_driver, _driver_init_time
+    
+    print("[*] Initializing undetected Chrome...")
+    
     # Try auto-detect first, then fallback versions
     for attempt, version in enumerate([None, 138, 143], 1):
         try:
             version_str = "auto-detect" if version is None else f"v{version}"
             print(f"[*] Attempt {attempt}: Trying {version_str}...")
+            
+            # CRITICAL: Create FRESH options for each attempt
+            options = _create_chrome_options()
             
             _persistent_driver = uc.Chrome(
                 options=options,
@@ -60,11 +70,12 @@ def _initialize_persistent_chrome():
             )
             
             _driver_init_time = time.time()
-            print(f"[+] Chrome initialized successfully ({version_str})")
+            print(f"[+] Chrome initialized ({version_str})")
             return  # Success!
             
         except Exception as e:
-            print(f"[!] {version_str} failed: {str(e)[:100]}")
+            error_msg = str(e)[:150]
+            print(f"[!] {version_str} failed: {error_msg}")
             if attempt == 3:  # Last attempt
                 raise Exception(f"Failed to initialize Chrome after {attempt} attempts")
 
@@ -100,11 +111,11 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
             _persistent_driver.switch_to.window(_persistent_driver.window_handles[-1])
             
             try:
-                _persistent_driver.set_script_timeout(30)
+                _persistent_driver.set_script_timeout(15)  # Reduced from 30s
                 _persistent_driver.get(site_url)
                 
-                # Human-like delay
-                delay = random.uniform(2.0, 4.0)
+                # Shorter human-like delay
+                delay = random.uniform(1.0, 2.0)  # Reduced from 2-4s
                 print(f"[*] Waiting {delay:.1f}s (human behavior)...")
                 time.sleep(delay)
 
@@ -147,7 +158,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
                 
                 if token and not token.startswith('ERROR'):
                     print("[+] Token generated successfully")
-                    time.sleep(random.uniform(0.3, 0.7))
+                    time.sleep(random.uniform(0.1, 0.3))  # Reduced from 0.3-0.7s
                 else:
                     print(f"[-] Token generation failed: {token}")
                 
