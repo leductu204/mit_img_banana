@@ -1,9 +1,14 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+"""
+Selenium CAPTCHA solver using undetected-chromedriver.
+This uses a stealth Chrome driver that automatically bypasses bot detection.
+
+CRITICAL: Chrome must be VISIBLE (not headless) for reCAPTCHA to work!
+Google detects and rejects tokens from headless browsers.
+"""
+import undetected_chromedriver as uc
 import time
-import tempfile
-import uuid
 import threading
+import random
 
 # Global lock to ensure thread-safe Chrome operations
 _chrome_lock = threading.Lock()
@@ -12,44 +17,39 @@ _chrome_lock = threading.Lock()
 _persistent_driver = None
 _driver_init_time = 0
 
+
 def _initialize_persistent_chrome():
     """
-    Initialize a persistent Chrome instance that stays alive.
-    This is called once and the browser is reused for all CAPTCHA requests.
+    Initialize a persistent undetected Chrome instance.
+    Chrome MUST be visible - Google rejects headless tokens!
     """
     global _persistent_driver, _driver_init_time
     
-    print("[*] Initializing persistent Chrome browser...")
-    chrome_options = Options()
+    print("[*] Initializing undetected Chrome browser (VISIBLE mode)...")
     
-    # Use unique temp directory
-    unique_data_dir = tempfile.mkdtemp(prefix=f"chrome_persistent_{uuid.uuid4().hex[:8]}_")
-    chrome_options.add_argument(f"--user-data-dir={unique_data_dir}")
+    # Configure undetected Chrome options
+    options = uc.ChromeOptions()
+    # CRITICAL: DO NOT enable headless - Google rejects those tokens!
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1920,1080")
     
-    # Headless mode for VPS
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--window-size=1920,1080")
+    # Initialize undetected Chrome in VISIBLE mode
+    _persistent_driver = uc.Chrome(
+        options=options,
+        version_main=None,  # Auto-detect Chrome version
+        use_subprocess=True,
+        headless=False  # MUST be False - Google rejects headless tokens!
+    )
     
-    # Disable automation flags
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-    # User agent
-    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    chrome_options.add_argument(f'user-agent={UA}')
-    
-    _persistent_driver = webdriver.Chrome(options=chrome_options)
     _driver_init_time = time.time()
-    print(f"[+] Persistent Chrome initialized successfully")
+    print(f"[+] Undetected Chrome initialized (visible window)")
 
 
 def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
     """
-    Solves reCAPTCHA v3 Enterprise using a persistent Chrome instance.
-    Opens a new tab, gets token, closes tab - Chrome stays alive for next request.
+    Solves reCAPTCHA v3 Enterprise using undetected Chrome.
+    Opens new tab, gets token, closes tab - Chrome stays alive for next request.
     """
     global _persistent_driver
     
@@ -60,11 +60,10 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
             if _persistent_driver is None:
                 _initialize_persistent_chrome()
             
-            # Check if Chrome is still alive (try to get current URL)
+            # Check if Chrome is still alive
             try:
                 _ = _persistent_driver.current_url
             except:
-                # Chrome crashed or was closed - reinitialize
                 print("[!] Chrome instance died. Reinitializing...")
                 _persistent_driver = None
                 _initialize_persistent_chrome()
@@ -80,7 +79,11 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
             try:
                 _persistent_driver.set_script_timeout(30)
                 _persistent_driver.get(site_url)
-                time.sleep(3)  # Wait for page load
+                
+                # Random human-like delay
+                delay = random.uniform(2.0, 4.0)
+                print(f"[*] Waiting {delay:.1f}s before CAPTCHA (human behavior)...")
+                time.sleep(delay)
 
                 print(f"[*] Requesting Enterprise Token for action: '{action}'...")
                 
@@ -121,11 +124,12 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
                 
                 if token and not token.startswith('ERROR'):
                     print("[+] Token generated successfully.")
+                    time.sleep(random.uniform(0.3, 0.7))
                 
                 return token
                 
             finally:
-                # Close the current tab (CAPTCHA tab)
+                # Close the current tab
                 _persistent_driver.close()
                 
                 # Switch back to first tab if it exists
@@ -148,34 +152,14 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
 def cleanup_chrome():
     """
     Cleanup function to properly close Chrome when shutting down.
-    Call this on application shutdown.
+    Call this on application shutdown if needed.
     """
     global _persistent_driver
     with _chrome_lock:
         if _persistent_driver:
-            print("[*] Shutting down persistent Chrome...")
+            print("[*] Shutting down undetected Chrome...")
             try:
                 _persistent_driver.quit()
             except:
                 pass
             _persistent_driver = None
-
-
-if __name__ == "__main__":
-    # Test Configuration
-    SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-    URL = 'https://labs.google'
-    
-    # Test multiple requests to see tab reuse
-    print("\n=== Testing Persistent Chrome with Multiple Requests ===\n")
-    
-    for i in range(3):
-        print(f"\n--- Request {i+1} ---")
-        token = solve_recaptcha_v3_enterprise(SITE_KEY, URL)
-        if token:
-            print(f"✓ Token: {token[:50]}...")
-        time.sleep(1)
-    
-    # Cleanup
-    cleanup_chrome()
-    print("\n[*] Test complete. Chrome closed.")
