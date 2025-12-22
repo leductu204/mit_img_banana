@@ -1,6 +1,6 @@
 """
 Selenium CAPTCHA solver using undetected-chromedriver.
-Configured to run on VPS as root with GUI.
+Auto-detects Chrome version for both local and VPS.
 
 CRITICAL: Chrome must be VISIBLE (not headless) for reCAPTCHA to work!
 """
@@ -19,17 +19,17 @@ _driver_init_time = 0
 
 def _initialize_persistent_chrome():
     """
-    Initialize a persistent undetected Chrome instance.
-    Configured with all flags needed to run as root on VPS.
+    Initialize Chrome with auto-detection.
+    Tries auto-detect first, then falls back to v138 (VPS) or v143 (local).
     """
     global _persistent_driver, _driver_init_time
     
-    print("[*] Initializing undetected Chrome (VPS root mode)...")
+    print("[*] Initializing undetected Chrome...")
     
-    # Configure Chrome options - CRITICAL for running as root
+    # Configure Chrome options
     options = uc.ChromeOptions()
     
-    # Essential flags for running Chrome as root on VPS
+    # Essential flags for running as root on VPS
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
@@ -46,16 +46,27 @@ def _initialize_persistent_chrome():
     # User agent
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
     
-    # Initialize undetected Chrome
-    _persistent_driver = uc.Chrome(
-        options=options,
-        version_main=None,
-        use_subprocess=False,  # Better for VPS
-        headless=False  # MUST be False - visible mode required
-    )
-    
-    _driver_init_time = time.time()
-    print(f"[+] Chrome initialized (visible, root-safe)")
+    # Try auto-detect first, then fallback versions
+    for attempt, version in enumerate([None, 138, 143], 1):
+        try:
+            version_str = "auto-detect" if version is None else f"v{version}"
+            print(f"[*] Attempt {attempt}: Trying {version_str}...")
+            
+            _persistent_driver = uc.Chrome(
+                options=options,
+                version_main=version,
+                use_subprocess=False,
+                headless=False
+            )
+            
+            _driver_init_time = time.time()
+            print(f"[+] Chrome initialized successfully ({version_str})")
+            return  # Success!
+            
+        except Exception as e:
+            print(f"[!] {version_str} failed: {str(e)[:100]}")
+            if attempt == 3:  # Last attempt
+                raise Exception(f"Failed to initialize Chrome after {attempt} attempts")
 
 
 def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
