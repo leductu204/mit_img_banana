@@ -10,12 +10,9 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
     """
     chrome_options = Options()
     
-    # CRITICAL FIX: Use unique temp directory for each instance to avoid conflicts
     unique_data_dir = tempfile.mkdtemp(prefix=f"chrome_captcha_{uuid.uuid4().hex[:8]}_")
     chrome_options.add_argument(f"--user-data-dir={unique_data_dir}")
     
-    # Headless mode for VPS (no display needed)
-    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")

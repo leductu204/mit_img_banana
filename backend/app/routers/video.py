@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from app.services.providers.higgsfield_client import higgsfield_client
 from app.services.providers.google_client import google_veo_client
-from app.services.providers.recaptcha import get_recaptcha_token
+from app.services.providers.selenium_solver import solve_recaptcha_v3_enterprise
 from app.schemas.higgsfield import GenerateVideoRequest
 from app.schemas.jobs import GenerateResponse, JobCreate
 from app.schemas.users import UserInDB
@@ -130,8 +130,10 @@ async def generate_video(
                     input_image = request.input_images[0]
                 
                 # Fetch recaptcha token for Google Veo
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
                 try:
-                    recaptcha_token = get_recaptcha_token()
+                    recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
                 except ValueError as captcha_error:
                     # CAPTCHA solving failed - create failed job without charging credits
                     print(f"[CAPTCHA ERROR] Failed to get token: {captcha_error}")
@@ -675,7 +677,9 @@ async def generate_veo31_low_t2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             # Generate via Google Veo client
             provider_job_id = google_veo_client.generate_video(
@@ -755,7 +759,9 @@ async def generate_veo31_low_i2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             # Generate via Google Veo client with image
             provider_job_id = google_veo_client.generate_video(
@@ -833,7 +839,9 @@ async def generate_veo31_fast_t2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
@@ -909,7 +917,9 @@ async def generate_veo31_fast_i2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
@@ -985,7 +995,9 @@ async def generate_veo31_high_t2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
@@ -1061,7 +1073,9 @@ async def generate_veo31_high_i2v(
         
         if can_start:
             # Fetch recaptcha token
-            recaptcha_token = get_recaptcha_token()
+            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+            SITE_URL = 'https://labs.google'
+            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
