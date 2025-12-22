@@ -1,17 +1,29 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
+import tempfile
+import uuid
 
 def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
     """
     Solves reCAPTCHA v3 Enterprise using Selenium by executing JavaScript directly.
     """
     chrome_options = Options()
-    chrome_options.add_experimental_option("detach", True)
+    
+    # CRITICAL FIX: Use unique temp directory for each instance to avoid conflicts
+    unique_data_dir = tempfile.mkdtemp(prefix=f"chrome_captcha_{uuid.uuid4().hex[:8]}_")
+    chrome_options.add_argument(f"--user-data-dir={unique_data_dir}")
+    
+    # Headless mode for VPS (no display needed)
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
+    
+    # Disable automation flags to avoid detection
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
     
     # Matching Browser Identity to avoid detection
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -70,6 +82,12 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         return None
     finally:
         driver.quit()
+        # Clean up temp directory
+        try:
+            import shutil
+            shutil.rmtree(unique_data_dir, ignore_errors=True)
+        except:
+            pass  # Ignore cleanup errors
 
 if __name__ == "__main__":
     # Test Configuration
