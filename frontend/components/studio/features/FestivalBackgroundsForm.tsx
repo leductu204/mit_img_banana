@@ -58,7 +58,7 @@ export default function FestivalBackgroundsForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   // Helper to get image dimensions from URL
@@ -117,7 +117,7 @@ export default function FestivalBackgroundsForm() {
             input_images: [{ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height }],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {

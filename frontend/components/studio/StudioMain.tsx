@@ -21,6 +21,7 @@ const FashionStudioForm = React.lazy(() => import('@/components/studio/features/
 const ExtractClothesForm = React.lazy(() => import('@/components/studio/features/ExtractClothesForm'));
 const ProductPhotoshootForm = React.lazy(() => import('@/components/studio/features/ProductPhotoshootForm'));
 const EcommercePhotoForm = React.lazy(() => import('@/components/studio/features/EcommercePhotoForm'));
+const ProductBackgroundsForm = React.lazy(() => import('@/components/studio/features/ProductBackgroundsForm'));
 const FaceOutfitForm = React.lazy(() => import('@/components/studio/features/FaceOutfitForm'));
 const CombineProductForm = React.lazy(() => import('@/components/studio/features/CombineProductForm'));
 const TravelPhotoForm = React.lazy(() => import('@/components/studio/features/TravelPhotoForm'));
@@ -72,6 +73,7 @@ function StudioContent() {
             case 'extract-clothes': return <ExtractClothesForm />;
             case 'product-photoshoot': return <ProductPhotoshootForm />;
             case 'ecommerce-photo': return <EcommercePhotoForm />;
+            case 'product-bg': return <ProductBackgroundsForm />;
 
             // Priority 4 & 5
             case 'face-outfit-3-poses': return <FaceOutfitForm />;

@@ -5,6 +5,7 @@ import Button from "@/components/common/Button";
 import FeatureHeader from "../shared/FeatureHeader";
 import { Mic, Volume2, PlayCircle } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import ResultPreview from "../shared/ResultPreview";
 
 const VOICES = [
     { id: 'f1', name: 'Chị Google' },
@@ -17,17 +18,17 @@ export default function TextToSpeechForm() {
   const [text, setText] = useState("");
   const [voice, setVoice] = useState("f1");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<boolean>(false);
+  const [result, setResult] = useState<string | undefined>(undefined);
   
   const toast = useToast();
 
   const handleGenerate = async () => {
     if (!text.trim()) return;
     setLoading(true);
-    setResult(false);
+    setResult(undefined);
     
     setTimeout(() => {
-        setResult(true);
+        setResult("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
         setLoading(false);
         toast.success('✅ Chuyển văn bản thành giọng nói thành công!');
     }, 2000);
@@ -86,26 +87,15 @@ export default function TextToSpeechForm() {
       </div>
 
       <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex items-center justify-center">
-         {result ? (
-             <div className="bg-card w-full max-w-md p-6 rounded-xl border border-border shadow-lg flex flex-col items-center gap-4 animate-in zoom-in-50 duration-300">
-                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    <PlayCircle className="w-8 h-8" />
-                 </div>
-                 <h3 className="text-lg font-semibold">Audio đã sẵn sàng</h3>
-                 <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary w-1/3" />
-                 </div>
-                 <div className="flex gap-2 w-full mt-2">
-                    <Button className="flex-1 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">Nghe thử</Button>
-                    <Button className="flex-1">Tải về</Button>
-                 </div>
-             </div>
-         ) : (
-            <div className="text-center text-muted-foreground p-8">
-                <Mic className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>Nhập văn bản và chọn giọng đọc để bắt đầu</p>
-            </div>
-         )}
+         <ResultPreview
+            loading={loading}
+            resultUrl={result}
+            status="completed"
+            type="audio"
+            placeholderTitle="Text to Speech"
+            placeholderDesc="Nhập văn bản và chọn giọng đọc để bắt đầu."
+            onRegenerate={handleGenerate}
+         />
       </div>
     </div>
   );

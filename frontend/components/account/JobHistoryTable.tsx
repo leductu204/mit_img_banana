@@ -12,6 +12,7 @@ import Button from '../common/Button';
 import { cleanPrompt } from '@/lib/prompt-utils';
 import { TableSkeleton } from '../common/SkeletonLoader';
 import JobDetailsModal from './JobDetailsModal';
+import { getAuthHeader } from '@/lib/auth';
 
 interface JobHistoryTableProps {
     jobs: Job[];
@@ -22,6 +23,7 @@ interface JobHistoryTableProps {
     onFilterChange: (status: string | undefined) => void;
     selectedFilter?: string;
     onCancelJob?: (jobId: string) => Promise<boolean | void>;
+    onRefresh?: () => void;
 }
 
 const statusConfig = {
@@ -48,6 +50,7 @@ export default function JobHistoryTable({
     onFilterChange,
     selectedFilter,
     onCancelJob,
+    onRefresh,
 }: JobHistoryTableProps) {
     const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
 
@@ -97,23 +100,66 @@ export default function JobHistoryTable({
             return;
         }
 
+        // Check authentication before attempting delete
+        const authHeader = getAuthHeader();
+        console.log('🔍 Auth Debug - getAuthHeader() returned:', authHeader);
+        console.log('🔍 Auth Debug - localStorage token:', localStorage.getItem('auth_token'));
+        
+        if (!authHeader.Authorization) {
+            alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            window.location.href = '/login';
+            return;
+        }
+
         setIsDeleting(true);
         try {
+            const headers = { 
+                'Content-Type': 'application/json',
+                ...authHeader
+            };
+            console.log('🔍 Auth Debug - Final headers:', headers);
+            
             const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/batch-delete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 credentials: 'include',
                 body: JSON.stringify(Array.from(selectedJobIds)),
             });
 
-            if (!response.ok) throw new Error('Failed to delete');
+            console.log('🔍 Auth Debug - Response status:', response.status);
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                
+                // Handle specific auth errors
+                if (response.status === 401) {
+                    console.error('🔍 Auth Debug - 401 received despite sending token');
+                    alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                throw new Error(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            
             setSelectedJobIds(new Set());
-            // Trigger parent refresh by changing filter
-            onFilterChange(selectedFilter);
-        } catch (error) {
+            // Trigger parent refresh
+            if (onRefresh) {
+                onRefresh();
+            } else {
+                onFilterChange(selectedFilter);
+            }
+            
+            // Show success with details
+            if (result.failures && result.failures.length > 0) {
+                console.warn('Some jobs failed to delete:', result.failures);
+                alert(`Đã xóa ${result.deleted_count} công việc. ${result.failures.length} thất bại.`);
+            }
+        } catch (error: any) {
             console.error('Batch delete failed:', error);
-            alert('Không thể xóa các công việc. Vui lòng thử lại.');
+            alert(`Không thể xóa các công việc: ${error.message || 'Vui lòng thử lại.'}`);
         } finally {
             setIsDeleting(false);
         }
@@ -126,23 +172,57 @@ export default function JobHistoryTable({
             return;
         }
 
+        // Check authentication before attempting delete
+        const authHeader = getAuthHeader();
+        if (!authHeader.Authorization) {
+            alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            window.location.href = '/login';
+            return;
+        }
+
         setIsDeleting(true);
         try {
             const allJobIds = jobs.map(j => j.job_id);
             const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/batch-delete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...authHeader
+                },
                 credentials: 'include',
                 body: JSON.stringify(allJobIds),
             });
 
-            if (!response.ok) throw new Error('Failed to delete');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                
+                // Handle specific auth errors
+                if (response.status === 401) {
+                    alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                throw new Error(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
 
             setSelectedJobIds(new Set());
-            onFilterChange(selectedFilter);
-        } catch (error) {
+            if (onRefresh) {
+                onRefresh();
+            } else {
+                onFilterChange(selectedFilter);
+            }
+            
+            // Show result
+            if (result.failures && result.failures.length > 0) {
+                console.warn('Some jobs failed to delete:', result.failures);
+                alert(`Đã xóa ${result.deleted_count}/${allJobIds.length} công việc.`);
+            }
+        } catch (error: any) {
             console.error('Delete all failed:', error);
-            alert('Không thể xóa tất cả công việc. Vui lòng thử lại.');
+            alert(`Không thể xóa tất cả công việc: ${error.message || 'Vui lòng thử lại.'}`);
         } finally {
             setIsDeleting(false);
         }

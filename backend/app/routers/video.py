@@ -130,7 +130,40 @@ async def generate_video(
                     input_image = request.input_images[0]
                 
                 # Fetch recaptcha token for Google Veo
-                recaptcha_token = get_recaptcha_token()
+                try:
+                    recaptcha_token = get_recaptcha_token()
+                except ValueError as captcha_error:
+                    # CAPTCHA solving failed - create failed job without charging credits
+                    print(f"[CAPTCHA ERROR] Failed to get token: {captcha_error}")
+                    
+                    # Create failed job (no credits deducted)
+                    job_data = JobCreate(
+                        job_id=job_id,
+                        user_id=current_user.user_id,
+                        type=job_type,
+                        model=request.model,
+                        prompt=request.prompt,
+                        input_params=json.dumps({
+                            "aspect_ratio": request.aspect_ratio,
+                            "resolution": request.resolution,
+                            "duration": request.duration,
+                            "audio": request.audio
+                        }),
+                        input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
+                        credits_cost=0,  # No charge for failed CAPTCHA
+                        provider_job_id=None
+                    )
+                    jobs_repo.create(job_data, status="failed")
+                    jobs_repo.update_status(
+                        job_id=job_id,
+                        status="failed",
+                        error_message=f"CAPTCHA verification failed: {str(captcha_error)}"
+                    )
+                    
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to verify CAPTCHA. Please try again."
+                    )
                 
                 provider_job_id = google_veo_client.generate_video(
                     prompt=request.prompt,

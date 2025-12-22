@@ -15,6 +15,7 @@ import ResultPreview from "../shared/ResultPreview";
 export default function CombineProductForm() {
   const [productImages, setProductImages] = useState<File[]>([]);
   const [modelImages, setModelImages] = useState<File[]>([]);
+  const [negativePrompt, setNegativePrompt] = useState<string>("");
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   
@@ -23,7 +24,7 @@ export default function CombineProductForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -61,16 +62,20 @@ export default function CombineProductForm() {
         const baseDim = await getImageDimensionsFromUrl(uploadBase.url);
 
         // 2. Start Job
-        const payload = {
-            prompt: "Product placement: integrate the product into the given background or model naturally. Perfect lighting, shadows, and composition. Professional commercial look.",
+        const payload: any = {
+            prompt: "You are an expert professional photo editor and compositor specializing in high-end commercial fashion imagery.\n\n**INPUTS:**\n1. Input 1: An image of a model or scene.\n2. Input 2: An image of a specific product.\n\n**TASK:**\nSeamlessly place and integrate the product from Input 2 onto the model or within the scene from Input 1, making it appear as if the model is naturally wearing or interacting with the product.\n\n**CORE REQUIREMENTS (STRICT):**\n1. PRODUCT PLACEMENT:\n   - Correctly position the product on or with the model\n   - Align with the model’s pose, anatomy, and perspective\n\n2. NATURAL FIT & PHYSICS:\n   - Adapt the product to the body’s contours and proportions\n   - Realistic draping, folds, tension, and fabric behavior\n   - No distortion or unnatural stretching\n\n3. LIGHTING & COLOR INTEGRATION:\n   - Match lighting direction, intensity, and softness from Input 1\n   - Ensure consistent color temperature and exposure\n   - Add realistic shadows, highlights, and ambient occlusion\n\n4. SEAMLESS BLENDING & DEPTH:\n   - No visible cut lines, seams, or edges\n   - Correct depth layering (product naturally in front of or behind body parts when appropriate)\n   - Preserve realistic interaction between product and body\n\n5. DETAIL PRESERVATION:\n   - Preserve original product details: colors, textures, patterns, logos, materials\n   - Maintain sharpness and material realism\n\n**OUTPUT REQUIREMENTS:**\n- Quality: Professional commercial fashion photography\n- Realism: Indistinguishable from a real photograph\n- Clean result: No artifacts, no AI-generated visual defects\n- Usability: Final image must be suitable for advertising, e-commerce, and marketing\n\n**STYLE:**\nHigh-end, professional, studio-quality fashion photography\n\n**CRITICAL:**\nThe final image must be fully photorealistic and commercially usable, with no visible signs of digital manipulation or AI generation.",
             input_images: [
                 { type: "media_input", id: uploadProd.id, url: uploadProd.url, width: prodDim.width, height: prodDim.height, label: "product" },
                 { type: "media_input", id: uploadBase.id, url: uploadBase.url, width: baseDim.width, height: baseDim.height, label: "background" }
             ],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
+        
+        if (negativePrompt.trim()) {
+            payload.negative_prompt = negativePrompt.trim();
+        }
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
             method: 'POST',
@@ -129,7 +134,7 @@ export default function CombineProductForm() {
           <div className="space-y-2">
             <ImageUpload 
                 onImagesSelected={setProductImages} 
-                maxImages={1}
+                maxImages={5}
                 label="Ảnh sản phẩm"
             />
           </div>
@@ -144,6 +149,22 @@ export default function CombineProductForm() {
                 maxImages={1}
                 label="Ảnh nền / Người mẫu"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+                Optional Prompt (tùy chọn)
+            </label>
+            <textarea
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                placeholder="Ví dụ: phong cách chuyên nghiệp, background studio,..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+                Mô tả những gì bạn muốn điều chỉnh thêm trong ảnh
+            </p>
           </div>
 
           {error && (

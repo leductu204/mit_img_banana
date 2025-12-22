@@ -86,7 +86,7 @@ export default function ChangeBackgroundForm() {
   }, [customPrompt, selectedPresetId]);
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   // Helper to get image dimensions from URL
@@ -151,7 +151,7 @@ export default function ChangeBackgroundForm() {
             }],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {

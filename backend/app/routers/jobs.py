@@ -244,15 +244,31 @@ async def batch_delete_jobs(
         raise HTTPException(status_code=400, detail="No job IDs provided")
     
     deleted_count = 0
+    failures = []
+    
     for job_id in job_ids:
         # Verify ownership and delete
         job = jobs_repo.get_by_id(job_id)
-        if job and job["user_id"] == current_user.user_id:
-            if jobs_repo.delete_job(job_id, current_user.user_id):
-                deleted_count += 1
+        
+        if not job:
+            failures.append({"job_id": job_id, "reason": "Job not found"})
+            continue
+            
+        if job["user_id"] != current_user.user_id:
+            failures.append({
+                "job_id": job_id, 
+                "reason": f"Ownership mismatch. Owner: {job['user_id']} vs User: {current_user.user_id}"
+            })
+            continue
+
+        if jobs_repo.delete_job(job_id, current_user.user_id):
+            deleted_count += 1
+        else:
+            failures.append({"job_id": job_id, "reason": "Database delete failed"})
     
     return {
         "deleted_count": deleted_count,
-        "message": f"Successfully deleted {deleted_count} job(s)"
+        "message": f"Successfully deleted {deleted_count} job(s)",
+        "failures": failures
     }
 

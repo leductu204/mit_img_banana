@@ -9,13 +9,17 @@ import FeatureHeader from "../shared/FeatureHeader";
 import ResultPreview from "../shared/ResultPreview";
 import ImageUpload from "@/components/generators/ImageUpload";
 import InsufficientCreditsModal from "@/components/common/InsufficientCreditsModal";
-import { Scissors, AlertCircle, Loader2 } from "lucide-react";
+import AspectRatioSelector from "@/components/generators/AspectRatioSelector";
+import { Eraser, AlertCircle, Settings, ChevronUp, ChevronDown, Zap, Coins } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { NEXT_PUBLIC_API } from "@/lib/config";
 import { getAuthHeader } from "@/lib/auth";
 
 export default function RemoveBackgroundForm() {
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState("auto");
+  const [speed, setSpeed] = useState<"fast" | "slow">("fast");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
 
@@ -24,8 +28,8 @@ export default function RemoveBackgroundForm() {
   const toast = useToast();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
-  }, [estimateImageCost]);
+    return estimateImageCost("nano-banana-pro", aspectRatio, "2k", speed);
+  }, [aspectRatio, speed, estimateImageCost]);
 
   // Helper to get image dimensions from URL
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -88,9 +92,9 @@ export default function RemoveBackgroundForm() {
                 width,
                 height
             }],
-            aspect_ratio: "auto",
+            aspect_ratio: aspectRatio,
             resolution: "2k",
-            speed: "slow"
+            speed: speed
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
@@ -149,7 +153,7 @@ export default function RemoveBackgroundForm() {
         <FeatureHeader 
           title="Remove Background" 
           description="Tách nền tự động trong vài giây"
-          icon={Scissors}
+          icon={Eraser}
           badge="Free"
         />
 

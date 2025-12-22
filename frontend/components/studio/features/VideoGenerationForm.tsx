@@ -112,28 +112,15 @@ export default function VideoGenerationForm() {
       </div>
 
       <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex items-center justify-center">
-         {result ? (
-             <div className="w-full max-w-2xl bg-card rounded-xl border border-border shadow-lg overflow-hidden">
-                 <div className="aspect-video bg-black relative">
-                     <video 
-                        src={result} 
-                        controls 
-                        className="w-full h-full"
-                        autoPlay 
-                        loop
-                     />
-                 </div>
-                 <div className="p-4 flex justify-between items-center">
-                    <span className="text-sm font-medium">Video Result</span>
-                    <Button className="h-9 px-3 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">Tải xuống</Button>
-                 </div>
-             </div>
-         ) : (
-            <div className="text-center text-muted-foreground p-8">
-                <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>Nhập mô tả hoặc tải ảnh lên để tạo video</p>
-            </div>
-         )}
+         <ResultPreview
+            loading={loading}
+            resultUrl={result}
+            status="completed"
+            type="video"
+            placeholderTitle="Tạo Video"
+            placeholderDesc="Nhập mô tả hoặc tải ảnh lên để bắt đầu tạo video."
+            onRegenerate={handleGenerate}
+         />
       </div>
     </div>
   );

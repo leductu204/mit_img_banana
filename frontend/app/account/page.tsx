@@ -27,10 +27,11 @@ function AccountContent() {
     const [jobsFilter, setJobsFilter] = useState<string | undefined>(undefined);
     const [jobsPage, setJobsPage] = useState(1);
     const [txPage, setTxPage] = useState(1);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         getMyJobs(jobsPage, 10, jobsFilter);
-    }, [getMyJobs, jobsPage, jobsFilter]);
+    }, [getMyJobs, jobsPage, jobsFilter, refreshTrigger]);
 
     useEffect(() => {
         getMyTransactions(txPage, 10);
@@ -39,6 +40,10 @@ function AccountContent() {
     const handleJobsFilterChange = (status: string | undefined) => {
         setJobsFilter(status);
         setJobsPage(1);
+    };
+
+    const handleRefresh = () => {
+        setRefreshTrigger(prev => prev + 1);
     };
 
     // Removed early return to allow skeleton rendering
@@ -50,7 +55,6 @@ function AccountContent() {
             <Sidebar />
             <main className="flex-1 pt-[57px] md:pt-0 overflow-auto">
                 <div className="p-6 max-w-5xl mx-auto space-y-6">
-                    {/* Profile Card */}
                     {/* Profile Card */}
                     {!user ? (
                         <CardSkeleton />
@@ -113,6 +117,7 @@ function AccountContent() {
                         onFilterChange={handleJobsFilterChange}
                         selectedFilter={jobsFilter}
                         onCancelJob={cancelJob}
+                        onRefresh={handleRefresh}
                     />
 
                     {/* Transaction History */}

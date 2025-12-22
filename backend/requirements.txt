@@ -26,5 +26,8 @@ passlib[bcrypt]>=1.7.4
 # Email Validation
 email-validator>=2.0.0
 
+# Browser Automation (for reCAPTCHA solving)
+selenium>=4.15.0
+
 # Production Server (for VPS deployment)
 gunicorn>=21.2.0

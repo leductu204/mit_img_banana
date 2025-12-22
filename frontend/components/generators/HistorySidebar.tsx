@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useJobs, Job } from "@/hooks/useJobs"
 import { cleanPrompt } from "@/lib/prompt-utils"
+import { getAuthHeader } from "@/lib/auth"
 import { Loader2, Image as ImageIcon, Video as VideoIcon, Play, Trash2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 
@@ -49,10 +50,20 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/${jobId}`, {
                 method: 'DELETE',
+                headers: {
+                    ...getAuthHeader()
+                },
                 credentials: 'include',
             });
 
-            if (!response.ok) throw new Error('Failed to delete');
+            if (!response.ok) {
+                if (response.status === 401) {
+                    alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Failed to delete');
+            }
 
             // Refresh the job list
             getMyJobs(1, 20, 'completed');

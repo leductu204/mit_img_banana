@@ -8,11 +8,14 @@ from app.database.db import fetch_one, fetch_all, execute, get_db_context
 from app.schemas.jobs import JobCreate, JobInDB
 
 
-def get_local_now() -> str:
-    """Get current time in Vietnam timezone (UTC+7) as ISO string."""
-    utc_now = datetime.utcnow()
-    vietnam_time = utc_now + timedelta(hours=7)
-    return vietnam_time.isoformat()
+def get_utc_now() -> str:
+    """
+    Get current time in UTC as ISO string.
+    
+    Database should store UTC times. Convert to local timezone only for display.
+    This prevents timezone confusion and double-conversion issues.
+    """
+    return datetime.utcnow().isoformat() + 'Z'  # Z suffix indicates UTC
 
 
 def create(job_data: JobCreate, status: str = 'pending') -> dict:
@@ -26,7 +29,7 @@ def create(job_data: JobCreate, status: str = 'pending') -> dict:
     Returns:
         Created job record as dictionary
     """
-    now = get_local_now()
+    now = get_utc_now()
     
     with get_db_context() as conn:
         conn.execute(
@@ -149,7 +152,7 @@ def update_status(
     Returns:
         True if update succeeded
     """
-    now = get_local_now()
+    now = get_utc_now()
     
     if status == "completed":
         affected = execute(
@@ -272,7 +275,7 @@ def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
     
     from datetime import timedelta
     utc_cutoff = datetime.utcnow() - timedelta(minutes=minutes)
-    cutoff = (utc_cutoff + timedelta(hours=7)).isoformat()
+    cutoff = utc_cutoff.isoformat() + 'Z'
     
     return fetch_all(
         """
@@ -313,7 +316,7 @@ def cancel_job(job_id: str, user_id: str) -> bool:
     Returns:
         True if cancelled successfully, False otherwise
     """
-    now = get_local_now()
+    now = get_utc_now()
     
     affected = execute(
         """
@@ -359,9 +362,9 @@ def delete_old_jobs(days: int = 7) -> int:
     Returns:
         Number of jobs deleted
     """
-    # Calculate cutoff date in Vietnam time
+    # Calculate cutoff date in UTC
     utc_cutoff = datetime.utcnow() - timedelta(days=days)
-    cutoff = (utc_cutoff + timedelta(hours=7)).isoformat()
+    cutoff = utc_cutoff.isoformat() + 'Z'
     
     affected = execute(
         """

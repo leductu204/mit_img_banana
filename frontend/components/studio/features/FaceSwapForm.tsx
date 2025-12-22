@@ -23,7 +23,7 @@ export default function FaceSwapForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -62,14 +62,14 @@ export default function FaceSwapForm() {
 
         // 2. Start Job
         const payload = {
-            prompt: "Face swap: swap the face from source image to target image. Professional realistic result, preserve lighting and skin tone.",
+            prompt: "You are an expert high-end photo retoucher.\n\n**INPUTS:**\n1. Reference Image: A model wearing an outfit.\n2. Face Image: A close-up of a face.\n\n**TASK:** \nReplace the face of the model in the Reference Image with the face from the Face Image.\n\n**STRICT CONSTRAINTS (IMMUTABLE):**\n1. FACE REPLACEMENT: Use the face from Face Image EXACTLY\n   - Facial features, structure, skin tone must match Face Image\n   - Expression and angle should adapt to Reference Image's pose\n2. PRESERVE BODY: Keep the model's body, pose, outfit from Reference Image\n3. PRESERVE BACKGROUND: Keep the background and scene from Reference Image unchanged\n4. NATURAL INTEGRATION:\n   - Seamless blending at face-neck boundary\n   - Match lighting direction and color temperature\n   - Adjust skin tone transition naturally\n   - Maintain proper shadows and highlights\n\n**OUTPUT:**\n- Aspect Ratio: ${aspectRatio}\n- Quality: Professional retouching quality\n- Natural Result: Should look like the person from Face Image naturally posed in that scene\n\n**CRITICAL:** The result must be photorealistic and indistinguishable from a real photograph.",
             input_images: [
                 { type: "media_input", id: uploadSource.id, url: uploadSource.url, width: sourceDim.width, height: sourceDim.height, label: "source" },
                 { type: "media_input", id: uploadTarget.id, url: uploadTarget.url, width: targetDim.width, height: targetDim.height, label: "target" }
             ],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {

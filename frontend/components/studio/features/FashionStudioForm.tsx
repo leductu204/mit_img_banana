@@ -24,7 +24,7 @@ export default function FashionStudioForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -62,7 +62,7 @@ export default function FashionStudioForm() {
         const garmentDim = await getImageDimensionsFromUrl(uploadGarment.url);
 
         // 2. Start Job
-        const fullPrompt = `Fashion try-on: dressing the model with the garment. Instruction: ${prompt || "make it look natural and realistic"}. High-end fashion editorial style, professional lighting.`;
+        const fullPrompt = `Task: Realistically dress the provided model with the provided clothing item.\n\n1. **Clothing Application**: Take the isolated clothing item and fit it perfectly onto the model's body, respecting their pose, shape, and contours.\n2. **Realism Integration**: Adjust the lighting, shadows, and fabric physics to make it look naturally worn by the model.\n3. **Detail Preservation**: Maintain all original details of the clothing (colors, patterns, textures) while adapting to the model's body.\n4. **Professional Result**: The final image should look like a real photograph of the model wearing the outfit.\nInstruction: ${prompt || "make it look natural and realistic"}. High-end fashion editorial style, professional lighting.`;
 
         const payload = {
             prompt: fullPrompt,
@@ -72,7 +72,7 @@ export default function FashionStudioForm() {
             ],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {

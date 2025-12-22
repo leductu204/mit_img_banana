@@ -267,35 +267,30 @@ export default function UpscaleImageForm() {
       </div>
 
       <div className="flex-1 bg-muted/10 p-4 lg:p-8 overflow-hidden flex flex-col items-center justify-center">
-         {result?.image_url && referenceImages.length > 0 ? (
-             <div className="w-full h-full max-w-5xl max-h-[800px] bg-background/50 rounded-xl border border-border/50 shadow-sm overflow-hidden relative backdrop-blur-sm">
-                 <BeforeAfterCompare 
-                    beforeImage={URL.createObjectURL(referenceImages[0])}
-                    afterImage={result.image_url}
-                 />
-             </div>
-         ) : result?.image_url ? (
-             <div className="w-full h-full max-w-5xl max-h-[800px] relative">
-                <ResultPreview
-                    loading={false}
-                    resultUrl={result.image_url}
-                    status="completed"
-                    placeholderTitle="Kết quả nâng cấp"
-                    placeholderDesc=""
-                    details={{
-                        prompt: `Nâng cấp ảnh lên chất lượng ${scale === '4' ? '4K' : '2K'}`,
-                        model,
-                        aspectRatio,
-                        resolution: scale === '4' ? '4k' : '2k'
-                    }}
-                />
-            </div>
-         ) : (
-            <div className="text-center text-muted-foreground p-8">
-                <Maximize className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>Tải ảnh lên và chọn độ phân giải để xem kết quả</p>
-            </div>
-         )}
+         <div className="w-full h-full max-w-5xl max-h-[800px] relative">
+             <ResultPreview
+                loading={loading}
+                resultUrl={result?.image_url}
+                status={currentJobStatus}
+                type={result?.image_url && referenceImages.length > 0 ? "custom" : "image"}
+                placeholderTitle="Kết quả nâng cấp"
+                placeholderDesc="Tải ảnh lên và chọn độ phân giải để xem kết quả"
+                onRegenerate={handleGenerate}
+                details={{
+                    prompt: `Nâng cấp ảnh lên chất lượng ${scale === '4' ? '4K' : '2K'}`,
+                    model,
+                    aspectRatio,
+                    resolution: scale === '4' ? '4k' : '2k'
+                }}
+             >
+                 {result?.image_url && referenceImages.length > 0 && !loading && (
+                     <BeforeAfterCompare 
+                        beforeImage={URL.createObjectURL(referenceImages[0])}
+                        afterImage={result.image_url}
+                     />
+                 )}
+             </ResultPreview>
+         </div>
       </div>
     </div>
   );

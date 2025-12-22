@@ -13,17 +13,48 @@ import ImageUpload from "@/components/generators/ImageUpload";
 import ResultPreview from "../shared/ResultPreview";
 
 const STYLES = [
-    { id: 'professional', label: 'Professional (LinkedIn)' },
-    { id: 'anime', label: 'Anime Style' },
-    { id: 'cyberpunk', label: 'Cyberpunk' },
-    { id: 'sketch', label: 'Pencil Sketch' },
-    { id: 'watercolor', label: 'Watercolor' },
-    { id: '3d', label: '3D Character' },
+    { 
+        id: 'professional', 
+        label: 'Chuyên nghiệp',
+        thumbnail: '👔',
+        description: 'Clean corporate headshot with professional lighting, business attire, neutral background, sharp focus, suitable for LinkedIn and business profiles'
+    },
+    { 
+        id: 'anime', 
+        label: 'Anime',
+        thumbnail: '🎨',
+        description: 'Japanese anime art style with vibrant colors, expressive eyes, clean linework, cel-shaded rendering, studio quality'
+    },
+    { 
+        id: 'cyberpunk', 
+        label: 'Đường phố',
+        thumbnail: '🌃',
+        description: 'Futuristic cyberpunk aesthetic with neon accents, tech elements, urban night setting, cinematic lighting, high contrast'
+    },
+    { 
+        id: 'sketch', 
+        label: 'Màu chì',
+        thumbnail: '✏️',
+        description: 'Hand-drawn pencil sketch with crosshatching, realistic shading, fine detail, artistic charcoal effect, monochrome'
+    },
+    { 
+        id: 'watercolor', 
+        label: 'Màu nước',
+        thumbnail: '🎨',
+        description: 'Soft watercolor painting with flowing colors, gentle brushstrokes, artistic interpretation, pastel tones, dreamy atmosphere'
+    },
+    { 
+        id: '3d', 
+        label: '3D',
+        thumbnail: '🎭',
+        description: 'Modern 3D rendered character with realistic materials, soft lighting, high-poly model, Pixar-style quality'
+    },
 ];
 
 export default function ProfileImageGeneratorForm() {
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<string>('professional');
+  const [additionalPrompt, setAdditionalPrompt] = useState<string>('');
   const [currentJobStatus, setCurrentJobStatus] = useState<string>("");
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   
@@ -32,7 +63,7 @@ export default function ProfileImageGeneratorForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "slow");
+    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
   }, [estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -59,8 +90,10 @@ export default function ProfileImageGeneratorForm() {
 
     try {
         const file = referenceImages[0];
-        const styleLabel = STYLES.find(s => s.id === selectedStyle)?.label || selectedStyle;
-        const prompt = `Create a high-quality profile image for this person in ${styleLabel} style. Professional lighting, sharp focus, 8k resolution, suitable for profile pictures.`;
+        const style = STYLES.find(s => s.id === selectedStyle);
+        const styleName = style?.label || selectedStyle;
+        const styleDescription = style?.description || '';
+        const prompt = `Transform this portrait photo into ${styleName} style. ${styleDescription}${additionalPrompt ? `. Also incorporate the following details: ${additionalPrompt.trim()}.` : ''}`;
 
         // 1. Upload Image
         const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
@@ -86,7 +119,7 @@ export default function ProfileImageGeneratorForm() {
             input_images: [{ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height }],
             aspect_ratio: "auto",
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
@@ -158,16 +191,33 @@ export default function ProfileImageGeneratorForm() {
                     <button
                         key={style.id}
                         onClick={() => setSelectedStyle(style.id)}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                        className={`p-4 rounded-lg border text-sm font-medium transition-all flex flex-col items-center gap-2 ${
                             selectedStyle === style.id 
                                 ? 'bg-primary text-primary-foreground border-primary' 
                                 : 'bg-background hover:bg-muted border-input'
                         }`}
                     >
-                        {style.label}
+                        <span className="text-3xl">{style.thumbnail}</span>
+                        <span>{style.label}</span>
                     </button>
                 ))}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+                Tùy chỉnh thêm (tùy chọn)
+            </label>
+            <textarea
+                value={additionalPrompt}
+                onChange={(e) => setAdditionalPrompt(e.target.value)}
+                placeholder="Ví dụ: đeo kính, làm đẹp, làm tấm ảnh nhiều màu sắc..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+                Thêm chi tiết tùy chỉnh để điều chỉnh kết quả theo ý bạn
+            </p>
           </div>
 
           {error && (

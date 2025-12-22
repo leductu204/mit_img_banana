@@ -21,6 +21,24 @@ export function cleanPrompt(prompt: string): string {
         return match ? match[1] : p;
     }
     
+    // Check for "Product Photoshoot" pattern: "Product photoshoot with background: [user input]. Keep product..."
+    if (lp.includes("product photoshoot with background:")) {
+        const match = p.match(/background:\s*(.*?)\.\s*Keep product/i);
+        return match ? match[1] : p;
+    }
+    
+    // Check for "Product Backgrounds" pattern: "Change background to: [user input]. Product unchanged..."
+    if (lp.includes("change background to:")) {
+        const match = p.match(/change background to:\s*(.*?)\.\s*Product unchanged/i);
+        return match ? match[1] : p;
+    }
+    
+    // Check for "CRITICAL TASK" prompts (Product Photoshoot old format)
+    if (lp.includes("critical task: create a professional product")) {
+        const sceneMatch = p.match(/scene:\s*([^\n]+)/i);
+        return sceneMatch ? sceneMatch[1].trim() : "Product Photoshoot";
+    }
+    
     return p;
 }
 

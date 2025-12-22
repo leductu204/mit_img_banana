@@ -33,14 +33,14 @@ export interface StudioFeature {
 export const STUDIO_CATEGORIES: { id: StudioCategory; label: string; icon: any }[] = [
   { id: 'create', label: 'Tạo & Sửa ảnh', icon: Palette },
   { id: 'background', label: 'Background', icon: Layers },
-  // { id: 'portrait', label: 'Chân dung', icon: User },
-  // { id: 'fashion', label: 'Thời trang', icon: Shirt },
-  // { id: 'product', label: 'Sản phẩm', icon: ShoppingBag },
-  // { id: 'ads', label: 'Quảng cáo', icon: Target },
-  // { id: 'video', label: 'Video Analysis', icon: Video },
-  // { id: 'travel', label: 'Du lịch', icon: Globe },
-  // { id: 'audio', label: 'Âm thanh', icon: Mic },
-  // { id: 'analysis', label: 'Phân tích', icon: Search },
+  { id: 'portrait', label: 'Chân dung', icon: User },
+  { id: 'fashion', label: 'Thời trang', icon: Shirt },
+  { id: 'product', label: 'Sản phẩm', icon: ShoppingBag },
+  { id: 'ads', label: 'Quảng cáo', icon: Target },
+  { id: 'video', label: 'Video Analysis', icon: Video },
+  { id: 'travel', label: 'Du lịch', icon: Globe },
+  { id: 'audio', label: 'Âm thanh', icon: Mic },
+  { id: 'analysis', label: 'Phân tích', icon: Search },
 ];
 
 export const STUDIO_FEATURES: StudioFeature[] = [
@@ -135,12 +135,13 @@ export const STUDIO_FEATURES: StudioFeature[] = [
 
   // 3. Portrait (Priority 3)
   {
-    id: 'profile-gen',
+    id: 'profile-image-generator',
     category: 'portrait',
-    label: 'Profile Image Gen',
-    description: 'Tạo ảnh profile theo nhiều phong cách',
+    label: 'Profile Image Generator',
+    description: 'Tạo ảnh đại diện chuyên nghiệp theo nhiều phong cách nghệ thuật',
     icon: User,
-    priority: 3
+    priority: 3,
+    badge: 'Pro'
   },
   {
     id: 'face-swap',

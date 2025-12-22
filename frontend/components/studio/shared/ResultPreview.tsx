@@ -12,6 +12,8 @@ interface ResultPreviewProps {
   placeholderTitle?: string;
   placeholderDesc?: string;
   canRegenerate?: boolean;
+  type?: 'image' | 'video' | 'audio' | 'custom';
+  children?: React.ReactNode;
   details?: {
     prompt: string;
     model?: string;
@@ -31,6 +33,8 @@ export default function ResultPreview({
   placeholderTitle = "Chưa có kết quả",
   placeholderDesc = "Kết quả xử lý sẽ hiển thị ở đây",
   canRegenerate = true,
+  type = 'image',
+  children,
   details
 }: ResultPreviewProps) {
   const toast = useToast();
@@ -44,39 +48,86 @@ export default function ResultPreview({
     }
     
     try {
-        toast.info('Đang tải ảnh xuống...', 2000);
+        toast.info('Đang tải xuống...', 2000);
         // Direct download using fetch to avoid CORS/browser opening tab issues if possible
         const response = await fetch(resultUrl);
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `studio-result-${Date.now()}.png`;
+        const extension = type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'png';
+        a.download = `studio-result-${Date.now()}.${extension}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        toast.success('Tải ảnh thành công!');
+        toast.success('Tải xuống thành công!');
     } catch (error) {
         console.error('Download failed:', error);
-        toast.error('Lỗi khi tải ảnh');
+        toast.error('Lỗi khi tải xuống');
     }
   };
 
-  const hasResult = !!resultUrl && !loading;
+  const hasResult = (!!resultUrl || !!children) && !loading;
+
+  const renderContent = () => {
+      if (children) return children;
+
+      if (type === 'video' && resultUrl) {
+          return (
+              <video 
+                  src={resultUrl} 
+                  controls 
+                  autoPlay 
+                  loop 
+                  className="w-full h-full object-contain bg-black"
+              />
+          );
+      }
+
+      if (type === 'audio' && resultUrl) {
+          return (
+              <div className="w-full h-full flex items-center justify-center bg-muted/5 p-8">
+                  <div className="bg-card w-full max-w-md p-6 rounded-xl border border-border shadow-lg flex flex-col items-center gap-6">
+                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
+                          <Download className="w-10 h-10" />
+                      </div>
+                      <div className="w-full">
+                          <audio src={resultUrl} controls className="w-full" />
+                      </div>
+                  </div>
+              </div>
+          );
+      }
+
+      // Default Image
+      if (resultUrl) {
+          return (
+              <img
+                  src={resultUrl}
+                  alt="Generated result"
+                  className="w-full h-full object-contain"
+              />
+          );
+      }
+      return null;
+  };
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center">
       <div className={`
-        w-full rounded-2xl bg-card border border-border/50 overflow-hidden transition-all duration-300
+        w-full rounded-2xl bg-card border border-border/50 overflow-hidden transition-all duration-300 flex flex-col
         ${hasResult 
             ? 'shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
             : 'shadow-sm'}
       `}>
-        {/* Main Image Area */}
+        {/* Main Content Area */}
         <div className={`
-            w-full aspect-[3/4] max-h-[calc(100vh-16rem)] flex items-center justify-center relative bg-muted/5
-            ${!resultUrl && 'p-8'}
+            w-full relative bg-muted/5 flex-1 flex items-center justify-center overflow-hidden
+            ${!hasResult ? 'min-h-[400px] p-8' : ''}
+            ${type === 'image' || type === 'custom' ? 'aspect-[3/4] max-h-[calc(100vh-16rem)]' : ''}
+            ${type === 'video' ? 'aspect-video' : ''}
+            ${type === 'audio' ? 'aspect-video' : ''}
         `}>
             {loading ? (
                 <div className="flex flex-col items-center gap-4 text-muted-foreground animate-pulse text-center">
@@ -89,16 +140,12 @@ export default function ResultPreview({
                             : 'Đang xử lý...'}
                     </p>
                 </div>
-            ) : resultUrl ? (
+            ) : hasResult ? (
                 <>
-                    <img
-                        src={resultUrl}
-                        alt="Generated result"
-                        className="w-full h-full object-contain"
-                    />
+                    {renderContent()}
 
-                    {/* Metadata Toggle */}
-                    {details && (
+                    {/* Metadata Toggle (Only for visual types) */}
+                    {details && type !== 'audio' && !children && (
                         <button 
                             onClick={() => setShowMetadata(!showMetadata)}
                             className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 shadow-sm ${
@@ -113,7 +160,7 @@ export default function ResultPreview({
                     )}
 
                     {/* Metadata Overlay */}
-                    {showMetadata && details && (
+                    {showMetadata && details && type !== 'audio' && !children && (
                          <div className="absolute bottom-0 left-0 right-0 bg-black/75 backdrop-blur-md pt-6 pb-6 px-6 text-white animate-in slide-in-from-bottom-4 duration-300 z-10 text-left">
                               <div className="flex flex-col gap-4">
                                   <div className="space-y-1">
@@ -162,8 +209,8 @@ export default function ResultPreview({
             )}
         </div>
 
-        {/* Action Bar (Inside Card) */}
-        {resultUrl && !loading && (
+        {/* Action Bar (Below Content) */}
+        {hasResult && !loading && (
             <div className="p-4 border-t border-border/50 bg-background/50 backdrop-blur-sm flex items-center justify-center gap-4 relative z-20">
                 {canRegenerate && onRegenerate && (
                     <Button
@@ -174,13 +221,16 @@ export default function ResultPreview({
                         Tạo lại
                     </Button>
                 )}
-                <Button
-                    onClick={handleDownload}
-                    className="h-10 px-8 rounded-full bg-gradient-to-r from-[#0F766E] to-[#0D655E] hover:from-[#0D655E] hover:to-[#0B544E] text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                >
-                    <Download className="h-4 w-4 mr-2" />
-                    Tải xuống
-                </Button>
+                {/* ResultURL needed for download unless custom onDownload provided */}
+                {(resultUrl || onDownload) && (
+                    <Button
+                        onClick={handleDownload}
+                        className="h-10 px-8 rounded-full bg-gradient-to-r from-[#0F766E] to-[#0D655E] hover:from-[#0D655E] hover:to-[#0B544E] text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Tải xuống
+                    </Button>
+                )}
             </div>
         )}
       </div>

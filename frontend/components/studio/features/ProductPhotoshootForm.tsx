@@ -25,7 +25,7 @@ export default function ProductPhotoshootForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", aspectRatio, "2k", "slow");
+    return estimateImageCost("nano-banana-pro", aspectRatio, "2k", "fast");
   }, [aspectRatio, estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -52,7 +52,12 @@ export default function ProductPhotoshootForm() {
 
     try {
         const file = referenceImages[0];
-        const fullPrompt = `Product photoshoot: ${prompt}. High-end commercial product photography, professional lighting, sharp details, 8k resolution.`;
+        // Simplified prompt for cleaner UI display
+        const fullPrompt = `Task: Create a professional product photoshoot image.
+1. **Product Isolation**: Take the primary product from the provided image and perfectly remove its original background. Do not alter the product itself.
+2. **Scene Integration**: Place the isolated product into a new, photorealistic scene: ${prompt}.
+3. **Professional Quality**: Ensure studio-quality lighting, shadows, and reflections that match the scene naturally.
+4. **High Resolution**: Output must be sharp, detailed, and suitable for e-commerce or advertising.`;
 
         // 1. Upload Image
         const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
@@ -78,7 +83,7 @@ export default function ProductPhotoshootForm() {
             input_images: [{ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height }],
             aspect_ratio: aspectRatio,
             resolution: "2k",
-            speed: "slow"
+            speed: "fast"
         };
 
         const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
