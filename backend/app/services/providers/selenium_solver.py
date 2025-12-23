@@ -30,8 +30,18 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         if is_linux:
             display = os.environ.get('DISPLAY')
             if not display:
-                raise RuntimeError("Linux требует DISPLAY. Run: export DISPLAY=:99 && Xvfb :99 &")
-            print(f"[*] Using DISPLAY={display}")
+                raise RuntimeError("Linux requires DISPLAY. Run: export DISPLAY=:0 (or check VNC display)")
+            
+            # Detect display type
+            if display.startswith(':99') or display.startswith(':98'):
+                print(f"[*] WARNING: Using virtual display {display}")
+                print(f"[*] Chrome will NOT be visible in VNC viewer!")
+                print(f"[*] To see Chrome in VNC, find VNC display with:")
+                print(f"[*]   ps aux | grep vnc")
+                print(f"[*] Then: export DISPLAY=:0 (or whatever VNC uses)")
+            else:
+                print(f"[*] Using REAL display: {display}")
+                print(f"[*] Chrome should be visible in VNC viewer")
         else:
             print(f"[*] Running on {platform.system()}")
         
@@ -61,19 +71,41 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         # Realistic user agent
         options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
         
+        
         # Detect Chrome version and use appropriate driver
-        # VPS usually has older Chrome (138), local has newer (143)
-        is_vps = is_linux and os.environ.get('DISPLAY', '').startswith(':9')
-        version = 138 if is_vps else None  # None = auto-detect
+        version = None  # Will be set below
+        
+        if is_linux:
+            # Try to detect installed Chrome version
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['google-chrome', '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    import re
+                    match = re.search(r'(\d+)\.', result.stdout)
+                    if match:
+                        detected_version = int(match.group(1))
+                        version = detected_version
+                        print(f"[*] Detected Chrome version: {detected_version}")
+            except Exception as e:
+                print(f"[*] Could not detect Chrome version: {e}")
+                # Fallback to 138 for VPS
+                version = 138
         
         version_str = f"v{version}" if version else "auto-detect"
-        print(f"[*] Launching Chrome ({version_str}) with VISIBLE UI...")
+        print(f"[*] Using ChromeDriver {version_str}")
+        print(f"[*] Launching Chrome with VISIBLE UI...")
         
         # Create Chrome instance - MUST be visible!
         driver = uc.Chrome(
             options=options,
             version_main=version,
-            use_subprocess=(is_linux and is_vps),
+            use_subprocess=is_linux,
             headless=False,  # CRITICAL: Must be False!
             driver_executable_path=None  # Let uc handle this
         )
