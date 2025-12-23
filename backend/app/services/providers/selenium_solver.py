@@ -45,13 +45,17 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         # Use isolated profile (won't touch user's Chrome)
         options.add_argument(f'--user-data-dir={user_data_dir}')
         
-        # Essential flags
+        # CRITICAL: Force REAL visible window
+        options.add_argument('--start-maximized')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--window-position=0,0')
+        
+        # Essential flags for VPS/root
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
         options.add_argument('--disable-setuid-sandbox')
-        options.add_argument('--disable-extensions')
-        options.add_argument('--window-size=1920,1080')
+        
+        # Anti-detection: REMOVE automation indicators
         options.add_argument('--disable-blink-features=AutomationControlled')
         
         # Realistic user agent
@@ -63,41 +67,70 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         version = 138 if is_vps else None  # None = auto-detect
         
         version_str = f"v{version}" if version else "auto-detect"
-        print(f"[*] Launching Chrome ({version_str})...")
+        print(f"[*] Launching Chrome ({version_str}) with VISIBLE UI...")
         
-        # Create Chrome instance
-        # use_subprocess: True on Linux VPS, False on Windows
+        # Create Chrome instance - MUST be visible!
         driver = uc.Chrome(
             options=options,
             version_main=version,
             use_subprocess=(is_linux and is_vps),
-            headless=False  # MUST be visible for reCAPTCHA
+            headless=False,  # CRITICAL: Must be False!
+            driver_executable_path=None  # Let uc handle this
         )
         
-        print(f"[*] ✓ Chrome opened (isolated instance)")
-        print(f"[*] Navigating to {site_url}...")
+        
+        print(f"[*] ✓ Chrome window should be VISIBLE now!")
+        print(f"[*] Check if you can see Chrome window on screen...")
         
         # Set timeouts
-        driver.set_script_timeout(20)
+        driver.set_script_timeout(25)
         driver.set_page_load_timeout(30)
         
         # Navigate to site
+        print(f"[*] Navigating to {site_url}...")
         driver.get(site_url)
         
-        # Human-like delay
-        delay = random.uniform(1.5, 3.0)
+        # Human-like delay (longer to appear more natural)
+        delay = random.uniform(2.0, 4.0)
         print(f"[*] Waiting {delay:.1f}s (human behavior)...")
         time.sleep(delay)
         
-        # Inject anti-detection JavaScript
-        print(f"[*] Injecting anti-detection scripts...")
+        # Advanced anti-detection JavaScript
+        print(f"[*] Injecting maximum stealth scripts...")
         driver.execute_script("""
+            // Remove webdriver property
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-            window.chrome = {runtime: {}};
+            
+            // Fake plugins
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [
+                    {name: 'Chrome PDF Plugin'},
+                    {name: 'Chrome PDF Viewer'},
+                    {name: 'Native Client'}
+                ]
+            });
+            
+            // Fake languages
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            
+            // Chrome runtime
+            window.chrome = {
+                runtime: {},
+                loadTimes: function() {},
+                csi: function() {}
+            };
+            
+            // Permissions
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({state: Notification.permission}) :
+                    originalQuery(parameters)
+            );
         """)
         
         print(f"[*] Executing reCAPTCHA for action '{action}'...")
+        print(f"[*] You should see Chrome interacting with {site_url}...")
         
         # Execute reCAPTCHA
         script = f"""
@@ -143,8 +176,9 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         print(f"[*] ✓ Token received ({len(token)} chars)")
         print(f"[*] Token: {token[:50]}...{token[-20:]}")
         
-        # Small delay before closing
-        time.sleep(0.5)
+        # Keep window open a bit longer for verification
+        print(f"[*] Keeping window open for 2s to verify visibility...")
+        time.sleep(2)
         
         return token
         
