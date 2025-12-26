@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import higgsfield_client, HiggsfieldClient
 from app.schemas.higgsfield import (
     UploadURLResponse,
     UploadCheckRequest,
@@ -21,9 +21,34 @@ from app.deps import get_current_user, get_current_user_optional
 from app.services.credits_service import credits_service, InsufficientCreditsError
 from app.services.cost_calculator import CostCalculationError
 from app.repositories import jobs_repo
+from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["higgsfield"])
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def get_higgsfield_client():
+    """
+    Get Higgsfield client using active account from DB (highest priority).
+    Falls back to default .env client if no active accounts found.
+    """
+    try:
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            # Accounts are already ordered by priority DESC in repo
+            # Pick the first one (highest priority)
+            account_id = accounts[0]['account_id']
+            return HiggsfieldClient.create_from_account(account_id)
+    except Exception as e:
+        logger.error(f"Error fetching Higgsfield account: {e}")
+    
+    # Fallback to default
+    return higgsfield_client
 
 
 # ============================================
@@ -34,7 +59,8 @@ router = APIRouter(tags=["higgsfield"])
 async def get_token():
     """Get JWT token for Higgsfield API (internal use)"""
     try:
-        token = higgsfield_client.get_jwt_token_with_retry()
+        client = get_higgsfield_client()
+        token = client.get_jwt_token_with_retry()
         return {"token": token}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -53,9 +79,10 @@ async def create_media_upload(
     Frontend will upload directly to the returned upload_url.
     """
     try:
-        jwt_token = higgsfield_client.get_jwt_token_with_retry()
-        url = f"{higgsfield_client.base_url}/media?require_consent=true"
-        headers = higgsfield_client._get_headers(jwt_token)
+        client = get_higgsfield_client()
+        jwt_token = client.get_jwt_token_with_retry()
+        url = f"{client.base_url}/media?require_consent=true"
+        headers = client._get_headers(jwt_token)
         headers['content-length'] = '0'
         
         import requests
@@ -77,7 +104,8 @@ async def get_upload_url(
     current_user: UserInDB = Depends(get_current_user)
 ):
     try:
-        result = higgsfield_client.get_upload_url()
+        client = get_higgsfield_client()
+        result = client.get_upload_url()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -88,7 +116,8 @@ async def create_reference_media(
     current_user: UserInDB = Depends(get_current_user)
 ):
     try:
-        result = higgsfield_client.create_reference_media()
+        client = get_higgsfield_client()
+        result = client.create_reference_media()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -99,7 +128,8 @@ async def batch_media(
     current_user: UserInDB = Depends(get_current_user)
 ):
     try:
-        result = higgsfield_client.batch_media()
+        client = get_higgsfield_client()
+        result = client.batch_media()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -111,7 +141,8 @@ async def check_upload(
     current_user: UserInDB = Depends(get_current_user)
 ):
     try:
-        response_text = higgsfield_client.check_upload(request.img_id)
+        client = get_higgsfield_client()
+        response_text = client.check_upload(request.img_id)
         return {"status": "success", "message": response_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -156,7 +187,8 @@ async def generate_image(
             )
         
         # 3. Generate image via Higgsfield API
-        job_id = higgsfield_client.generate_image(
+        client = get_higgsfield_client()
+        job_id = client.generate_image(
             prompt=request.prompt,
             input_images=request.input_images or [],
             aspect_ratio=request.aspect_ratio,
@@ -258,7 +290,8 @@ async def generate_video(
             )
         
         # 3. Generate video via Higgsfield API
-        job_id = higgsfield_client.generate_video(
+        client = get_higgsfield_client()
+        job_id = client.generate_video(
             prompt=request.prompt,
             model=request.model,
             duration=request.duration,
@@ -343,7 +376,8 @@ async def get_job_status(
     """
     try:
         # Get latest status from Higgsfield API
-        result = higgsfield_client.get_job_status(job_id)
+        client = get_higgsfield_client()
+        result = client.get_job_status(job_id)
         
         # If user is authenticated, update our database
         if current_user:

@@ -5,9 +5,10 @@ import asyncio
 import logging
 from app.repositories import jobs_repo
 from app.services.credits_service import credits_service
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import higgsfield_client, HiggsfieldClient
 from app.services.providers.google_client import google_veo_client
 from app.services.job_queue_service import JobQueueService
+from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,25 @@ def map_external_status(external_status: str) -> str:
     return "processing"
 
 
+def get_higgsfield_client():
+    """
+    Get Higgsfield client using active account from DB (highest priority).
+    Falls back to default .env client if no active accounts found.
+    """
+    try:
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            # Accounts are already ordered by priority DESC in repo
+            # Pick the first one (highest priority)
+            account_id = accounts[0]['account_id']
+            return HiggsfieldClient.create_from_account(account_id)
+    except Exception as e:
+        logger.error(f"Error fetching Higgsfield account: {e}")
+    
+    # Fallback to default
+    return higgsfield_client
+
+
 async def run_job_monitor(check_interval_seconds: int = 30):
     """
     Background task to actively monitor all pending/processing jobs.
@@ -37,6 +57,10 @@ async def run_job_monitor(check_interval_seconds: int = 30):
     
     while True:
         try:
+            # Get active higgsfield client for this iteration
+            # We fetch it fresh each loop in case credentials updated
+            client = get_higgsfield_client()
+            
             # Get all active jobs (only ones that have been submitted to provider)
             active_jobs = jobs_repo.get_active_jobs()
             
@@ -58,8 +82,8 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                             # Veo3 job
                             result = google_veo_client.get_job_status(provider_job_id)
                         else:
-                            # Kling job
-                            result = higgsfield_client.get_job_status(provider_job_id)
+                            # Kling job - Use dynamic client
+                            result = client.get_job_status(provider_job_id)
                         
                         # Debug (commented out)
                         # print(f"[JobMonitor] Job {job_id[:8]}... Higgsfield returned: {result}")

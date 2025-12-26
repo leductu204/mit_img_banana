@@ -7,11 +7,26 @@ import json
 import logging
 from typing import Optional, Dict, Any
 
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import higgsfield_client, HiggsfieldClient
 from app.services.providers.google_client import google_veo_client
 from app.repositories import jobs_repo
+from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
 
 logger = logging.getLogger(__name__)
+
+def get_higgsfield_client():
+    """
+    Get Higgsfield client using active account from DB (highest priority).
+    Falls back to default .env client if no active accounts found.
+    """
+    try:
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            account_id = accounts[0]['account_id']
+            return HiggsfieldClient.create_from_account(account_id)
+    except Exception as e:
+        logger.error(f"Error fetching Higgsfield account: {e}")
+    return higgsfield_client
 
 class Dispatcher:
     """Handles execution of jobs based on database records."""
@@ -56,7 +71,8 @@ class Dispatcher:
             # ============================================
             if model == "nano-banana":
                 use_unlim = True if speed == "slow" else False
-                provider_job_id = higgsfield_client.generate_image(
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_image(
                     prompt=prompt,
                     input_images=input_images_data,
                     aspect_ratio=aspect_ratio,
@@ -66,7 +82,8 @@ class Dispatcher:
                 
             elif model == "nano-banana-pro":
                 use_unlim = True if speed == "slow" else False
-                provider_job_id = higgsfield_client.generate_image(
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_image(
                     prompt=prompt,
                     input_images=input_images_data,
                     aspect_ratio=aspect_ratio,
@@ -99,7 +116,8 @@ class Dispatcher:
                 if job_type == "i2v":
                     # I2V requires specific image fields
                     img = input_images_data[0] if input_images_data else {}
-                    provider_job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
+                    client = get_higgsfield_client()
+                    provider_job_id = client.send_job_kling_2_5_turbo_i2v(
                         prompt=prompt,
                         duration=duration or 5,
                         resolution=resolution,
@@ -119,7 +137,8 @@ class Dispatcher:
                 use_unlim = True if speed == "slow" else False
                 if job_type == "i2v":
                     img = input_images_data[0] if input_images_data else {}
-                    provider_job_id = higgsfield_client.send_job_kling_o1_i2v(
+                    client = get_higgsfield_client()
+                    provider_job_id = client.send_job_kling_o1_i2v(
                         prompt=prompt,
                         duration=duration or 5,
                         aspect_ratio=aspect_ratio,
@@ -133,7 +152,8 @@ class Dispatcher:
             elif model == "kling-2.6":
                 use_unlim = True if speed == "slow" else False
                 if job_type == "t2v":
-                    provider_job_id = higgsfield_client.send_job_kling_2_6_t2v(
+                    client = get_higgsfield_client()
+                    provider_job_id = client.send_job_kling_2_6_t2v(
                         prompt=prompt,
                         duration=duration or 5,
                         aspect_ratio=aspect_ratio,
@@ -142,7 +162,8 @@ class Dispatcher:
                     )
                 elif job_type == "i2v":
                     img = input_images_data[0] if input_images_data else {}
-                    provider_job_id = higgsfield_client.send_job_kling_2_6_i2v(
+                    client = get_higgsfield_client()
+                    provider_job_id = client.send_job_kling_2_6_i2v(
                         prompt=prompt,
                         duration=duration or 5,
                         sound=has_audio,
@@ -160,7 +181,8 @@ class Dispatcher:
                 # Generic fallback if routers use main generate_video method 
                 # (Active for generic kling requests from JSON endpoint)
                 use_unlim = True if speed == "slow" else False
-                provider_job_id = higgsfield_client.generate_video(
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_video(
                     prompt=prompt,
                     model=model,
                     duration=duration,
