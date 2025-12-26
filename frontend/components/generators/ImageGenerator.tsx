@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import Button from "../common/Button"
-import { Share2, Sparkles, RefreshCw, Download, Coins, AlertCircle, Loader2, Settings, ChevronDown, ChevronUp, Copy, Info } from "lucide-react"
+import { Share2, Sparkles, RefreshCw, Download, Coins, AlertCircle, Loader2, Settings, ChevronDown, ChevronUp, Copy, Info, History } from "lucide-react"
 import { useGenerateImage } from "@/hooks/useGenerateImage"
 import { useCredits } from "@/hooks/useCredits"
 import { useToast } from "@/hooks/useToast"
@@ -14,6 +14,7 @@ import QualitySelector from "./QualitySelector"
 import InsufficientCreditsModal from "../common/InsufficientCreditsModal"
 import { getModelConfig, IMAGE_MODELS } from "@/lib/models-config"
 import { useAuth } from "@/hooks/useAuth"
+import { useUserPreferences } from "@/hooks/useUserPreferences"
 import HistorySidebar from "./HistorySidebar"
 import { Job } from "@/hooks/useJobs"
 
@@ -31,6 +32,7 @@ export function ImageGenerator() {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
     const { isAuthenticated, login } = useAuth()
+    const { preferences, toggleHistorySidebar } = useUserPreferences()
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateImage()
@@ -536,6 +538,17 @@ export function ImageGenerator() {
             <div className="flex-1 flex flex-col md:flex-row lg:overflow-hidden">
                 {/* Center Panel - Main Preview (Flexible) */}
                 <div className="flex-1 bg-background/50 p-4 md:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar">
+                    {/* Show History Button - appears when history is hidden */}
+                    {!preferences.showHistorySidebar && (
+                        <button
+                            onClick={toggleHistorySidebar}
+                            className="absolute top-4 right-4 p-3 bg-card hover:bg-muted border border-border rounded-lg shadow-sm transition-all duration-200 hover:shadow-md z-10 flex items-center gap-2 group"
+                            title="Hiện lịch sử"
+                        >
+                            <History className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
+                            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Lịch sử</span>
+                        </button>
+                    )}
                     <div className="w-full max-w-3xl flex flex-col gap-4">
                         {/* Result Card Container */}
                         <div className={`
@@ -685,22 +698,24 @@ export function ImageGenerator() {
                 </div>
 
                 {/* Right Panel - History Sidebar (Collapsible) */}
-                <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
-                    <HistorySidebar 
-                        type="image" 
-                        onSelect={(job) => {
-                            if (job.status === 'completed' && job.output_url) {
-                                setResult({ 
-                                    image_url: job.output_url, 
-                                    job_id: job.job_id, 
-                                    status: 'completed' 
-                                })
-                                setSelectedJob(job)
-                            }
-                        }}
-                        selectedJobId={result?.job_id}
-                    />
-                </div>
+                {preferences.showHistorySidebar && (
+                    <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
+                        <HistorySidebar 
+                            type="image" 
+                            onSelect={(job) => {
+                                if (job.status === 'completed' && job.output_url) {
+                                    setResult({ 
+                                        image_url: job.output_url, 
+                                        job_id: job.job_id, 
+                                        status: 'completed' 
+                                    })
+                                    setSelectedJob(job)
+                                }
+                            }}
+                            selectedJobId={result?.job_id}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )

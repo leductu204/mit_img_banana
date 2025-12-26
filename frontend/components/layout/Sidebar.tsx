@@ -23,7 +23,7 @@ export default function Sidebar() {
     ];
 
     return (
-        <aside className="w-64 bg-card border-r border-border h-full p-4 hidden md:flex md:flex-col">
+        <aside className="w-64 bg-card border-r border-border h-full pt-4 px-4 hidden md:flex md:flex-col">
             <div className="mb-8 px-2">
                 <div className="flex items-center gap-3">
                     <div className="relative h-10 w-10 overflow-hidden rounded-xl">
@@ -40,7 +40,8 @@ export default function Sidebar() {
                 </div>
             </div>
             
-            <nav className="flex flex-col space-y-2 flex-1">
+            
+            <nav className="flex flex-col space-y-2">
                 {navItems.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
@@ -63,18 +64,21 @@ export default function Sidebar() {
                 })}
             </nav>
 
+            {/* Spacer to push content to bottom */}
+            <div className="flex-1" />
+
             {/* Concurrent Limits */}
             {isAuthenticated && (
-                <div className="px-1 mb-4">
+                <div className="px-1 mb-2">
                     <ConcurrentLimitIndicator />
                     <QueueStatus />
                 </div>
             )}
-
-            {/* Credits section at bottom */}
+            
+            {/* Credits section */}
             {isAuthenticated && user && (
-                <div className="pt-4 border-t border-border mt-0">
-                    <div className="flex flex-col gap-2 px-2">
+                <div className="px-2 pb-4">
+                    <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                             {user.avatar_url ? (
                                 <img 
@@ -95,6 +99,7 @@ export default function Sidebar() {
                     </div>
                 </div>
             )}
+
         </aside>
     );
 }

@@ -174,15 +174,16 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 
 # ============================================
 # Admin Panel Routes (prefixed with /api to avoid frontend collision)
+# Hidden from public docs for security
 # ============================================
-app.include_router(admin.router, prefix="/api")  # /api/admin/auth/login, /api/admin/me
-app.include_router(admin_users.router, prefix="/api")  # /api/admin/users
-app.include_router(admin_stats.router, prefix="/api")  # /api/admin/stats
-app.include_router(admin_costs.router, prefix="/api")  # /api/admin/model-costs
-app.include_router(admin_logs.router, prefix="/api")  # /api/admin/audit-logs
-app.include_router(admin_api_keys.router, prefix="/api")  # /api/admin/keys
-app.include_router(admin_settings.router, prefix="/api")  # /api/admin/settings
-app.include_router(admin_accounts.router, prefix="/api/admin/higgsfield", tags=["admin-higgsfield"])  # /api/admin/higgsfield/accounts
+app.include_router(admin.router, prefix="/api", include_in_schema=False)  # /api/admin/auth/login, /api/admin/me
+app.include_router(admin_users.router, prefix="/api", include_in_schema=False)  # /api/admin/users
+app.include_router(admin_stats.router, prefix="/api", include_in_schema=False)  # /api/admin/stats
+app.include_router(admin_costs.router, prefix="/api", include_in_schema=False)  # /api/admin/model-costs
+app.include_router(admin_logs.router, prefix="/api", include_in_schema=False)  # /api/admin/audit-logs
+app.include_router(admin_api_keys.router, prefix="/api", include_in_schema=False)  # /api/admin/keys
+app.include_router(admin_settings.router, prefix="/api", include_in_schema=False)  # /api/admin/settings
+app.include_router(admin_accounts.router, prefix="/api/admin/higgsfield", tags=["admin-higgsfield"], include_in_schema=False)  # /api/admin/higgsfield/accounts
 
 app.include_router(public_settings.router, prefix="/api")  # /api/settings/public
 

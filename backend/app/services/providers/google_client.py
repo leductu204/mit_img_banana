@@ -74,9 +74,9 @@ class GoogleVeoClient:
         """Generate a random alphanumeric boundary string."""
         return str(uuid.uuid4())
     
-    def _get_common_headers(self, access_token: str) -> dict:
+    def _get_common_headers(self, access_token: str, user_agent: Optional[str] = None) -> dict:
         """Get standard headers for API requests matching veo_api.py."""
-        return {
+        headers = {
             'accept': '*/*',
             'accept-language': 'vi,zh-CN;q=0.9,zh;q=0.8,fr-FR;q=0.7,fr;q=0.6,en-US;q=0.5,en;q=0.4,zh-TW;q=0.3',
             'authorization': f'Bearer {access_token}',
@@ -84,18 +84,25 @@ class GoogleVeoClient:
             'origin': 'https://labs.google',
             'priority': 'u=1, i',
             'referer': 'https://labs.google/',
-            # 'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'cross-site',
-            # 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
             'x-browser-channel': 'stable',
             'x-browser-copyright': 'Copyright 2025 Google LLC. All Rights reserved.',
             'x-browser-validation': 'Aj9fzfu+SaGLBY9Oqr3S7RokOtM=', 
             'x-browser-year': '2025',
         }
+        
+        # Use provided UA or default to Chrome v143
+        ua = user_agent or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+        headers['user-agent'] = ua
+        
+        # Always use the exact sec-ch-ua requested by user for consistency
+        headers['sec-ch-ua'] = '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"'
+        
+        return headers
 
     
     def get_jwt_token(self) -> str:
@@ -132,7 +139,7 @@ class GoogleVeoClient:
             raise ValueError(f"Failed to authenticate: {e}")
 
     
-    def upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16") -> str:
+    def upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16", user_agent: Optional[str] = None) -> str:
         """
         Upload image bytes for I2V generation.
         """
@@ -157,7 +164,7 @@ class GoogleVeoClient:
             }
         }
         
-        headers = self._get_common_headers(token)
+        headers = self._get_common_headers(token, user_agent=user_agent)
         headers['content-type'] = 'application/json'
         
         response = requests.post(url, json=payload_dict, headers=headers)
@@ -172,7 +179,8 @@ class GoogleVeoClient:
         aspect_ratio: str,
         model_name: str,
         prompt: str,
-        recaptchaToken: str
+        recaptchaToken: str,
+        user_agent: Optional[str] = None
     ) -> Tuple[str, str]:
         """Start I2V video generation."""
         token = self.get_jwt_token()
@@ -207,7 +215,7 @@ class GoogleVeoClient:
             "requests": requests_list
         }
         
-        headers = self._get_common_headers(token)
+        headers = self._get_common_headers(token, user_agent=user_agent)
         
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
@@ -228,7 +236,8 @@ class GoogleVeoClient:
         aspect_ratio: str,
         model_name: str,
         prompt: str,
-        recaptchaToken: str
+        recaptchaToken: str,
+        user_agent: Optional[str] = None
     ) -> Tuple[str, str]:
         """Start T2V video generation."""
         token = self.get_jwt_token()
@@ -260,7 +269,7 @@ class GoogleVeoClient:
             "requests": requests_list
         }
         
-        headers = self._get_common_headers(token)
+        headers = self._get_common_headers(token, user_agent=user_agent)
         # specific header from veo_api.py
         headers['accept-language'] = 'en-GB,en-US;q=0.9,en;q=0.8'
         headers['cache-control'] = 'no-cache'
@@ -335,11 +344,18 @@ class GoogleVeoClient:
         recaptchaToken: str,
         model: str = "veo3.1-high",
         aspect_ratio: str = "9:16",
-        input_image: dict = None
+        input_image: dict = None,
+        user_agent: Optional[str] = None
     ) -> str:
-        """Main dispatcher."""
+        """Main dispatcher for video generation."""
+        # Allow choosing 1 in 3 modes using short names or full names
+        if model in ["low", "fast", "high"]:
+            model = f"veo3.1-{model}"
+
         if model not in self.VEO_MODELS:
-            raise ValueError(f"Unknown Veo model: {model}")
+            # Fallback to high quality if model name is unknown or invalid
+            print(f"DEBUG: Model '{model}' not found, defaulting to veo3.1-high")
+            model = "veo3.1-high"
         
         model_variants = self.VEO_MODELS[model]
         is_portrait = aspect_ratio == "9:16"
@@ -350,7 +366,7 @@ class GoogleVeoClient:
                 # Download and re-upload
                 img_response = requests.get(input_image["url"])
                 img_response.raise_for_status()
-                media_id = self.upload_image_bytes(img_response.content, aspect_ratio)
+                media_id = self.upload_image_bytes(img_response.content, aspect_ratio, user_agent=user_agent)
             elif "media_id" in input_image:
                 media_id = input_image["media_id"]
             else:
@@ -366,7 +382,8 @@ class GoogleVeoClient:
                 aspect_ratio=aspect_ratio,
                 model_name=model_name,
                 prompt=prompt,
-                recaptchaToken=recaptchaToken
+                recaptchaToken=recaptchaToken,
+                user_agent=user_agent
             )
         else:
             # T2V
@@ -380,7 +397,8 @@ class GoogleVeoClient:
                 aspect_ratio=aspect_ratio,
                 model_name=model_name,
                 prompt=prompt,
-                recaptchaToken=recaptchaToken
+                recaptchaToken=recaptchaToken,
+                user_agent=user_agent
             )
             
         return f"{operation_name}|{scene_id}"

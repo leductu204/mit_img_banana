@@ -6,7 +6,8 @@ import uuid
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form
 from typing import Optional, List
 
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import higgsfield_client, HiggsfieldClient
+from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
 from app.schemas.higgsfield import (
     UploadURLResponse,
     UploadCheckRequest,
@@ -55,6 +56,29 @@ class NanoBananaProRequest(BaseModel):
 
 
 # ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def get_higgsfield_client():
+    """
+    Get Higgsfield client using active account from DB (highest priority).
+    Falls back to default .env client if no active accounts found.
+    """
+    try:
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            # Accounts are already ordered by priority DESC in repo
+            # Pick the first one (highest priority)
+            account_id = accounts[0]['account_id']
+            return HiggsfieldClient.create_from_account(account_id)
+    except Exception as e:
+        print(f"Error fetching Higgsfield account: {e}")
+    
+    # Fallback to default
+    return higgsfield_client
+
+
+# ============================================
 # UPLOAD ENDPOINTS
 # ============================================
 
@@ -64,7 +88,8 @@ async def create_upload_url(
 ):
     """Create a presigned URL for image upload."""
     try:
-        result = higgsfield_client.create_reference_media()
+        client = get_higgsfield_client()
+        result = client.create_reference_media()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to create reference media")
@@ -76,7 +101,8 @@ async def create_batch_upload_url(
 ):
     """Create a presigned URL for batch image upload."""
     try:
-        result = higgsfield_client.batch_media()
+        client = get_higgsfield_client()
+        result = client.batch_media()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to create batch media")
@@ -89,7 +115,8 @@ async def check_upload(
 ):
     """Verify that an image has been successfully uploaded."""
     try:
-        response_text = higgsfield_client.check_upload(request.img_id)
+        client = get_higgsfield_client()
+        response_text = client.check_upload(request.img_id)
         return {"status": "success", "message": response_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to check upload")
@@ -106,7 +133,8 @@ async def upload_image_complete(
     """
     try:
         image_data = await image.read()
-        result = higgsfield_client.upload_image_complete(image_data)
+        client = get_higgsfield_client()
+        result = client.upload_image_complete(image_data)
         return UploadResponse(
             id=result["id"],
             url=result["url"],
@@ -161,7 +189,20 @@ async def generate_nano_banana(
             
         # 3. Check Concurrent limits (Plan Limits)
         limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
-        can_start = limit_check["allowed"]
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        can_queue = limit_check.get("can_queue", True)
+        
+        # If neither start nor queue is possible, reject with 429
+        if not can_start and not can_queue:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue full",
+                    "message": limit_check.get("reason", "Queue limit reached. Please wait for existing jobs to complete."),
+                    "current_usage": limit_check.get("current_usage"),
+                    "limits": limit_check.get("limits")
+                }
+            )
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
@@ -182,7 +223,10 @@ async def generate_nano_banana(
             # print(f"Speed: {request.speed} (use_unlim={use_unlim})")
             # print(f"Input Images: {len(request.input_images or [])}")
             
-            provider_job_id = higgsfield_client.generate_image(
+            # print(f"Input Images: {len(request.input_images or [])}")
+            
+            client = get_higgsfield_client()
+            provider_job_id = client.generate_image(
                 prompt=request.prompt,
                 input_images=request.input_images or [],
                 aspect_ratio=request.aspect_ratio,
@@ -302,7 +346,20 @@ async def generate_nano_banana_pro(
             
         # 3. Check Concurrent limits
         limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
-        can_start = limit_check["allowed"]
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        can_queue = limit_check.get("can_queue", True)
+        
+        # If neither start nor queue is possible, reject with 429
+        if not can_start and not can_queue:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue full",
+                    "message": limit_check.get("reason", "Queue limit reached. Please wait for existing jobs to complete."),
+                    "current_usage": limit_check.get("current_usage"),
+                    "limits": limit_check.get("limits")
+                }
+            )
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
@@ -313,9 +370,11 @@ async def generate_nano_banana_pro(
             # 4. Generate image via Higgsfield API
             # fast -> use_unlim=False (standard)
             # slow -> use_unlim=True (relaxed)
+            # slow -> use_unlim=True (relaxed)
             use_unlim = True if request.speed == "slow" else False
             
-            provider_job_id = higgsfield_client.generate_image(
+            client = get_higgsfield_client()
+            provider_job_id = client.generate_image(
                 prompt=request.prompt,
                 input_images=request.input_images or [],
                 aspect_ratio=request.aspect_ratio,

@@ -207,12 +207,28 @@ def init_subscription_tables(conn=None) -> None:
                 total_concurrent_limit INTEGER NOT NULL,
                 image_concurrent_limit INTEGER NOT NULL,
                 video_concurrent_limit INTEGER NOT NULL,
+                queue_limit INTEGER NOT NULL DEFAULT 5,
                 description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
-        # 2. Seed Default Plans
+        # 1.5 Migrate queue_limit column if not exists (for existing tables)
+        cursor = conn.execute("PRAGMA table_info(subscription_plans)")
+        sp_columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'queue_limit' not in sp_columns:
+            print("Adding queue_limit column to subscription_plans...")
+            conn.execute("ALTER TABLE subscription_plans ADD COLUMN queue_limit INTEGER NOT NULL DEFAULT 5")
+            # Update existing plans with appropriate queue limits
+            conn.execute("UPDATE subscription_plans SET queue_limit = 3 WHERE plan_id = 1")  # Free
+            conn.execute("UPDATE subscription_plans SET queue_limit = 5 WHERE plan_id = 2")  # Starter
+            conn.execute("UPDATE subscription_plans SET queue_limit = 15 WHERE plan_id = 3") # Professional
+            conn.execute("UPDATE subscription_plans SET queue_limit = 30 WHERE plan_id = 4") # Business
+            conn.commit()
+            print("queue_limit column added successfully")
+
+        # 2. Seed Default Plans (now queue_limit column exists)
         seed_subscription_plans(conn)
 
         # 3. Migrate Users Table
@@ -271,6 +287,7 @@ def seed_subscription_plans(conn):
             "total_concurrent_limit": 2,
             "image_concurrent_limit": 1,
             "video_concurrent_limit": 1,
+            "queue_limit": 3,
             "description": "Basic plan for casual users"
         },
         # ID 2: Starter
@@ -280,6 +297,7 @@ def seed_subscription_plans(conn):
             "total_concurrent_limit": 2,
             "image_concurrent_limit": 1,
             "video_concurrent_limit": 1,
+            "queue_limit": 5,
             "description": "Gói Trải Nghiệm"
         },
         # ID 3: Professional
@@ -289,6 +307,7 @@ def seed_subscription_plans(conn):
             "total_concurrent_limit": 4,
             "image_concurrent_limit": 2,
             "video_concurrent_limit": 2,
+            "queue_limit": 15,
             "description": "Gói Tiết Kiệm"
         },
         # ID 4: Business
@@ -298,6 +317,7 @@ def seed_subscription_plans(conn):
             "total_concurrent_limit": 6,
             "image_concurrent_limit": 3,
             "video_concurrent_limit": 3,
+            "queue_limit": 30,
             "description": "Gói Sáng Tạo"
         }
     ]
@@ -305,8 +325,8 @@ def seed_subscription_plans(conn):
     for plan in plans:
         conn.execute("""
             INSERT OR IGNORE INTO subscription_plans 
-            (name, price, total_concurrent_limit, image_concurrent_limit, video_concurrent_limit, description)
-            VALUES (:name, :price, :total_concurrent_limit, :image_concurrent_limit, :video_concurrent_limit, :description)
+            (name, price, total_concurrent_limit, image_concurrent_limit, video_concurrent_limit, queue_limit, description)
+            VALUES (:name, :price, :total_concurrent_limit, :image_concurrent_limit, :video_concurrent_limit, :queue_limit, :description)
         """, plan)
         
         # If the plan exists but parameters might have changed (optional: update logic could go here)

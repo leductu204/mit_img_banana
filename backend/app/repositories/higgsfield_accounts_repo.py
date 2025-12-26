@@ -28,6 +28,10 @@ class HiggsfieldAccountsRepository:
         Returns:
             account_id of the created account
         """
+        # Clean credentials
+        if sses: sses = sses.strip()
+        if cookie: cookie = cookie.strip()
+
         query = """
             INSERT INTO higgsfield_accounts 
             (name, sses, cookie, max_parallel_images, max_parallel_videos, 
@@ -84,6 +88,12 @@ class HiggsfieldAccountsRepository:
         # Filter out invalid fields
         updates = {k: v for k, v in kwargs.items() if k in allowed_fields}
         
+        # Clean credentials if present
+        if 'sses' in updates and updates['sses']:
+            updates['sses'] = updates['sses'].strip()
+        if 'cookie' in updates and updates['cookie']:
+            updates['cookie'] = updates['cookie'].strip()
+        
         if not updates:
             return False
         
@@ -111,10 +121,14 @@ class HiggsfieldAccountsRepository:
     def hard_delete_account(self, account_id: int) -> bool:
         """
         Permanently delete an account from database.
-        Use with caution - this will break foreign key references in jobs table.
+        Also deletes all associated jobs to prevent FK errors.
         """
-        query = "DELETE FROM higgsfield_accounts WHERE account_id = ?"
         with get_db_context() as conn:
+            # First delete associated jobs to prevent FK violations
+            conn.execute("DELETE FROM jobs WHERE account_id = ?", (account_id,))
+            
+            # Then delete the account
+            query = "DELETE FROM higgsfield_accounts WHERE account_id = ?"
             cursor = conn.execute(query, (account_id,))
             return cursor.rowcount > 0
     

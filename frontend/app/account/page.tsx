@@ -50,7 +50,7 @@ function AccountContent() {
     // if (!user) return null;
 
     return (
-        <div className="flex min-h-screen bg-background">
+        <div className="flex h-screen bg-background overflow-hidden">
             <MobileNav />
             <Sidebar />
             <main className="flex-1 pt-[57px] md:pt-0 overflow-auto">

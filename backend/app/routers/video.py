@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
 from typing import Optional, List
 
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import higgsfield_client, HiggsfieldClient
 from app.services.providers.google_client import google_veo_client
 from app.services.providers.selenium_solver import solve_recaptcha_v3_enterprise
 from app.schemas.higgsfield import GenerateVideoRequest
@@ -17,6 +17,7 @@ from app.services.credits_service import credits_service, InsufficientCreditsErr
 from app.services.cost_calculator import CostCalculationError
 from app.services.concurrency_service import ConcurrencyService
 from app.repositories import jobs_repo
+from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
 from pydantic import BaseModel
 
 
@@ -37,6 +38,29 @@ class UploadResponse(BaseModel):
 
 
 # ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def get_higgsfield_client():
+    """
+    Get Higgsfield client using active account from DB (highest priority).
+    Falls back to default .env client if no active accounts found.
+    """
+    try:
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            # Accounts are already ordered by priority DESC in repo
+            # Pick the first one (highest priority)
+            account_id = accounts[0]['account_id']
+            return HiggsfieldClient.create_from_account(account_id)
+    except Exception as e:
+        print(f"Error fetching Higgsfield account: {e}")
+    
+    # Fallback to default
+    return higgsfield_client
+
+
+# ============================================
 # UPLOAD ENDPOINT (for I2V)
 # ============================================
 
@@ -51,7 +75,8 @@ async def upload_image_for_video(
     """
     try:
         image_data = await image.read()
-        result = higgsfield_client.upload_image_complete(image_data)
+        client = get_higgsfield_client()
+        result = client.upload_image_complete(image_data)
         return UploadResponse(
             id=result["id"],
             url=result["url"],
@@ -112,7 +137,20 @@ async def generate_video(
         # 3. Check Concurrent limits
         job_type = "i2v" if request.input_images else "t2v"
         limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
-        can_start = limit_check["allowed"]
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        can_queue = limit_check.get("can_queue", True)
+        
+        # If neither start nor queue is possible, reject with 429
+        if not can_start and not can_queue:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue full",
+                    "message": limit_check.get("reason", "Queue limit reached. Please wait for existing jobs to complete."),
+                    "current_usage": limit_check.get("current_usage"),
+                    "limits": limit_check.get("limits")
+                }
+            )
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
@@ -133,7 +171,12 @@ async def generate_video(
                 SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
                 SITE_URL = 'https://labs.google'
                 try:
-                    recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+                    token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+                    if isinstance(token_data, tuple):
+                        recaptcha_token, user_agent = token_data
+                    else:
+                        recaptcha_token = token_data
+                        user_agent = None
                 except ValueError as captcha_error:
                     # CAPTCHA solving failed - create failed job without charging credits
                     print(f"[CAPTCHA ERROR] Failed to get token: {captcha_error}")
@@ -172,13 +215,15 @@ async def generate_video(
                     model=request.model,
                     aspect_ratio=request.aspect_ratio or "9:16",
                     input_image=input_image,
-                    recaptchaToken=recaptcha_token
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
                 )
             else:
                 # Route to Higgsfield (Kling models)
                 use_unlim = True if request.speed == "slow" else False
                 
-                provider_job_id = higgsfield_client.generate_video(
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_video(
                     prompt=request.prompt,
                     model=request.model,
                     duration=request.duration,
@@ -323,7 +368,8 @@ async def generate_kling_turbo_i2v(
                     input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
 
             # Generate
-            provider_job_id = higgsfield_client.send_job_kling_2_5_turbo_i2v(
+            client = get_higgsfield_client()
+            provider_job_id = client.send_job_kling_2_5_turbo_i2v(
                 prompt=prompt,
                 duration=duration,
                 resolution=resolution,
@@ -430,7 +476,8 @@ async def generate_kling_o1_i2v(
                 }
                 input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
 
-            provider_job_id = higgsfield_client.send_job_kling_o1_i2v(
+            client = get_higgsfield_client()
+            provider_job_id = client.send_job_kling_o1_i2v(
                 prompt=prompt,
                 duration=duration,
                 aspect_ratio=aspect_ratio,
@@ -512,7 +559,8 @@ async def generate_kling_2_6_t2v(
         if can_start:
             use_unlim = True if speed == "slow" else False
 
-            provider_job_id = higgsfield_client.send_job_kling_2_6_t2v(
+            client = get_higgsfield_client()
+            provider_job_id = client.send_job_kling_2_6_t2v(
                 prompt=prompt,
                 duration=duration,
                 aspect_ratio=aspect_ratio,
@@ -593,7 +641,8 @@ async def generate_kling_2_6_i2v(
         if can_start:
             use_unlim = True if speed == "slow" else False
 
-            provider_job_id = higgsfield_client.send_job_kling_2_6_i2v(
+            client = get_higgsfield_client()
+            provider_job_id = client.send_job_kling_2_6_i2v(
                 prompt=prompt,
                 duration=duration,
                 sound=sound,
@@ -679,7 +728,12 @@ async def generate_veo31_low_t2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             # Generate via Google Veo client
             provider_job_id = google_veo_client.generate_video(
@@ -687,7 +741,8 @@ async def generate_veo31_low_t2v(
                 model="veo3.1-low",
                 aspect_ratio=aspect_ratio,
                 input_image=None,  # T2V mode
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             
             if not provider_job_id:
@@ -761,7 +816,12 @@ async def generate_veo31_low_i2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             # Generate via Google Veo client with image
             provider_job_id = google_veo_client.generate_video(
@@ -769,7 +829,8 @@ async def generate_veo31_low_i2v(
                 model="veo3.1-low",
                 aspect_ratio=aspect_ratio,
                 input_image={"url": img_url},
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             
             if not provider_job_id:
@@ -841,14 +902,20 @@ async def generate_veo31_fast_t2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-fast",
                 aspect_ratio=aspect_ratio,
                 input_image=None,
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             provider_job_id = job_id
             
@@ -919,14 +986,20 @@ async def generate_veo31_fast_i2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-fast",
                 aspect_ratio=aspect_ratio,
                 input_image={"url": img_url},
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             provider_job_id = job_id
             
@@ -997,14 +1070,20 @@ async def generate_veo31_high_t2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-high",
                 aspect_ratio=aspect_ratio,
                 input_image=None,
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             provider_job_id = job_id
             
@@ -1075,14 +1154,20 @@ async def generate_veo31_high_i2v(
             # Fetch recaptcha token
             SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
             SITE_URL = 'https://labs.google'
-            recaptcha_token = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+            if isinstance(token_data, tuple):
+                recaptcha_token, user_agent = token_data
+            else:
+                recaptcha_token = token_data
+                user_agent = None
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-high",
                 aspect_ratio=aspect_ratio,
                 input_image={"url": img_url},
-                recaptchaToken=recaptcha_token
+                recaptchaToken=recaptcha_token,
+                user_agent=user_agent
             )
             provider_job_id = job_id
             

@@ -68,8 +68,9 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         # Anti-detection: REMOVE automation indicators
         options.add_argument('--disable-blink-features=AutomationControlled')
         
-        # Realistic user agent
-        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+        # Realistic user agent - Set to Chrome v143
+        fixed_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+        options.add_argument(f'--user-agent={fixed_ua}')
         
         
         # Detect Chrome version and use appropriate driver
@@ -127,39 +128,15 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         print(f"[*] Waiting {delay:.1f}s (human behavior)...")
         time.sleep(delay)
         
+        # Get actual User-Agent to return
+        actual_ua = driver.execute_script("return navigator.userAgent")
+        print(f"[*] Captured browser User-Agent: {actual_ua}")
+        
         # Advanced anti-detection JavaScript
-        print(f"[*] Injecting maximum stealth scripts...")
-        driver.execute_script("""
-            // Remove webdriver property
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            
-            // Fake plugins
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [
-                    {name: 'Chrome PDF Plugin'},
-                    {name: 'Chrome PDF Viewer'},
-                    {name: 'Native Client'}
-                ]
-            });
-            
-            // Fake languages
-            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-            
-            // Chrome runtime
-            window.chrome = {
-                runtime: {},
-                loadTimes: function() {},
-                csi: function() {}
-            };
-            
-            // Permissions
-            const originalQuery = window.navigator.permissions.query;
-            window.navigator.permissions.query = (parameters) => (
-                parameters.name === 'notifications' ?
-                    Promise.resolve({state: Notification.permission}) :
-                    originalQuery(parameters)
-            );
-        """)
+        print(f"[*] Injecting MAXIMUM stealth scripts...")
+        
+        from .stealth_config import get_advanced_stealth_script
+        driver.execute_script(get_advanced_stealth_script())
         
         print(f"[*] Executing reCAPTCHA for action '{action}'...")
         print(f"[*] You should see Chrome interacting with {site_url}...")
@@ -212,7 +189,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         print(f"[*] Keeping window open for 2s to verify visibility...")
         time.sleep(2)
         
-        return token
+        return token, actual_ua
         
     except Exception as e:
         print(f"[-] Error: {e}")

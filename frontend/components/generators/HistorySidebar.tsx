@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { useJobs, Job } from "@/hooks/useJobs"
 import { cleanPrompt } from "@/lib/prompt-utils"
 import { getAuthHeader } from "@/lib/auth"
-import { Loader2, Image as ImageIcon, Video as VideoIcon, Play, Trash2 } from "lucide-react"
+import { Loader2, Image as ImageIcon, Video as VideoIcon, Play, Trash2, Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
+import { useUserPreferences } from "@/hooks/useUserPreferences"
 
 interface HistorySidebarProps {
     type: 'image' | 'video';
@@ -16,21 +17,15 @@ interface HistorySidebarProps {
 export default function HistorySidebar({ type, onSelect, selectedJobId }: HistorySidebarProps) {
     const { jobs, getMyJobs, loading } = useJobs();
     const { isAuthenticated } = useAuth();
+    const { preferences, toggleHistorySidebar } = useUserPreferences();
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(1);
 
-    // Initial fetch
+    // Initial fetch - get ALL jobs to show pending, processing, and completed
     useEffect(() => {
         if (isAuthenticated) {
-            // Fetch relevant job types based on the generator type
-            // for 'image', we might want t2i and i2i
-            // for 'video', we might want t2v and i2v
-            // But API filter is single param? Let's check logic.
-            // If API supports one type, we might need custom logic or just fetch all and filter client side if volume is low, 
-            // but for now let's just fetch without type filter to get mixed history or try to be specific.
-            // Actually, let's just fetch latest jobs generically for now, or assume backend handles 'type' broadly if customized.
-            // Given the hook signature, let's fetch 'completed' status.
-            getMyJobs(1, 20, 'completed'); 
+            // Fetch all jobs without status filter to show queue status
+            getMyJobs(1, 20); // No status filter = all jobs
         }
     }, [isAuthenticated, getMyJobs]);
 
@@ -66,7 +61,7 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
             }
 
             // Refresh the job list
-            getMyJobs(1, 20, 'completed');
+            getMyJobs(1, 20); // Fetch all jobs
         } catch (error) {
             console.error('Delete failed:', error);
             alert('Không thể xóa công việc. Vui lòng thử lại.');
@@ -79,13 +74,22 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
 
     return (
         <div className="w-full h-full flex flex-col border-t lg:border-t-0 lg:border-l border-border bg-card/30 group">
-            <div className="p-3 group-hover:p-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center overflow-hidden">
-                <div className="shrink-0">
-                    {type === 'image' ? <ImageIcon className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
+            <div className="p-3 group-hover:p-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between overflow-hidden">
+                <div className="flex items-center gap-3">
+                    <div className="shrink-0">
+                        {type === 'image' ? <ImageIcon className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
+                    </div>
+                    <h3 className="font-semibold text-sm text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+                        Lịch sử
+                    </h3>
                 </div>
-                <h3 className="font-semibold text-sm text-foreground ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-                    Lịch sử
-                </h3>
+                <button
+                    onClick={toggleHistorySidebar}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-2 hover:bg-muted rounded-md shrink-0"
+                    title="Ẩn lịch sử"
+                >
+                    <EyeOff className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 group-hover:p-4 custom-scrollbar">
@@ -100,6 +104,27 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
                                 bg-muted/50 w-full max-w-[140px] mx-auto group-hover:max-w-full group-hover:mx-0
                             `}
                         >
+                            {/* Status Badge */}
+                            {job.status !== 'completed' && (
+                                <div className="absolute top-2 left-2 z-10">
+                                    <div className={`
+                                        px-2 py-1 rounded-md text-[10px] font-medium backdrop-blur-sm
+                                        ${job.status === 'pending' ? 'bg-yellow-500/90 text-white' : ''}
+                                        ${job.status === 'processing' ? 'bg-blue-500/90 text-white' : ''}
+                                        ${job.status === 'failed' ? 'bg-red-500/90 text-white' : ''}
+                                    `}>
+                                        {job.status === 'pending' && 'Đang chờ'}
+                                        {job.status === 'processing' && (
+                                            <span className="flex items-center gap-1">
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Đang xử lý
+                                            </span>
+                                        )}
+                                        {job.status === 'failed' && 'Thất bại'}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Content */}
                             {job.output_url ? (
                                 type === 'image' ? (
@@ -124,7 +149,11 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
                                 )
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-muted">
-                                    <span className="text-xs">Error</span>
+                                    {job.status === 'pending' || job.status === 'processing' ? (
+                                        <Loader2 className="w-8 h-8 animate-spin" />
+                                    ) : (
+                                        <span className="text-xs">Error</span>
+                                    )}
                                 </div>
                             )}
 

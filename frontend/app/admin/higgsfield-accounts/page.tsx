@@ -57,6 +57,9 @@ export default function HiggsfieldAccountsPage() {
         is_active: true
     });
 
+    const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+    const [showInactive, setShowInactive] = useState(true);
+
     useEffect(() => {
         if (!authLoading && !admin) {
             router.push('/admin/auth/login');
@@ -134,6 +137,7 @@ export default function HiggsfieldAccountsPage() {
             priority: 100,
             is_active: true
         });
+        setIsDetailsLoading(false);
         setShowModal(true);
     };
 
@@ -141,8 +145,8 @@ export default function HiggsfieldAccountsPage() {
         setEditingAccount(account);
         setFormData({
             name: account.name,
-            sses: 'Loading...',
-            cookie: 'Loading...',
+            sses: '', // Clear first
+            cookie: '', // Clear first
             max_parallel_images: account.max_parallel_images,
             max_parallel_videos: account.max_parallel_videos,
             max_slow_images: account.max_slow_images,
@@ -150,6 +154,7 @@ export default function HiggsfieldAccountsPage() {
             priority: account.priority,
             is_active: account.is_active
         });
+        setIsDetailsLoading(true);
         setShowModal(true);
 
         try {
@@ -167,6 +172,9 @@ export default function HiggsfieldAccountsPage() {
             }
         } catch (err) {
             console.error("Failed to fetch account details", err);
+            setError("Failed to load account credentials. Please close and try again.");
+        } finally {
+            setIsDetailsLoading(false);
         }
     };
 
@@ -174,6 +182,8 @@ export default function HiggsfieldAccountsPage() {
         e.preventDefault();
         setError('');
         setSuccess('');
+
+        if (isDetailsLoading) return;
 
         try {
             const token = localStorage.getItem('admin_token');
@@ -205,28 +215,36 @@ export default function HiggsfieldAccountsPage() {
         }
     };
 
-    const handleDelete = async (accountId: number) => {
-        if (!confirm('Are you sure you want to deactivate this account?')) return;
+    const handleDelete = async (account: HiggsfieldAccount) => {
+        const isHardDelete = !account.is_active;
+        const confirmMsg = isHardDelete 
+            ? 'PERMANENTLY DELETE this account? This cannot be undone!' 
+            : 'Deactivate this account? It will stop processing jobs but remain in database.';
+            
+        if (!confirm(confirmMsg)) return;
 
         try {
             const token = localStorage.getItem('admin_token');
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API}/api/admin/higgsfield/accounts/${accountId}`,
-                {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }
-            );
+            const url = isHardDelete
+                ? `${process.env.NEXT_PUBLIC_API}/api/admin/higgsfield/accounts/${account.account_id}?hard_delete=true`
+                : `${process.env.NEXT_PUBLIC_API}/api/admin/higgsfield/accounts/${account.account_id}`;
+
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
             if (!res.ok) throw new Error('Failed to delete account');
 
-            setSuccess('Account deactivated successfully');
+            setSuccess(isHardDelete ? 'Account permanently deleted' : 'Account deactivated');
             fetchAccounts();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: any) {
             setError(err.message);
         }
     };
+
+    const filteredAccounts = accounts.filter(acc => showInactive || acc.is_active);
 
     const testCredentials = async (accountId: number) => {
         try {
@@ -272,13 +290,24 @@ export default function HiggsfieldAccountsPage() {
                         <h1 className="text-3xl font-bold">Higgsfield Accounts</h1>
                         <p className="text-gray-400 mt-2">Manage multiple provider accounts with configurable job limits.</p>
                     </div>
-                    <button
-                        onClick={openCreateModal}
-                        className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-2 transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Account
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+                            <input 
+                                type="checkbox" 
+                                checked={showInactive}
+                                onChange={(e) => setShowInactive(e.target.checked)}
+                                className="rounded border-gray-700 bg-gray-900 text-teal-600 focus:ring-teal-500"
+                            />
+                            Show Inactive
+                        </label>
+                        <button
+                            onClick={openCreateModal}
+                            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add Account
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
@@ -300,10 +329,10 @@ export default function HiggsfieldAccountsPage() {
                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
                         Loading accounts...
                     </div>
-                ) : accounts.length === 0 ? (
+                ) : filteredAccounts.length === 0 ? (
                     <div className="text-center py-12">
                         <Server className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400 mb-4">No accounts configured yet</p>
+                        <p className="text-gray-400 mb-4">No accounts found</p>
                         <button
                             onClick={openCreateModal}
                             className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg inline-flex items-center gap-2"
@@ -314,7 +343,7 @@ export default function HiggsfieldAccountsPage() {
                     </div>
                 ) : (
                     <div className="grid gap-6">
-                        {accounts.map(account => {
+                        {filteredAccounts.map(account => {
                             const stats = accountStats[account.account_id] || {
                                 total_jobs: 0,
                                 image_jobs: 0,
@@ -369,10 +398,16 @@ export default function HiggsfieldAccountsPage() {
                                                     Edit
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(account.account_id)}
-                                                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm flex items-center gap-2 transition-colors"
+                                                    onClick={() => handleDelete(account)}
+                                                    className={`px-3 py-2 text-white rounded-lg text-sm flex items-center gap-2 transition-colors ${
+                                                        !account.is_active 
+                                                        ? 'bg-red-800 hover:bg-red-900 border border-red-600' 
+                                                        : 'bg-red-600 hover:bg-red-700'
+                                                    }`}
+                                                    title={!account.is_active ? "Permanently Delete" : "Deactivate"}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
+                                                    {!account.is_active && "Delete"}
                                                 </button>
                                             </div>
                                         </div>
@@ -481,9 +516,12 @@ export default function HiggsfieldAccountsPage() {
                                                 type={showSecrets['sses'] ? 'text' : 'password'}
                                                 value={formData.sses}
                                                 onChange={(e) => setFormData({ ...formData, sses: e.target.value })}
-                                                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500 transition-colors font-mono text-sm"
-                                                placeholder="ses_xxx..."
+                                                className={`w-full bg-black/50 border rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500 transition-colors font-mono text-sm ${
+                                                    isDetailsLoading ? 'border-yellow-600/50 text-gray-400 cursor-not-allowed' : 'border-gray-800'
+                                                }`}
+                                                placeholder={isDetailsLoading ? "Loading current token..." : "ses_xxx..."}
                                                 required
+                                                disabled={isDetailsLoading}
                                             />
                                             <button
                                                 type="button"
@@ -493,6 +531,7 @@ export default function HiggsfieldAccountsPage() {
                                                 {showSecrets['sses'] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                             </button>
                                         </div>
+                                        {isDetailsLoading && <p className="text-xs text-yellow-500 mt-1 animate-pulse">Fetching credentials from secure storage...</p>}
                                     </div>
 
                                     <div>
@@ -504,9 +543,12 @@ export default function HiggsfieldAccountsPage() {
                                                 rows={3}
                                                 value={formData.cookie}
                                                 onChange={(e) => setFormData({ ...formData, cookie: e.target.value })}
-                                                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500 transition-colors font-mono text-sm"
-                                                placeholder="_stripe_mid=..."
+                                                className={`w-full bg-black/50 border rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500 transition-colors font-mono text-sm ${
+                                                    isDetailsLoading ? 'border-yellow-600/50 text-gray-400 cursor-not-allowed' : 'border-gray-800'
+                                                }`}
+                                                placeholder={isDetailsLoading ? "Loading current cookie..." : "_stripe_mid=..."}
                                                 required
+                                                disabled={isDetailsLoading}
                                             />
                                             <button
                                                 type="button"
@@ -627,10 +669,24 @@ export default function HiggsfieldAccountsPage() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                        disabled={isDetailsLoading || loading}
+                                        className={`flex-1 px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                                            isDetailsLoading || loading
+                                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                            : 'bg-teal-600 hover:bg-teal-700 text-white'
+                                        }`}
                                     >
-                                        <Save className="w-4 h-4" />
-                                        {editingAccount ? 'Update Account' : 'Create Account'}
+                                        {isDetailsLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Loading Details...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4" />
+                                                {editingAccount ? 'Update Account' : 'Create Account'}
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </form>
@@ -641,3 +697,4 @@ export default function HiggsfieldAccountsPage() {
         </div>
     );
 }
+

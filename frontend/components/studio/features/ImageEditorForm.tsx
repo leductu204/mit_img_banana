@@ -262,10 +262,7 @@ export default function ImageEditorForm() {
               
               {showSettings && (
                   <div className="p-4 space-y-6 border-t border-border/50 animate-in slide-in-from-top-2 duration-300 ease-out bg-muted/10">
-                      {/* Model Selector */}
-                      <ModelSelector value={model} onChange={setModel} mode="image" />
-
-                      {/* Aspect Ratio */}
+                      {/* Aspect Ratio Only */}
                       {settings.aspectRatio?.enabled !== false && (() => {
                           const modelConfig = getModelConfig(model, 'image');
                           const ratiosToShow = costsLoaded && dynamicAspectRatios.length > 0
@@ -283,38 +280,6 @@ export default function ImageEditorForm() {
                               </div>
                           );
                       })()}
-                     
-                      {/* Speed Selector */}
-                      {settings.speed?.enabled !== false && (
-                          <div className="space-y-2">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tốc độ xử lý</label>
-                              <div className="flex bg-muted p-1 rounded-xl">
-                                  <button
-                                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
-                                          speed === 'fast'
-                                              ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                                      }`}
-                                      onClick={() => setSpeed('fast')}
-                                  >
-                                      <Zap className="w-3.5 h-3.5" /> Nhanh
-                                  </button>
-                                  {/* Only show Slow mode if enabled for model */}
-                                  {(costsLoaded && (!modelCosts[model] || modelCosts[model].is_slow_mode_enabled !== 0)) && (
-                                      <button
-                                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
-                                              speed === 'slow'
-                                                  ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                                          }`}
-                                          onClick={() => setSpeed('slow')}
-                                      >
-                                          <Coins className="w-3.5 h-3.5" /> Tiết kiệm
-                                      </button>
-                                  )}
-                              </div>
-                          </div>
-                      )}
                   </div>
               )}
           </div>

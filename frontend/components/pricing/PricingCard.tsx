@@ -1,10 +1,30 @@
-import { Check, Star, AlarmClock, Flame } from 'lucide-react';
+import { Check, Star, AlarmClock, Flame, Video, Image, Zap, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
 
 export interface PricingFeature {
     text: string;
     highlightText?: string;
+    icon?: 'video' | 'image' | 'zap' | 'calendar' | 'check';
+    subtitle?: string; // Secondary text line
+}
+
+// Helper function to determine icon based on feature text
+function getFeatureIcon(feature: PricingFeature) {
+    // If icon is explicitly set, use it
+    if (feature.icon) {
+        return feature.icon;
+    }
+    
+    const text = feature.text.toLowerCase();
+    
+    // Auto-detect based on keywords
+    if (text.includes('video')) return 'video';
+    if (text.includes('ảnh') || text.includes('image')) return 'image';
+    if (text.includes('fast mode') || text.includes('luồng') || text.includes('nhanh hơn') || text.includes('xử lý đồng thời')) return 'zap';
+    if (text.includes('ngày') || text.includes('day')) return 'calendar';
+    
+    return 'check'; // Default
 }
 
 export interface PackageProps {
@@ -109,23 +129,23 @@ export default function PricingCard({
                     {pk.id} {isHighlighted ? '(ACTIVE)' : ''}
                 </div>
                 {/* Colored Header */}
-                <div className={cn("py-8 px-6 text-center text-white relative", color)}>
+                <div className={cn("py-6 px-5 text-center text-white relative", color)}>
                      {/* Add relative to ensure specific z-index context if needed, but text needs to be readable */}
-                    <h3 className="font-bold uppercase tracking-wider text-sm mb-1 opacity-90">{name}</h3>
+                    <h3 className="font-bold uppercase tracking-wider text-base mb-1 opacity-90">{name}</h3>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 p-8 flex flex-col items-center">
                     
                     {/* Price Block */}
-                    <div className="text-center w-full border-b border-gray-100 pb-6 mb-6">
+                    <div className="text-center w-full border-b border-gray-100 pb-5 mb-5">
                          <div className="flex items-center justify-center gap-3 mb-2">
                              {originalPrice && (
                                  <div className="text-gray-400 text-xl font-medium line-through decoration-gray-400/80 decoration-2">
                                      {originalPrice}
                                  </div>
                              )}
-                             <div className="flex items-baseline gap-1">
+                         <div className="flex items-baseline gap-1">
                                 <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
                                     {price}
                                 </span>
@@ -137,28 +157,28 @@ export default function PricingCard({
                         
                         {highlightCredits ? (
                              <div className="flex items-end justify-center gap-3 mb-2">
-                                 <div className="text-gray-400 text-xl font-medium line-through decoration-gray-400/80 decoration-2 mb-1">
+                                 <div className="text-gray-400 text-2xl font-medium line-through decoration-gray-400/80 decoration-2 mb-1">
                                     {credits}
                                 </div>
                                 <div className="font-bold text-4xl text-green-600 animate-pulse flex items-baseline gap-1">
                                     {highlightCredits}
-                                    <span className="text-lg font-medium text-green-600">Credits</span>
+                                    <span className="text-xl font-medium text-green-600">Credits</span>
                                 </div>
                             </div>
                         ) : (
-                            <div className={cn("font-bold text-lg mb-2", "text-green-500")}>
+                            <div className={cn("font-bold text-3xl mb-2", "text-green-500")}>
                                 {credits} <span className="text-gray-400 text-sm font-normal">Credits</span>
                             </div>
                         )}
 
-                        <div className="flex items-center justify-center gap-1.5 text-gray-400 text-xs font-medium mt-4">
-                            <AlarmClock className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-center gap-1.5 text-gray-400 text-sm font-medium mt-4">
+                            <AlarmClock className="w-4 h-4" />
                             <span>{duration}</span>
                         </div>
                     </div>
 
                     {/* Features List */}
-                    <div className="w-full space-y-3 mb-8 flex-1">
+                    <div className="w-full space-y-2 mb-6 flex-1">
                         {features.map((feature, idx) => {
                             // Split text if highlighting is needed
                             const renderText = () => {
@@ -176,14 +196,55 @@ export default function PricingCard({
                                 );
                             };
 
+                            // Determine which icon to show
+                            const iconType = getFeatureIcon(feature);
+                            
+                            // Icon components and styling
+                            const iconConfig = {
+                                video: {
+                                    Icon: Video,
+                                    bgColor: 'bg-blue-100',
+                                    iconColor: 'text-blue-600'
+                                },
+                                image: {
+                                    Icon: Image,
+                                    bgColor: 'bg-purple-100',
+                                    iconColor: 'text-purple-600'
+                                },
+                                zap: {
+                                    Icon: Zap,
+                                    bgColor: 'bg-yellow-100',
+                                    iconColor: 'text-yellow-600'
+                                },
+                                calendar: {
+                                    Icon: Calendar,
+                                    bgColor: 'bg-green-100',
+                                    iconColor: 'text-green-600'
+                                },
+                                check: {
+                                    Icon: Check,
+                                    bgColor: 'bg-green-100',
+                                    iconColor: 'text-green-600'
+                                }
+                            };
+
+                            const { Icon, bgColor, iconColor } = iconConfig[iconType];
+
                             return (
-                                <div key={idx} className="flex items-start gap-2.5">
-                                    <div className={cn("rounded-full p-0.5 mt-0.5 bg-green-100")}>
-                                        <Check className="w-3 h-3 text-green-600 stroke-[3]" />
+                                <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-900/5 dark:bg-gray-800/30 transition-colors hover:bg-gray-900/10">
+                                    <div className={cn("rounded-lg p-2 shrink-0", bgColor)}>
+                                        <Icon className={cn("w-5 h-5", iconColor)} />
                                     </div>
-                                    <span className="text-gray-600 text-sm font-medium leading-tight">
-                                        {renderText()}
-                                    </span>
+                                    <div className="flex flex-col flex-1">
+                                        <span className="text-gray-700 dark:text-gray-300 text-base font-medium leading-tight">
+                                            {renderText()}
+                                        </span>
+                                        {feature.subtitle && (
+                                            <span className="text-gray-500 dark:text-gray-400 text-sm font-normal mt-0.5">
+                                                {feature.subtitle}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
@@ -194,7 +255,7 @@ export default function PricingCard({
                         <Button
                             onClick={handleButtonClick}
                             className={cn(
-                                "w-full h-11 rounded-full font-bold text-sm text-white shadow-md hover:shadow-lg transition-all hover:brightness-110",
+                                "w-full h-12 rounded-full font-bold text-base text-white shadow-md hover:shadow-lg transition-all hover:brightness-110",
                                 color
                             )}
                         >

@@ -13,6 +13,7 @@ class ConcurrencyService:
                 sp.total_concurrent_limit,
                 sp.image_concurrent_limit,
                 sp.video_concurrent_limit,
+                sp.queue_limit,
                 sp.name as plan_name
             FROM users u
             JOIN subscription_plans sp ON u.plan_id = sp.plan_id
@@ -32,6 +33,7 @@ class ConcurrencyService:
                 "total_concurrent_limit": 2,
                 "image_concurrent_limit": 1,
                 "video_concurrent_limit": 1,
+                "queue_limit": 3,
                 "plan_name": "Free"
             }
 
@@ -71,9 +73,12 @@ class ConcurrencyService:
     def check_can_start_job(user_id: str, job_type: str) -> dict:
         """
         Check if a user can start a new job of a specific type.
+        Returns comprehensive status for both immediate start and queue options.
+        
         Returns: {
-            "allowed": bool,
-            "reason": str (if not allowed),
+            "can_start": bool,       # Can start immediately (processing)
+            "can_queue": bool,       # Can be added to queue (pending)
+            "reason": str,           # Rejection reason if neither allowed
             "current_usage": dict,
             "limits": dict
         }
@@ -84,25 +89,38 @@ class ConcurrencyService:
         is_video = job_type in ['t2v', 'i2v']
         is_image = job_type in ['t2i', 'i2i']
         
-        allowed = True
+        can_start = True
+        can_queue = True
         reason = None
         
-        # 1. Check Total Limit
+        # 1. Check Total Concurrent Limit (for immediate start)
         if usage["total_active"] >= limits["total_concurrent_limit"]:
-            allowed = False
-            reason = f"Total concurrent limit reached ({usage['total_active']}/{limits['total_concurrent_limit']})"
+            can_start = False
         
-        # 2. Check Type Limit
+        # 2. Check Type-Specific Limit (for immediate start)
         elif is_image and usage["image_active"] >= limits["image_concurrent_limit"]:
-            allowed = False
-            reason = f"Image concurrent limit reached ({usage['image_active']}/{limits['image_concurrent_limit']})"
+            can_start = False
             
         elif is_video and usage["video_active"] >= limits["video_concurrent_limit"]:
-            allowed = False
-            reason = f"Video concurrent limit reached ({usage['video_active']}/{limits['video_concurrent_limit']})"
+            can_start = False
+        
+        # 3. Check Queue Limit (for queueing when can't start)
+        queue_limit = limits.get("queue_limit", 5)
+        if usage["total_pending"] >= queue_limit:
+            can_queue = False
+            reason = f"Queue full ({usage['total_pending']}/{queue_limit})"
+        
+        # If can start, queue is also implicitly allowed but not needed
+        # If can't start but can queue, that's the fallback
+        # If neither, job must be rejected
+        
+        if not can_start and not can_queue:
+            reason = reason or f"Queue full ({usage['total_pending']}/{queue_limit})"
             
         return {
-            "allowed": allowed,
+            "can_start": can_start,
+            "can_queue": can_queue,
+            "allowed": can_start or can_queue,  # Backward compatibility
             "reason": reason,
             "current_usage": usage,
             "limits": limits

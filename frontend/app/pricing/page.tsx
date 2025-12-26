@@ -38,11 +38,10 @@ function PricingContent() {
             link: 'https://zalo.me/0352143210',
             cornerBadgeText: 'BONUS',
             features: [
-                { text: '1000 credits hàng tháng', highlightText: '1000 credits' },
-                { text: 'Tạo ~200 ảnh Nano Banana', highlightText: '~200 ảnh' },
-                { text: 'Tạo ~50 video Veo3', highlightText: '~50 video' },
-                { text: 'Tạo ~30 video Kling', highlightText: '~30 video' },
-                { text: 'Quyền truy cập Fast Mode' },
+                { text: '200 Ảnh/tháng', highlightText: '200 Ảnh' },
+                { text: '50 Video/tháng', highlightText: '50 Video' },
+                { text: '2 luồng xử lý song song', highlightText: '2 luồng', subtitle: '5 Hàng đợi' },
+                { text: 'Quyền truy cập Fast Mode', highlightText: 'Fast Mode' },
             ],
             onSelect: handleSelect
         },
@@ -64,13 +63,10 @@ function PricingContent() {
             link: 'https://zalo.me/0352143210',
             cornerBadgeText: 'BONUS',
             features: [
-                { text: '3500 credits hàng tháng', highlightText: '3500 credits' },
-                { text: 'Tạo ~700 ảnh mỗi tháng', highlightText: '~700 ảnh' },
-                { text: 'Tạo ~175 video Veo3', highlightText: '~175 video' },
-                { text: 'Tạo ~115 video Kling', highlightText: '~115 video' },
-                { text: '4 luồng xử lý song song', highlightText: '4 luồng'},
-                { text: 'Quyền truy cập Fast Mode', highlightText: 'Fast Mode' },
-                { text: 'Ưu tiên trải nghiệm trước model mới', highlightText: 'model mới' },
+                { text: '700 Ảnh/tháng', highlightText: '700 Ảnh' },
+                { text: '175 Video/tháng', highlightText: '175 Video' },
+                { text: '4 luồng xử lý song song', highlightText: '4 luồng', subtitle: '15 Hàng đợi'},
+                { text: 'Quyền truy cập Fast Mode', highlightText: 'Fast Mode' }
             ],
             onSelect: handleSelect
         },
@@ -92,13 +88,10 @@ function PricingContent() {
             link: 'https://zalo.me/0352143210',
             cornerBadgeText: 'Extra Credit',
             features: [
-                { text: '13000 credits hàng tháng', highlightText: '13000 credits' },
-                { text: 'Tạo ~2600 ảnh mỗi tháng', highlightText: '~2600 ảnh' },
-                { text: 'Tạo ~650 video Veo3', highlightText: '~650 video' },
-                { text: 'Tạo ~400 video Kling', highlightText: '~400 video' },
-                { text: '6 luồng xử lý song song', highlightText: '6 luồng' },
+                { text: '2600 Ảnh/tháng', highlightText: '2600 Ảnh' },
+                { text: '650 Video/tháng', highlightText: '650 Video' },
+                { text: '6 luồng xử lý song song', highlightText: '6 luồng', subtitle: '30 Hàng đợi' },
                 { text: 'Quyền truy cập Fast Mode', highlightText: 'Fast Mode' },
-                { text: 'Ưu tiên trải nghiệm trước model mới', highlightText: 'model mới' },
             ],
             onSelect: handleSelect
         },
@@ -120,8 +113,7 @@ function PricingContent() {
                 { text: 'Toàn bộ Credit' },
                 { text: 'Tất cả tính năng cao cấp' },
                 { text: 'Ưu tiên hỗ trợ VIP 24/7' },
-                { text: 'Hàng đợi xử lý nhanh hơn' },
-                { text: 'Bonus credit miễn phí mỗi ngày' },
+                { text: 'Hàng đợi xử lý nhanh hơn' }
             ],
             onSelect: handleSelect
         }
@@ -162,10 +154,10 @@ function PricingContent() {
 export default function PricingPage() {
     return (
         <ProtectedRoute>
-            <div className="flex min-h-screen bg-gray-50 text-gray-900">
+            <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
                 <MobileNav />
                 <Sidebar />
-                <main className="flex-1 pt-[57px] md:pt-0 overflow-y-auto h-screen bg-gray-50">
+                <main className="flex-1 pt-[57px] md:pt-0 overflow-y-auto bg-gray-50">
                     <Suspense fallback={<div className="text-gray-900 p-8">Loading...</div>}>
                         <PricingContent />
                     </Suspense>

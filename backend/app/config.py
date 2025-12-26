@@ -7,8 +7,18 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
+from pathlib import Path
+
+# Fix: Ensure .env is loaded correctly regardless of CWD
+BASE_DIR = Path(__file__).resolve().parent.parent
+env_file_path = BASE_DIR / ".env"
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(
+        env_file=env_file_path,
+        env_file_encoding='utf-8',
+        extra='ignore'
+    )
     
     # Higgsfield API Credentials
     HIGGSFIELD_SSES: str = Field(..., env="HIGGSFIELD_SSES")

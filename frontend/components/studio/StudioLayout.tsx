@@ -6,10 +6,11 @@ import CategoryTabs from "./CategoryTabs";
 import FeatureSidebar from "./FeatureSidebar";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
-import { Menu, X } from "lucide-react";
+import { Menu, X, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import HistorySidebar from "@/components/generators/HistorySidebar";
 import { useStudio } from "./StudioContext";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -68,19 +69,49 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
 
                     {/* Studio Main Content */}
                     <main className="flex-1 overflow-hidden flex flex-col relative w-full">
+                        <HistoryToggleButton />
                         {children}
                     </main>
 
                      {/* Right Panel - History Sidebar (Collapsible) */}
-                    <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden xl:block border-l border-border bg-card relative group z-20">
-                       <HistorySidebarWrapper />
-                    </div>
+                    <HistorySidebarConditional />
                 </div>
             </div>
         </div>
       </div>
     </StudioProvider>
   );
+}
+
+// Show History Button Component
+function HistoryToggleButton() {
+    const { preferences, toggleHistorySidebar } = useUserPreferences();
+    
+    if (preferences.showHistorySidebar) return null;
+    
+    return (
+        <button
+            onClick={toggleHistorySidebar}
+            className="absolute top-4 right-4 p-3 bg-card hover:bg-muted border border-border rounded-lg shadow-sm transition-all duration-200 hover:shadow-md z-10 flex items-center gap-2 group"
+            title="Hiện lịch sử"
+        >
+            <History className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
+            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Lịch sử</span>
+        </button>
+    );
+}
+
+// Conditional History Sidebar Component
+function HistorySidebarConditional() {
+    const { preferences } = useUserPreferences();
+    
+    if (!preferences.showHistorySidebar) return null;
+    
+    return (
+        <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden xl:block border-l border-border bg-card relative group z-20">
+            <HistorySidebarWrapper />
+        </div>
+    );
 }
 
 function HistorySidebarWrapper() {

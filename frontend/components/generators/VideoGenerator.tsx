@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import Button from "../common/Button"
-import { Sparkles, Video, Loader2, Volume2, Coins, AlertCircle, Settings, ChevronDown, ChevronUp, Copy, Info, Download } from "lucide-react"
+import { Sparkles, Video, Loader2, Volume2, Coins, AlertCircle, Settings, ChevronDown, ChevronUp, Copy, Info, Download, History } from "lucide-react"
 import { useGenerateVideo } from "@/hooks/useGenerateVideo"
 import { useCredits } from "@/hooks/useCredits"
 import { apiRequest } from "@/lib/api"
@@ -21,6 +21,7 @@ import AspectRatioSelector from "./AspectRatioSelector"
 import InsufficientCreditsModal from "../common/InsufficientCreditsModal"
 import { getModelConfig } from "@/lib/models-config"
 import { useAuth } from "@/hooks/useAuth"
+import { useUserPreferences } from "@/hooks/useUserPreferences"
 import HistorySidebar from "./HistorySidebar"
 import { Job } from "@/hooks/useJobs"
 
@@ -111,6 +112,7 @@ export function VideoGenerator() {
     const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
     const toast = useToast()
     const { isAuthenticated, login } = useAuth()
+    const { preferences, toggleHistorySidebar } = useUserPreferences()
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
     // Calculate estimated cost based on current selections
@@ -648,7 +650,7 @@ export function VideoGenerator() {
                                                 className="h-5 w-5 rounded border-input text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer transition-all"
                                             />
                                         </div>
-                                    )}
+                                     )}
                                 </div>
                             )}
                         </div>
@@ -726,6 +728,17 @@ export function VideoGenerator() {
             <div className="flex-1 flex flex-col md:flex-row lg:overflow-hidden relative">
                 {/* Center Panel - Main Preview (Flexible) */}
                 <div className="flex-1 bg-background/50 p-4 md:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar z-0 py-8 lg:py-10">
+                    {/* Show History Button - appears when history is hidden */}
+                    {!preferences.showHistorySidebar && (
+                        <button
+                            onClick={toggleHistorySidebar}
+                            className="absolute top-4 right-4 p-3 bg-card hover:bg-muted border border-border rounded-lg shadow-sm transition-all duration-200 hover:shadow-md z-10 flex items-center gap-2 group"
+                            title="Hiện lịch sử"
+                        >
+                            <History className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
+                            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Lịch sử</span>
+                        </button>
+                    )}
                     <div className="w-full max-w-4xl flex flex-col gap-4">
                          {/* Result Card Container */}
                          <div className={`
@@ -884,27 +897,29 @@ export function VideoGenerator() {
 
 
                  {/* Right Panel - History Sidebar (Collapsible) */}
-                <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
-                     <HistorySidebar 
-                        type="video" 
-                        onSelect={(job) => {
-                             if (job.status === 'completed' && job.output_url) {
-                                setResult({ 
-                                    video_url: job.output_url, 
-                                    job_id: job.job_id, 
-                                    status: 'completed' 
-                                })
-                                setSelectedJob({
-                                    ...job,
-                                    input_params: typeof job.input_params === 'string' 
-                                        ? JSON.parse(job.input_params || '{}') 
-                                        : job.input_params
-                                })
-                            }
-                        }}
-                        selectedJobId={result?.job_id}
-                    />
-                </div>
+                {preferences.showHistorySidebar && (
+                    <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
+                         <HistorySidebar 
+                            type="video" 
+                            onSelect={(job) => {
+                                 if (job.status === 'completed' && job.output_url) {
+                                    setResult({ 
+                                        video_url: job.output_url, 
+                                        job_id: job.job_id, 
+                                        status: 'completed' 
+                                    })
+                                    setSelectedJob({
+                                        ...job,
+                                        input_params: typeof job.input_params === 'string' 
+                                            ? JSON.parse(job.input_params || '{}') 
+                                            : job.input_params
+                                    })
+                                }
+                            }}
+                            selectedJobId={result?.job_id}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )
