@@ -5,9 +5,28 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import auth, image, video, jobs, users, health, costs, api_keys, public_api
-from .routers import admin, admin_users, admin_stats, admin_costs, admin_logs, admin_api_keys, admin_settings, admin_accounts
-from .routers import settings as public_settings
+from app.routers import (
+    users,
+    jobs,
+    costs,
+    auth,
+    api_keys,
+    health,
+    admin,
+    higgsfield,
+    public_api,
+    admin_logs,
+    admin_users,
+    admin_costs,
+    admin_settings,
+    admin_accounts,
+    admin_stats,
+    admin_api_keys,
+    image,
+    video,
+    sora
+)
+from app.routers import settings as public_settings
 from .config import settings
 from .database.db import init_database
 from .services.admin_service import create_initial_admin
@@ -171,6 +190,9 @@ app.include_router(costs.router, prefix="/api", tags=["costs"])
 
 # Health check
 app.include_router(health.router, prefix="/health", tags=["health"])
+
+# Sora Downloader
+app.include_router(sora.router, prefix="/api/sora", tags=["sora"])
 
 # ============================================
 # Admin Panel Routes (prefixed with /api to avoid frontend collision)
