@@ -30,7 +30,7 @@ function CallbackContent() {
                 
                 // Use window.location for hard reload to ensure auth state is fresh
                 setTimeout(() => {
-                    window.location.href = '/create-image';
+                    window.location.href = '/image';
                 }, 200);
                 return;
             }
@@ -52,7 +52,7 @@ function CallbackContent() {
                             
                             // Use window.location for hard reload
                             setTimeout(() => {
-                                window.location.href = '/create-image';
+                                window.location.href = '/image';
                             }, 200);
                             return;
                         }

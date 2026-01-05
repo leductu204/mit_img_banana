@@ -49,7 +49,6 @@ export default function ResultPreview({
     
     try {
         toast.info('Đang tải xuống...', 2000);
-        // Direct download using fetch to avoid CORS/browser opening tab issues if possible
         const response = await fetch(resultUrl);
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -87,9 +86,9 @@ export default function ResultPreview({
 
       if (type === 'audio' && resultUrl) {
           return (
-              <div className="w-full h-full flex items-center justify-center bg-muted/5 p-8">
-                  <div className="bg-card w-full max-w-md p-6 rounded-xl border border-border shadow-lg flex flex-col items-center gap-6">
-                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
+              <div className="w-full h-full flex items-center justify-center bg-[#0A0E13]/50 p-8">
+                  <div className="bg-[#1F2833] w-full max-w-md p-6 rounded-xl border border-white/10 shadow-lg flex flex-col items-center gap-6">
+                      <div className="w-20 h-20 rounded-full bg-[#00BCD4]/10 flex items-center justify-center text-[#00BCD4] animate-pulse">
                           <Download className="w-10 h-10" />
                       </div>
                       <div className="w-full">
@@ -116,23 +115,23 @@ export default function ResultPreview({
   return (
     <div className="w-full h-full flex flex-col items-center justify-center">
       <div className={`
-        w-full rounded-2xl bg-card border border-border/50 overflow-hidden transition-all duration-300 flex flex-col
+        w-full rounded-2xl bg-[#1F2833] border border-white/10 overflow-hidden transition-all duration-300 flex flex-col
         ${hasResult 
-            ? 'shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
+            ? 'shadow-[0_8px_32px_rgba(0,0,0,0.3)]' 
             : 'shadow-sm'}
       `}>
         {/* Main Content Area */}
         <div className={`
-            w-full relative bg-muted/5 flex-1 flex items-center justify-center overflow-hidden
+            w-full relative bg-[#0A0E13]/50 flex-1 flex items-center justify-center overflow-hidden
             ${!hasResult ? 'min-h-[400px] p-8' : ''}
             ${type === 'image' || type === 'custom' ? 'aspect-[3/4] max-h-[calc(100vh-16rem)]' : ''}
             ${type === 'video' ? 'aspect-video' : ''}
             ${type === 'audio' ? 'aspect-video' : ''}
         `}>
             {loading ? (
-                <div className="flex flex-col items-center gap-4 text-muted-foreground animate-pulse text-center">
+                <div className="flex flex-col items-center gap-4 text-[#6B7280] animate-pulse text-center">
                     <div className="relative">
-                        <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
+                        <div className="w-16 h-16 rounded-full border-4 border-[#252D3D] border-t-[#00BCD4] animate-spin" />
                     </div>
                     <p className="text-sm font-medium">
                         {status === 'pending'
@@ -195,13 +194,13 @@ export default function ResultPreview({
                     )}
                 </>
             ) : (
-                <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 text-center">
-                    <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-2">
+                <div className="flex flex-col items-center gap-4 text-[#6B7280] p-8 text-center">
+                    <div className="w-20 h-20 rounded-full bg-[#252D3D] flex items-center justify-center mb-2">
                         <ImageIcon className="h-8 w-8 opacity-40" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-foreground text-lg mb-1">{placeholderTitle}</h3>
-                        <p className="text-sm text-muted-foreground max-w-[250px] mx-auto">
+                        <h3 className="font-semibold text-white text-lg mb-1">{placeholderTitle}</h3>
+                        <p className="text-sm text-[#00BCD4] max-w-[250px] mx-auto">
                             {placeholderDesc}
                         </p>
                     </div>
@@ -211,21 +210,20 @@ export default function ResultPreview({
 
         {/* Action Bar (Below Content) */}
         {hasResult && !loading && (
-            <div className="p-4 border-t border-border/50 bg-background/50 backdrop-blur-sm flex items-center justify-center gap-4 relative z-20">
+            <div className="p-4 border-t border-white/10 bg-[#1A1F2E]/50 backdrop-blur-sm flex items-center justify-center gap-4 relative z-20">
                 {canRegenerate && onRegenerate && (
                     <Button
                         onClick={onRegenerate}
-                        className="h-10 px-6 rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground shadow-sm transition-all duration-200 hover:scale-[1.02]"
+                        className="h-10 px-6 rounded-full bg-[#252D3D] hover:bg-[#1F2833] text-[#B0B8C4] hover:text-white shadow-sm transition-all duration-200 hover:scale-[1.02]"
                     >
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Tạo lại
                     </Button>
                 )}
-                {/* ResultURL needed for download unless custom onDownload provided */}
                 {(resultUrl || onDownload) && (
                     <Button
                         onClick={handleDownload}
-                        className="h-10 px-8 rounded-full bg-gradient-to-r from-[#0F766E] to-[#0D655E] hover:from-[#0D655E] hover:to-[#0B544E] text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                        className="h-10 px-8 rounded-full bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                     >
                         <Download className="h-4 w-4 mr-2" />
                         Tải xuống

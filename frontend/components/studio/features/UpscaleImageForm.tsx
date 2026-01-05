@@ -150,8 +150,8 @@ export default function UpscaleImageForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Upscale Image" 
           description="Nâng cấp độ phân giải ảnh sắc nét hơn"
@@ -168,17 +168,17 @@ export default function UpscaleImageForm() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Độ phân giải mục tiêu</label>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-4">
+            <label className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider">Độ phân giải mục tiêu</label>
+            <div className="grid grid-cols-2 gap-2 bg-black/20 p-1 rounded-xl">
                 {['2', '4'].map((s) => (
                     <button
                         key={s}
                         onClick={() => setScale(s)}
-                        className={`py-2 px-4 rounded-md border text-sm font-medium transition-all ${
+                        className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                             scale === s 
-                                ? 'bg-primary text-primary-foreground border-primary' 
-                                : 'bg-background hover:bg-muted border-input'
+                                ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm' 
+                                : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                         }`}
                     >
                         {s}K
@@ -193,13 +193,13 @@ export default function UpscaleImageForm() {
           </div>
 
           <div className="space-y-2">
-              <label className="text-sm font-medium">Tốc độ xử lý</label>
-              <div className="flex bg-muted p-1 rounded-xl">
+              <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Tốc độ xử lý</label>
+              <div className="flex bg-black/20 p-1 rounded-xl">
                   <button
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                           speed === 'fast'
-                              ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                              ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm'
+                              : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                       }`}
                       onClick={() => setSpeed('fast')}
                   >
@@ -210,8 +210,8 @@ export default function UpscaleImageForm() {
                       <button
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                               speed === 'slow'
-                                  ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                  ? 'bg-green-500/20 text-green-400 shadow-sm'
+                                  : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                           }`}
                           onClick={() => setSpeed('slow')}
                       >
@@ -222,26 +222,26 @@ export default function UpscaleImageForm() {
           </div>
           
            {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
                 {loading ? (
@@ -255,7 +255,7 @@ export default function UpscaleImageForm() {
                         Nâng Cấp Ảnh
                     </>
                 )}
-            </Button>
+            </button>
         </div>
 
         <InsufficientCreditsModal
@@ -266,7 +266,7 @@ export default function UpscaleImageForm() {
         />
       </div>
 
-      <div className="flex-1 bg-muted/10 p-4 lg:p-8 overflow-hidden flex flex-col items-center justify-center">
+      <div className="flex-1 bg-[#0A0E13] p-4 lg:p-8 overflow-hidden flex flex-col items-center justify-center">
          <div className="w-full h-full max-w-5xl max-h-[800px] relative">
              <ResultPreview
                 loading={loading}

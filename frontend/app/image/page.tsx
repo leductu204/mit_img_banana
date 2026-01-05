@@ -1,0 +1,13 @@
+import Header from "@/components/layout/Header"
+import { ImageGenerator } from "@/components/generators/ImageGenerator"
+
+export default function CreateImagePage() {
+    return (
+        <div className="flex flex-col h-screen bg-background-dark overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-hidden">
+                <ImageGenerator />
+            </main>
+        </div>
+    )
+}

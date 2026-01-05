@@ -97,6 +97,7 @@ export async function apiRequest<T>(
         }
         
         const friendlyMessage = getFriendlyErrorMessage(response.status, detail);
+        console.error('API Request Failed:', url, response.status, friendlyMessage);
         throw new Error(friendlyMessage);
     }
     

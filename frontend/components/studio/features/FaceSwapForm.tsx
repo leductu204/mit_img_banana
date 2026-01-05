@@ -1,6 +1,6 @@
 "use client"
 
-import { User, ArrowRight, AlertCircle } from "lucide-react";
+import { User, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useGenerateImage } from "@/hooks/useGenerateImage";
 import { useCredits } from "@/hooks/useCredits";
@@ -116,8 +116,8 @@ export default function FaceSwapForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Face Swap" 
           description="Ghép khuôn mặt vào hình ảnh khác"
@@ -134,7 +134,7 @@ export default function FaceSwapForm() {
             />
           </div>
 
-          <div className="flex justify-center text-muted-foreground">
+          <div className="flex justify-center text-[#6B7280]">
              <ArrowRight className="w-6 h-6 rotate-90 lg:rotate-0" />
           </div>
 
@@ -147,34 +147,39 @@ export default function FaceSwapForm() {
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || sourceImages.length === 0 || targetImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
-                {loading ? "Đang xử lý..." : "Hoán Đổi"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Hoán Đổi"}
+            </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden flex flex-col">
          <ResultPreview 
             loading={loading} 
             resultUrl={result?.image_url} 

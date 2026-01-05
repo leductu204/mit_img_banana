@@ -117,6 +117,65 @@ export function useJobs() {
         }
     }, []);
 
+    const deleteJob = useCallback(async (jobId: string): Promise<boolean> => {
+        try {
+            const response = await fetch(
+                `${NEXT_PUBLIC_API}/api/jobs/${jobId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        ...getAuthHeader(),
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete job');
+            }
+
+            // Update local state
+            setJobs(prev => prev.filter(job => job.job_id !== jobId));
+            setPagination(prev => ({ ...prev, total: prev.total - 1 }));
+
+            return true;
+        } catch (err: any) {
+            setError(err.message);
+            return false;
+        }
+    }, []);
+
+    const batchDeleteJobs = useCallback(async (jobIds: string[]): Promise<boolean> => {
+        try {
+            const response = await fetch(
+                `${NEXT_PUBLIC_API}/api/jobs/batch-delete`,
+                {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeader(),
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(jobIds),
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete jobs');
+            }
+
+            // Update local state by removing all deleted IDs
+            setJobs(prev => prev.filter(job => !jobIds.includes(job.job_id)));
+            setPagination(prev => ({ ...prev, total: prev.total - jobIds.length }));
+
+            return true;
+        } catch (err: any) {
+            setError(err.message);
+            return false;
+        }
+    }, []);
+
     return {
         jobs,
         loading,
@@ -124,5 +183,7 @@ export function useJobs() {
         pagination,
         getMyJobs,
         cancelJob,
+        deleteJob,
+        batchDeleteJobs,
     };
 }

@@ -82,6 +82,9 @@ class ConcurrentLimitDetails(BaseModel):
 class UserLimitsResponse(BaseModel):
     """Response with user's concurrent limits and usage."""
     plan_id: str
+    plan_name: str
+    plan_description: Optional[str] = None
+    plan_expires_at: Optional[str] = None
     limits: ConcurrentLimitDetails
     active_counts: ConcurrentLimitDetails
     pending_counts: ConcurrentLimitDetails

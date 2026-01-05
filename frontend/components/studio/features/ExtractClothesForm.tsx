@@ -1,6 +1,6 @@
 "use client"
 
-import { Scissors, AlertCircle, Settings, ChevronUp, ChevronDown, Zap, Coins } from "lucide-react";
+import { Scissors, AlertCircle, Settings, ChevronUp, ChevronDown, Zap, Coins, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useGenerateImage } from "@/hooks/useGenerateImage";
 import { useCredits } from "@/hooks/useCredits";
@@ -130,8 +130,8 @@ export default function ExtractClothesForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Extract Clothes" 
           description="Tách quần áo khỏi người mẫu/ảnh chụp"
@@ -149,7 +149,7 @@ export default function ExtractClothesForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium text-[#B0B8C4]">
                 Chỉ định sản phẩm (tùy chọn)
             </label>
             <input
@@ -157,41 +157,41 @@ export default function ExtractClothesForm() {
                 value={optionalPrompt}
                 onChange={(e) => setOptionalPrompt(e.target.value)}
                 placeholder="Ví dụ: áo thun, quần jean, váy, giày..."
-                className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-[#6B7280] bg-[#252D3D] text-white placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4]"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B7280]">
                 Để trống để AI tự động nhận diện quần áo chính
             </p>
           </div>
 
-          <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+          <div className="p-4 bg-[#1F2833] border border-white/10 rounded-xl text-sm text-[#94A3B8]">
             <p>AI sẽ tự động nhận diện và tách quần áo chính trong ảnh ra nền trong suốt.</p>
           </div>
 
           {/* Collapsible Advanced Settings */}
-          <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
+          <div className="rounded-xl bg-[#1F2833] border border-white/10 shadow-sm transition-all duration-200 hover:shadow-md hover:border-[#00BCD4]/30 group">
               <button 
                   onClick={() => setShowSettings(!showSettings)}
-                  className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
+                  className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-[#252D3D]/50' : 'bg-transparent hover:bg-[#252D3D]/30'}`}
               >
                   <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-pink-500/10 text-pink-500' : 'bg-muted text-muted-foreground group-hover:bg-pink-500/5 group-hover:text-pink-500'}`}>
+                      <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-[#00BCD4]/10 text-[#00BCD4]' : 'bg-[#252D3D] text-[#6B7280] group-hover:bg-[#00BCD4]/5 group-hover:text-[#00BCD4]'}`}>
                           <Settings className="w-4 h-4" />
                       </div>
                       <div className="text-left">
-                          <span className="block text-sm font-semibold text-foreground">Cấu hình nâng cao</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">Tỷ lệ & tốc độ</span>
+                          <span className="block text-sm font-semibold text-white">Cấu hình nâng cao</span>
+                          <span className="block text-xs text-[#6B7280] mt-0.5">Tỷ lệ & tốc độ</span>
                       </div>
                   </div>
                   {showSettings ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      <ChevronUp className="w-4 h-4 text-[#6B7280]" />
                   ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      <ChevronDown className="w-4 h-4 text-[#6B7280]" />
                   )}
               </button>
               
               {showSettings && (
-                  <div className="p-4 space-y-6 border-t border-border/50 animate-in slide-in-from-top-2 duration-300 ease-out bg-muted/10">
+                  <div className="p-4 space-y-6 border-t border-white/10 animate-in slide-in-from-top-2 duration-300 ease-out bg-[#252D3D]/30">
                       {/* Aspect Ratio Selector */}
                       <AspectRatioSelector 
                           value={aspectRatio} 
@@ -201,13 +201,13 @@ export default function ExtractClothesForm() {
                       
                       {/* Speed Toggle */}
                       <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tốc độ xử lý</label>
-                          <div className="flex bg-muted p-1 rounded-xl">
+                          <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Tốc độ xử lý</label>
+                          <div className="flex bg-black/20 p-1 rounded-xl">
                               <button
                                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                                       speed === 'fast'
-                                          ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                          ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm'
+                                          : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                                   }`}
                                   onClick={() => setSpeed('fast')}
                               >
@@ -216,8 +216,8 @@ export default function ExtractClothesForm() {
                               <button
                                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                                       speed === 'slow'
-                                          ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                          ? 'bg-green-500/20 text-green-400 shadow-sm'
+                                          : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                                   }`}
                                   onClick={() => setSpeed('slow')}
                               >
@@ -230,34 +230,39 @@ export default function ExtractClothesForm() {
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
-                {loading ? "Đang xử lý..." : "Tách Quần Áo"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Tách Quần Áo"}
+            </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden flex flex-col">
          <div className="flex-1 relative h-full">
             <ResultPreview 
                 loading={loading} 

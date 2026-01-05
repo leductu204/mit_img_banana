@@ -10,11 +10,14 @@ class ConcurrencyService:
         """
         query = """
             SELECT 
+                sp.plan_id,
                 sp.total_concurrent_limit,
                 sp.image_concurrent_limit,
                 sp.video_concurrent_limit,
                 sp.queue_limit,
-                sp.name as plan_name
+                sp.name as plan_name,
+                sp.description as plan_description,
+                u.plan_expires_at
             FROM users u
             JOIN subscription_plans sp ON u.plan_id = sp.plan_id
             WHERE u.user_id = ?

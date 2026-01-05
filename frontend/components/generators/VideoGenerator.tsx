@@ -1,29 +1,43 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import Button from "../common/Button"
-import { Sparkles, Video, Loader2, Volume2, Coins, AlertCircle, Settings, ChevronDown, ChevronUp, Copy, Info, Download, History } from "lucide-react"
 import { useGenerateVideo } from "@/hooks/useGenerateVideo"
 import { useCredits } from "@/hooks/useCredits"
 import { apiRequest } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import { NEXT_PUBLIC_API } from "@/lib/config"
 import { useToast } from "@/hooks/useToast"
-import ImageUpload from "./ImageUpload"
-import dynamic from 'next/dynamic'
-import { VIDEO_MODELS } from "@/lib/models-config"
+import { VIDEO_MODELS, getModelConfig } from "@/lib/models-config"
+import { useAuth } from "@/hooks/useAuth"
+import { Job } from "@/hooks/useJobs"
+import { cn } from "@/lib/utils"
 
-const VideoPreview = dynamic(() => import('./VideoPreview'), { ssr: false })
+// UI Components
+import Button from "../common/Button"
+import { 
+    Settings2, 
+    History as HistoryIcon, 
+    Video as VideoIcon, 
+    Sliders, 
+    Clapperboard, 
+    Check as CheckIcon, 
+    Zap, 
+    Download as DownloadIcon, 
+    RefreshCw as RefreshIcon,
+    Loader2,
+    Info as InfoIcon,
+    Play,
+    Volume2,
+    Coins,
+    Trash2
+} from "lucide-react"
+
+import ImageUpload from "./ImageUpload"
+import AspectRatioSelector from "./AspectRatioSelector"
 import ModelSelector from "./ModelSelector"
 import DurationSelector from "./DurationSelector"
 import QualitySelector from "./QualitySelector"
-import AspectRatioSelector from "./AspectRatioSelector"
 import InsufficientCreditsModal from "../common/InsufficientCreditsModal"
-import { getModelConfig } from "@/lib/models-config"
-import { useAuth } from "@/hooks/useAuth"
-import { useUserPreferences } from "@/hooks/useUserPreferences"
-import HistorySidebar from "./HistorySidebar"
-import { Job } from "@/hooks/useJobs"
 
 export function VideoGenerator() {
     const [prompt, setPrompt] = useState("")
@@ -39,91 +53,86 @@ export function VideoGenerator() {
     const [showSettings, setShowSettings] = useState(false)
     const [currentJobStatus, setCurrentJobStatus] = useState<string>("") 
     const [modelConfigs, setModelConfigs] = useState<any>({})
-    const [selectedJob, setSelectedJob] = useState<any>(null)
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
+    const [recentJobs, setRecentJobs] = useState<Job[]>([])
 
-    // Fetch model configs (for active/slow mode)
+    const { isAuthenticated, login } = useAuth()
+    const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
+    const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
+    const toast = useToast()
+
+    // Fetch model configs
     useEffect(() => {
         fetch(`${NEXT_PUBLIC_API}/api/costs`)
             .then(res => res.json())
             .then(data => setModelConfigs(data))
             .catch(err => console.error("Failed to fetch model configs:", err))
     }, [])
+
+    // Fetch recent jobs
+    const fetchRecentJobs = () => {
+        if (isAuthenticated) {
+            apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2v&limit=5').then(res => {
+                setRecentJobs(res.jobs || [])
+            }).catch(console.error)
+        }
+    }
+
+    useEffect(() => {
+        fetchRecentJobs()
+    }, [isAuthenticated, currentJobStatus])
+
+    const handleDeleteJob = async (e: React.MouseEvent, jobId: string) => {
+        e.stopPropagation();
+        if (!confirm('Bạn có chắc chắn muốn xóa lịch sử này?')) return;
+        
+        try {
+            await apiRequest(`/api/jobs/${jobId}`, { method: 'DELETE' });
+            toast.success('Đã xóa thành công');
+            fetchRecentJobs();
+        } catch (err: any) {
+            toast.error(err.message || 'Xóa thất bại');
+        }
+    };
     
     // Filter active models
     const activeVideoModels = useMemo(() => {
-        // If configs not loaded yet, show all
         if (Object.keys(modelConfigs).length === 0) return VIDEO_MODELS;
-        
         return VIDEO_MODELS.filter(m => {
             const config = modelConfigs[m.value];
-            // If explicit "is_enabled" is 0, filter it out. Default to true (undefined/1).
             return !config || config.is_enabled !== 0; 
         });
     }, [modelConfigs]);
 
-    // Enforce valid model selection
+    // Enforce valid model/speed
     useEffect(() => {
-        // If current model is not in active list, switch to first active
         if (activeVideoModels.length > 0) {
             const isCurrentActive = activeVideoModels.find(m => m.value === model);
-            if (!isCurrentActive) {
-                setModel(activeVideoModels[0].value);
-            }
+            if (!isCurrentActive) setModel(activeVideoModels[0].value);
         }
-    }, [activeVideoModels, model]);
+        if (modelConfigs[model] && modelConfigs[model].is_slow_mode_enabled === 0) {
+            if (speed === 'slow') setSpeed('fast');
+        }
+    }, [activeVideoModels, model, modelConfigs, speed]);
 
     // Update state when model changes
     useEffect(() => {
         const config = getModelConfig(model, 'video');
         if (config) {
-            if (config.durations && config.durations.length > 0) {
-                setDuration(config.durations[0]);
-            } else {
-                 setDuration("5s"); 
-            }
-            if (config.qualities && config.qualities.length > 0) {
-                setQuality(config.qualities[0]);
-            }
-            if (config.aspectRatios && config.aspectRatios.length > 0) {
-                setAspectRatio(config.aspectRatios[0]);
-            }
-            // Reset audio if not supported
-            if (!config.audio) {
-                setAudio(false);
-            }
+            if (config.durations && config.durations.length > 0 && !config.durations.includes(duration)) setDuration(config.durations[0]);
+            if (config.qualities && config.qualities.length > 0 && !config.qualities.includes(quality)) setQuality(config.qualities[0]);
+            if (config.aspectRatios && config.aspectRatios.length > 0 && !config.aspectRatios.includes(aspectRatio)) setAspectRatio(config.aspectRatios[0]);
+            if (!config.audio) setAudio(false);
         }
-        
-        // Reset speed to fast if slow mode is disabled for this model
-        if (modelConfigs[model] && modelConfigs[model].is_slow_mode_enabled === 0) {
-            setSpeed('fast');
-        }
-    }, [model, modelConfigs]);
-    
-    // Watch speed when configs load/change to ensure consistency
-    useEffect(() => {
-        if (speed === 'slow' && modelConfigs[model] && modelConfigs[model].is_slow_mode_enabled === 0) {
-            setSpeed('fast');
-        }
-    }, [speed, model, modelConfigs]);
-    
-    
-    const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
-    const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
-    const toast = useToast()
-    const { isAuthenticated, login } = useAuth()
-    const { preferences, toggleHistorySidebar } = useUserPreferences()
-    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    }, [model]);
 
-    // Calculate estimated cost based on current selections
     const estimatedCost = useMemo(() => {
         return estimateVideoCost(model, duration, quality, aspectRatio, audio, speed)
     }, [model, duration, quality, aspectRatio, audio, speed, estimateVideoCost])
 
-    // Mode is inferred from referenceImage presence
     const isImageToVideo = referenceImages.length > 0
 
-    // Helper to get image dimensions from URL
     const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
         return new Promise((resolve, reject) => {
             const img = new Image()
@@ -136,147 +145,68 @@ export function VideoGenerator() {
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return
-
-        // 0. Guest Check
-        if (!isAuthenticated) {
-            login()
-            return
-        }
+        if (!isAuthenticated) { login(); return }
+        if (!hasEnoughCredits(estimatedCost)) { setShowCreditsModal(true); return }
         
-        // Check credits before proceeding
-        if (!hasEnoughCredits(estimatedCost)) {
-            setShowCreditsModal(true)
-            return
-        }
-        
-        // Check if model only supports I2V
         const i2vOnlyModels = ['kling-2.5-turbo', 'kling-o1-video']
         if (i2vOnlyModels.includes(model) && !isImageToVideo) {
             alert('Model này chỉ hỗ trợ Image to Video. Vui lòng tải lên hình ảnh tham chiếu.')
             return
         }
-        
+
         setLoading(true)
         setError(null)
         
         try {
             const durationInt = parseInt(duration.replace('s', ''))
-            let imgId = ''
-            let imgUrl = ''
-            let imgWidth = 0
-            let imgHeight = 0
+            let imgId = '', imgUrl = '', imgWidth = 0, imgHeight = 0
             
-            // Step 1: Upload image if I2V mode (same flow as ImageGenerator)
             if (isImageToVideo && referenceImages.length > 0) {
                 const file = referenceImages[0]
-                
-                // Get upload URL from backend
-                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
-                    method: 'POST'
-                })
-                
-                // Upload directly to Higgsfield S3
-                const uploadResponse = await fetch(uploadInfo.upload_url, {
-                    method: 'PUT',
-                    body: file,
-                    headers: {
-                        'Content-Type': 'image/jpeg'
-                    }
-                })
-                
-                if (!uploadResponse.ok) {
-                    throw new Error(`Upload failed: ${uploadResponse.statusText}`)
-                }
-                
-                // Confirm upload
-                await apiRequest('/api/generate/image/upload/check', {
-                    method: 'POST',
-                    body: JSON.stringify({ img_id: uploadInfo.id })
-                })
-                
-                // Get dimensions from public URL
+                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+                await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
                 const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
-                
-                imgId = uploadInfo.id
-                imgUrl = uploadInfo.url
-                imgWidth = width
-                imgHeight = height
+                imgId = uploadInfo.id; imgUrl = uploadInfo.url; imgWidth = width; imgHeight = height;
             }
-            
-            // Step 2: Call generation endpoint
+
             const formData = new FormData()
             formData.append('prompt', prompt)
             formData.append('duration', durationInt.toString())
             let endpoint = ''
-            
-            // Veo 3.1 models use dedicated form-data endpoints
+
             if (model.startsWith('veo3.1-')) {
-                const formData = new FormData()
-                formData.append('prompt', prompt)
                 formData.append('aspect_ratio', aspectRatio)
-                
-                // Determine T2V or I2V mode based on image upload
                 const mode = isImageToVideo ? 'i2v' : 't2v'
-                
-                // Add image data for I2V (only img_url needed - Veo re-uploads to get media_id)
-                if (mode === 'i2v' && isImageToVideo) {
-                    formData.append('img_url', imgUrl)
-                }
-                
-                // Convert veo3.1-* to veo3_1-* for URL path (period causes 404)
+                if (mode === 'i2v') formData.append('img_url', imgUrl)
                 const modelPath = model.replace('.', '_')
-                
-                const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        ...getAuthHeader()
-                    }
-                })
-                
-                if (!response.ok) {
-                    const errorText = await response.text()
-                    throw new Error(`Failed to generate video: ${response.status} - ${errorText}`)
-                }
-                
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
+                if (!response.ok) throw new Error(`Failed: ${response.status}`)
                 const genRes = await response.json()
-                
                 toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
                 
-                if (genRes.credits_remaining !== undefined) {
-                    updateCredits(genRes.credits_remaining)
-                }
-                
-                // Poll for completion
                 const checkStatus = async () => {
                     try {
                         const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
                         setCurrentJobStatus(statusRes.status)
                         if (statusRes.status === 'completed' && statusRes.result) {
                             setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
+                            setSelectedJob({ job_id: genRes.job_id, output_url: statusRes.result, prompt, model } as any)
                             setLoading(false)
                             toast.success('✅ Tạo video thành công!')
+                            apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2v&limit=5').then(res => setRecentJobs(res.jobs || []))
                         } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                            const errorMsg = statusRes.error_message || "Tạo video thất bại. Credits đã được hoàn lại"
-                            setError(errorMsg)
+                            setError(statusRes.error_message || "Failed")
                             setLoading(false)
-                            toast.error(errorMsg)
-                        } else {
-                            setTimeout(checkStatus, 15000)
-                        }
-                    } catch (e: any) {
-                        const errorMsg = e.message || "Failed to check status"
-                        setError(errorMsg)
-                        setLoading(false)
-                        toast.error(errorMsg)
-                    }
+                            toast.error(statusRes.error_message || "Failed")
+                        } else { setTimeout(checkStatus, 15000) }
+                    } catch (e) { setLoading(false) }
                 }
-                
                 checkStatus()
-                return  // Exit early for Veo3
+                return
             }
-            
-            // Kling models use form-data endpoints
+
             if (model === 'kling-2.5-turbo') {
                 endpoint = '/api/generate/video/kling-2.5-turbo/i2v'
                 formData.append('resolution', quality)
@@ -285,32 +215,12 @@ export function VideoGenerator() {
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
                 formData.append('speed', speed)
-
-                // Handle End Frame for 1080p (Pro Mode)
                 if (quality === '1080p' && endFrameImages.length > 0) {
                     const endFile = endFrameImages[0]
-                    
-                    // Upload End Frame
-                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
-                        method: 'POST'
-                    })
-                    
-                    const uploadResponse = await fetch(uploadInfo.upload_url, {
-                        method: 'PUT',
-                        body: endFile,
-                        headers: { 'Content-Type': 'image/jpeg' }
-                    })
-                    
-                    if (!uploadResponse.ok) throw new Error(`End frame upload failed: ${uploadResponse.statusText}`)
-                    
-                    await apiRequest('/api/generate/image/upload/check', {
-                        method: 'POST',
-                        body: JSON.stringify({ img_id: uploadInfo.id })
-                    })
-                    
-                    // Get dimensions
+                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
+                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
                     const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
-                    
                     formData.append('end_img_id', uploadInfo.id)
                     formData.append('end_img_url', uploadInfo.url)
                     formData.append('end_width', endWidth.toString())
@@ -324,32 +234,12 @@ export function VideoGenerator() {
                 formData.append('width', imgWidth.toString())
                 formData.append('height', imgHeight.toString())
                 formData.append('speed', speed)
-
-                // Handle Optional End Frame for Kling O1
                 if (endFrameImages.length > 0) {
                     const endFile = endFrameImages[0]
-                    
-                    // Upload End Frame
-                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', {
-                        method: 'POST'
-                    })
-                    
-                    const uploadResponse = await fetch(uploadInfo.upload_url, {
-                        method: 'PUT',
-                        body: endFile,
-                        headers: { 'Content-Type': 'image/jpeg' }
-                    })
-                    
-                    if (!uploadResponse.ok) throw new Error(`End frame upload failed: ${uploadResponse.statusText}`)
-                    
-                    await apiRequest('/api/generate/image/upload/check', {
-                        method: 'POST',
-                        body: JSON.stringify({ img_id: uploadInfo.id })
-                    })
-                    
-                    // Get dimensions
+                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
+                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
                     const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
-                    
                     formData.append('end_img_id', uploadInfo.id)
                     formData.append('end_img_url', uploadInfo.url)
                     formData.append('end_width', endWidth.toString())
@@ -369,558 +259,310 @@ export function VideoGenerator() {
                     endpoint = '/api/generate/video/kling-2.6/t2v'
                     formData.append('aspect_ratio', aspectRatio)
                 }
-            } else {
-                throw new Error(`Unknown model: ${model}`)
-            }
-            
-            const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    ...getAuthHeader()
-                }
-            })
-            
-            if (!response.ok) {
-                const errorText = await response.text()
-                throw new Error(`Failed to generate video: ${response.status} - ${errorText}`)
-            }
-            
+            } else { throw new Error(`Unknown model: ${model}`) }
+
+            const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
+            if (!response.ok) throw new Error(`Failed: ${response.status}`)
             const genRes = await response.json()
-
-            // Show success toast with job ID
             toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
-
-            if (genRes.credits_remaining !== undefined) {
-                updateCredits(genRes.credits_remaining)
-            }
+            if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
             
-            // Poll for completion
             const checkStatus = async () => {
                 try {
-                    const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`)
-                    
+                    const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
                     setCurrentJobStatus(statusRes.status)
-                    
-                        if (statusRes.status === 'completed' && statusRes.result) {
-                            setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
-                            setSelectedJob(createTempJob(genRes.job_id, statusRes.result))
-                            setLoading(false)
-                            toast.success('✅ Tạo video thành công!')
-                    } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                        const errorMsg = statusRes.error_message || "Tạo video thất bại. Credits đã được hoàn lại"
-                        setError(errorMsg)
+                    if (statusRes.status === 'completed' && statusRes.result) {
+                        setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
+                        setSelectedJob({ job_id: genRes.job_id, output_url: statusRes.result, prompt, model } as any)
                         setLoading(false)
-                        toast.error(errorMsg)
-                    } else {
-                        setTimeout(checkStatus, 35000) // Poll every 35s
-                    }
-                } catch (e: any) {
-                    const errorMsg = e.message || "Failed to check status"
-                    setError(errorMsg)
-                    setLoading(false)
-                    toast.error(errorMsg)
-                }
+                        toast.success('✅ Tạo video thành công!')
+                        fetchRecentJobs()
+                    } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
+                        setError(statusRes.error_message || "Failed")
+                        setLoading(false)
+                        toast.error(statusRes.error_message || "Failed")
+                    } else { setTimeout(checkStatus, 15000) }
+                } catch (e) { setLoading(false) }
             }
-            
-            // Start checking status after initial delay (not immediately)
-            setTimeout(checkStatus, 35000) // Wait 35s before first check
-            
+            setTimeout(checkStatus, 35000)
         } catch (e: any) {
             console.error(e)
-            const errorMsg = e.message || "Đã xảy ra lỗi"
-            setError(errorMsg)
+            setError(e.message)
             setLoading(false)
-            toast.error(errorMsg)
+            toast.error(e.message)
         }
     }
 
-
-    const copyPrompt = (text: string) => {
-        navigator.clipboard.writeText(text)
-        toast.success("Đã sao chép prompt")
-    }
-
-    // Helper to construct job from current state for immediate display
-    const createTempJob = (jobId: string, outputUrl: string): Job => ({
-        job_id: jobId,
-        user_id: "",
-        type: isImageToVideo ? 'i2v' : 't2v',
-        model: model,
-        prompt: prompt,
-        status: 'completed',
-        output_url: outputUrl,
-        credits_cost: estimatedCost,
-        credits_refunded: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Store technical specific params in input_params if needed, or rely on base fields
-        input_params: JSON.stringify({
-            duration: duration,
-            aspect_ratio: aspectRatio,
-            quality: quality
-        })
-    })
-
     return (
-        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:overflow-hidden">
-            {/* Left Panel - Controls (20%) */}
-            <div ref={scrollContainerRef} className="w-full lg:w-[20%] min-w-full lg:min-w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-4 lg:p-6 flex flex-col shrink-0 custom-scrollbar lg:overflow-y-auto lg:h-full lg:max-h-none relative">
-                <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Video className="h-5 w-5 text-primary" />
-                        <h1 className="text-xl font-semibold text-foreground">Tạo Video Tự Động</h1>
+        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#0A0E13] text-white font-sans">
+            {/* Left Sidebar - Settings Panel */}
+            <aside className="w-full md:w-[420px] lg:w-[460px] flex flex-col gap-4 p-4 md:p-6 overflow-y-auto border-r border-white/10 bg-[#1A1F2E] z-10 custom-scrollbar">
+                
+                {/* Main Configuration Card */}
+                <div className="bg-[#1F2833] rounded-2xl border border-white/10 shadow-xl p-5 flex flex-col gap-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-white text-lg font-bold flex items-center gap-2">
+                            <Settings2 className="text-[#00BCD4] w-5 h-5" />
+                            Cấu hình
+                        </h2>
+                        <button 
+                            onClick={() => { setPrompt(""); setReferenceImages([]); setEndFrameImages([]); setAspectRatio("16:9"); }}
+                            className="text-xs text-[#B0B8C4] hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <HistoryIcon className="w-3.5 h-3.5" />
+                            Reset
+                        </button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        {isImageToVideo ? "Chế độ Hình ảnh thành Video" : "Chế độ Văn bản thành Video"}
-                    </p>
-                </div>
 
-                <div className="space-y-6">
-                    {/* Prompt Section */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Mô tả video</label>
-                        <textarea
-                            placeholder="Nhập nội dung video bạn muốn tạo..."
-                            className="min-h-[100px] md:min-h-[120px] w-full resize-none rounded-md border border-input bg-input p-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {/* Prompt */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-[#B0B8C4]">Mô tả video</label>
+                        <textarea 
+                            className="w-full h-32 bg-[#252D3D] border border-[#6B7280] rounded-xl p-3 text-white text-sm placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4] resize-none transition-all" 
+                            placeholder="Mô tả ý tưởng video của bạn chi tiết ở đây (ví dụ: Một phi hành gia đang đi bộ trên sao hỏa lúc hoàng hôn...)"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                        />
+                        ></textarea>
                     </div>
 
-                    {/* Reference Image Section */}
-                    {(model === 'kling-2.5-turbo' && quality === '1080p') || model === 'kling-o1-video' ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground">
-                                    Khung hình bắt đầu <span className="text-red-500">*</span>
-                                </label>
-                                <ImageUpload 
-                                    onImagesSelected={setReferenceImages} 
-                                    maxImages={1} 
-                                    label={null}
-                                    description="Tải lên ảnh bắt đầu"
-                                />
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                                    Khung kết thúc <span className="text-xs text-muted-foreground font-normal">(Tùy chọn)</span>
-                                </label>
-                                <ImageUpload 
-                                    onImagesSelected={setEndFrameImages} 
-                                    maxImages={1} 
-                                    label={null}
-                                    description="Tải lên ảnh kết thúc"
-                                />
-                            </div>
+                    {/* Reference Images */}
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-[#B0B8C4] flex justify-between">
+                                Hình ảnh tham chiếu
+                                <span className="text-xs text-[#6B7280] font-normal">Tùy chọn</span>
+                            </label>
+                            <ImageUpload onImagesSelected={setReferenceImages} maxImages={1} description="Bắt đầu video từ ảnh này" />
                         </div>
-                    ) : (
-                        <ImageUpload onImagesSelected={setReferenceImages} maxImages={1} />
-                    )}
+                        
+                        {((model === 'kling-2.5-turbo' && quality === '1080p') || model === 'kling-o1-video') && (
+                            <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
+                                <label className="text-sm font-medium text-[#B0B8C4] flex justify-between">
+                                    Khung hình kết thúc
+                                    <span className="text-xs text-[#6B7280] font-normal">Tùy chọn</span>
+                                </label>
+                                <ImageUpload onImagesSelected={setEndFrameImages} maxImages={1} description="Kết thúc video tại ảnh này" />
+                            </div>
+                        )}
+                    </div>
 
-                    {/* Dynamic Selectors based on Model Config */}
-                    {(() => {
-                        const modelConfig = getModelConfig(model, 'video');
-
-                        return (
-                            <>
-                                {/* Aspect Ratio Selector - Always Visible */}
-                                {modelConfig?.aspectRatios && modelConfig.aspectRatios.length > 0 && (
+                    {/* Aspect Ratio */}
+                    <div className="flex flex-col gap-2">
+                        {(() => {
+                            const modelConfig = getModelConfig(model, 'video');
+                            if (modelConfig?.aspectRatios && modelConfig.aspectRatios.length > 0) {
+                                return (
                                     <>
-                                        <AspectRatioSelector 
-                                            value={aspectRatio} 
-                                            onChange={setAspectRatio} 
-                                            options={modelConfig.aspectRatios}
-                                        />
-                                        {/* Model Note - Removed */}
+                                        <label className="text-sm font-medium text-[#B0B8C4]">Tỷ lệ khung hình</label>
+                                        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} options={modelConfig.aspectRatios} />
                                     </>
-                                )}
+                                );
+                            }
+                            return null;
+                        })()}
+                    </div>
 
-                                {/* Collapsible Settings */}
-                                <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
-                                    <button 
-                                        onClick={() => {
-                                            setShowSettings(!showSettings);
-                                            if (!showSettings) {
-                                                setTimeout(() => {
-                                                    scrollContainerRef.current?.scrollTo({ 
-                                                        top: scrollContainerRef.current.scrollHeight, 
-                                                        behavior: 'smooth' 
-                                                    });
-                                                }, 100);
-                                            }
-                                        }}
-                                        className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
+                    {/* Advanced Settings Toggle */}
+                    <button 
+                        onClick={() => setShowSettings(!showSettings)}
+                        className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-[#00BCD4] border border-[#00BCD4] bg-transparent rounded-xl hover:bg-[#00BCD4]/10 transition-all"
+                    >
+                        <Sliders className="w-4 h-4" />
+                        Cấu hình nâng cao
+                    </button>
+                    
+                    {showSettings && (
+                        <div className="p-4 space-y-6 border border-white/10 rounded-xl bg-[#252D3D] animate-in slide-in-from-top-2">
+                            <ModelSelector value={model} onChange={setModel} mode="video" options={activeVideoModels} />
+                             
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-[#6B7280] uppercase">Tốc độ</label>
+                                <div className="grid grid-cols-2 gap-2 bg-black/20 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setSpeed('fast')}
+                                        className={cn("flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all", speed === 'fast' ? "bg-[#00BCD4]/20 text-[#00BCD4] border border-[#00BCD4]/30" : "text-[#B0B8C4] hover:text-white")}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-pink-500/10 text-pink-500' : 'bg-muted text-muted-foreground group-hover:bg-pink-500/5 group-hover:text-pink-500'}`}>
-                                                <Settings className="w-4 h-4" />
-                                            </div>
-                                            <div className="text-left">
-                                                <span className="block text-sm font-semibold text-foreground">Cấu hình nâng cao</span>
-                                                <span className="block text-xs text-muted-foreground mt-0.5">Model, thời lượng & âm thanh</span>
-                                            </div>
-                                        </div>
-                                        {showSettings ? (
-                                            <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                        )}
+                                        <Zap className="w-3.5 h-3.5" /> Nhanh
                                     </button>
-                                    
-                                    {showSettings && (
-                                        <div className="p-4 space-y-6 border-t border-border/50 animate-in slide-in-from-top-2 duration-300 ease-out bg-muted/10">
-                                            {/* Model Selector */}
-                                            <ModelSelector value={model} onChange={setModel} mode="video" options={activeVideoModels} />
-
-                                            {/* Speed Selector */}
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tốc độ xử lý</label>
-                                                <div className="flex bg-muted p-1 rounded-xl">
-                                                    <button
-                                                        className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                                                            speed === 'fast'
-                                                                ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                                                : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                                                        }`}
-                                                        onClick={() => setSpeed('fast')}
-                                                    >
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            <span>Nhanh</span>
-                                                        </div>
-                                                    </button>
-                                                    {/* Only show Slow mode if enabled */}
-                                                    {(!modelConfigs[model] || modelConfigs[model].is_slow_mode_enabled !== 0) && (
-                                                        <button
-                                                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                                                                speed === 'slow'
-                                                                    ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                                                            }`}
-                                                            onClick={() => setSpeed('slow')}
-                                                        >
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <Coins className="w-3.5 h-3.5" />
-                                                                <span>Tiết kiệm</span>
-                                                            </div>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                    {/* Duration Selector */}
-                                    {modelConfig?.durations && modelConfig.durations.length > 0 && (
-                                        <DurationSelector 
-                                            value={duration} 
-                                            onChange={setDuration} 
-                                            options={modelConfig.durations}
-                                        />
+                                    {(!modelConfigs[model] || modelConfigs[model].is_slow_mode_enabled !== 0) && (
+                                        <button
+                                            onClick={() => setSpeed('slow')}
+                                            className={cn("flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all", speed === 'slow' ? "bg-green-500/20 text-green-400 border border-green-500/30" : "text-[#B0B8C4] hover:text-white")}
+                                        >
+                                            <Coins className="w-3.5 h-3.5" /> Tiết kiệm
+                                        </button>
                                     )}
-
-                                    {/* Quality Selector */}
-                                    {modelConfig?.qualities && modelConfig.qualities.length > 0 && (
-                                        <QualitySelector 
-                                            value={quality} 
-                                            onChange={setQuality} 
-                                            options={modelConfig.qualities}
-                                        />
-                                    )}
-
-                                    {/* Audio Selector */}
-                                    {modelConfig?.audio && (
-                                         <div className="flex items-center justify-between p-3 border border-border/50 rounded-xl bg-background/50 hover:bg-background/80 transition-colors animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                                    <Volume2 className="h-4 w-4" />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <label htmlFor="audio-toggle" className="text-sm font-medium text-foreground cursor-pointer select-none">
-                                                        Âm thanh
-                                                    </label>
-                                                    <span className="text-[10px] text-muted-foreground">Tạo video kèm âm thanh</span>
-                                                </div>
-                                            </div>
-                                            <input 
-                                                type="checkbox" 
-                                                id="audio-toggle" 
-                                                checked={audio}
-                                                onChange={(e) => setAudio(e.target.checked)}
-                                                className="h-5 w-5 rounded border-input text-primary ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer transition-all"
-                                            />
-                                        </div>
-                                     )}
                                 </div>
-                            )}
-                        </div>
-                    </>
-                );
-            })()}
-
-                    {error && <p className="text-red-500 text-sm">{error}</p>}
-                </div>
-
-                {/* Generate Button (Static Flow) */}
-                <div className="mt-8 p-4 bg-card border-t border-border z-10">
-                    {/* Cost Estimate - Only show for auth users */}
-                    {isAuthenticated && (
-                        <div className="mb-4 p-3 rounded-lg bg-muted/50 space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground flex items-center gap-1.5">
-                                    <Coins className="h-4 w-4" />
-                                    Chi phí:
-                                </span>
-                                <span className="font-medium text-foreground">{estimatedCost} credits</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Số dư:</span>
-                                <span className={`font-medium ${balance >= estimatedCost ? 'text-green-500' : 'text-red-500'}`}>
-                                    {balance} credits
-                                </span>
-                            </div>
+
+                            {(() => {
+                                const config = getModelConfig(model, 'video');
+                                return (
+                                    <>
+                                        {config?.durations && <DurationSelector value={duration} onChange={setDuration} options={config.durations} />}
+                                        {config?.qualities && <QualitySelector value={quality} onChange={setQuality} options={config.qualities} />}
+                                        {config?.audio && (
+                                            <div className="flex items-center justify-between p-3 border border-white/10 rounded-xl bg-black/20">
+                                                <div className="flex items-center gap-2">
+                                                    <Volume2 className="w-4 h-4 text-[#00BCD4]" />
+                                                    <span className="text-sm text-[#B0B8C4]">Âm thanh</span>
+                                                </div>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={audio}
+                                                    onChange={(e) => setAudio(e.target.checked)}
+                                                    className="rounded border-[#6B7280] bg-black/40 text-[#00BCD4] focus:ring-[#00BCD4]"
+                                                />
+                                            </div>
+                                        )}
+                                    </>
+                                )
+                            })()}
                         </div>
                     )}
 
-                    <Button
+                    {/* Generate Button */}
+                    <button 
                         onClick={handleGenerate}
                         disabled={loading || !prompt.trim() || (isAuthenticated && balance < estimatedCost)}
-                        className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
-                            isAuthenticated && balance < estimatedCost 
-                                ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                                : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
-                        }`}
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                {isAuthenticated ? 'Đang tạo video...' : 'Đang xử lý...'}
-                            </>
-                        ) : !isAuthenticated ? (
-                            <>
-                                Đăng nhập để tạo
-                            </>
-                        ) : balance < estimatedCost ? (
-                            <>
-                                <AlertCircle className="mr-2 h-4 w-4" />
-                                Không đủ credits
-                            </>
-                        ) : (
-                            <>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                Tạo video
-                            </>
+                        className={cn(
+                            "w-full h-12 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98]",
+                            loading ? "bg-[#00BCD4]/50 cursor-not-allowed" : "bg-[#00BCD4] hover:bg-[#22D3EE] shadow-[0_0_15px_rgba(0,188,212,0.3)]"
                         )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center mt-4">Hỗ trợ, báo lỗi - 0352143210 </p>
+                    >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Clapperboard className="w-5 h-5" />}
+                        {loading ? "Đang tạo..." : "Tạo Video"}
+                        {isAuthenticated && !loading && (
+                            <span className="ml-2 px-2.5 py-1 rounded-full bg-black/20 border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-colors group-hover:bg-black/30">
+                                {estimatedCost} <Coins className="w-3.5 h-3.5" />
+                            </span>
+                        )}
+                    </button>
                 </div>
 
-                {/* Insufficient Credits Modal */}
-                <InsufficientCreditsModal
-                    isOpen={showCreditsModal}
-                    onClose={() => setShowCreditsModal(false)}
-                    required={estimatedCost}
-                    available={balance}
-                />
-            </div>
-
-            {/* Right Group: Preview (Full width) + History (Fixed) */}
-            <div className="flex-1 flex flex-col md:flex-row lg:overflow-hidden relative">
-                {/* Center Panel - Main Preview (Flexible) */}
-                <div className="flex-1 bg-background/50 p-4 md:p-10 flex items-center justify-center overflow-auto relative custom-scrollbar z-0 py-8 lg:py-10">
-                    {/* Show History Button - appears when history is hidden */}
-                    {!preferences.showHistorySidebar && (
-                        <button
-                            onClick={toggleHistorySidebar}
-                            className="absolute top-4 right-4 p-3 bg-card hover:bg-muted border border-border rounded-lg shadow-sm transition-all duration-200 hover:shadow-md z-10 flex items-center gap-2 group"
-                            title="Hiện lịch sử"
-                        >
-                            <History className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
-                            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Lịch sử</span>
-                        </button>
-                    )}
-                    <div className="w-full max-w-4xl flex flex-col gap-4">
-                         {/* Result Card Container */}
-                         <div className={`
-                            w-full rounded-2xl bg-card border border-border/50 overflow-hidden transition-all duration-300
-                            ${result?.video_url && !loading 
-                                ? 'shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
-                                : 'shadow-sm'}
-                        `}>
-                            {/* Video Preview Area */}
-                            <div className={`
-                                w-full min-h-[400px] flex items-center justify-center relative bg-muted/5
-                                ${!result?.video_url && 'p-8'}
-                            `}>
-                                {loading ? (
-                                    <div className="flex flex-col items-center gap-4 text-muted-foreground animate-pulse">
-                                        <div className="relative">
-                                            <div className="w-16 h-16 rounded-full border-4 border-muted border-t-[#0F766E] animate-spin" />
-                                        </div>
-                                        <p className="text-sm font-medium">
-                                            {currentJobStatus === 'pending'
-                                                ? 'Đang chờ xử lý (Hàng đợi)... Vui lòng đợi'
-                                                : 'Đang tạo video... Vui lòng đợi trong khi hệ thống đang xử lý'}
+                {/* Recent Jobs Card */}
+                <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
+                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                        <VideoIcon className="text-[#B0B8C4] w-4 h-4" />
+                        Thư viện gần đây
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                        {recentJobs.length === 0 ? (
+                            <p className="text-xs text-[#6B7280] italic">Chưa có lịch sử</p>
+                        ) : (
+                            recentJobs.map(job => (
+                                <div 
+                                    key={job.job_id} 
+                                    onClick={() => {
+                                        if (job.status === 'completed' && job.output_url) {
+                                            setResult({ video_url: job.output_url, job_id: job.job_id, status: 'completed' })
+                                            setSelectedJob(job)
+                                        }
+                                    }}
+                                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
+                                >
+                                    <div className="size-10 rounded-lg bg-black/50 flex items-center justify-center border border-white/10 text-[#6B7280]">
+                                        <Play className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-white truncate group-hover:text-[#00BCD4]">{job.prompt}</p>
+                                        <p className="text-[10px] text-[#6B7280]">
+                                            {new Date(job.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         </p>
                                     </div>
-                                ) : result?.video_url ? (
-                                    <>
-                                        {/* Info Toggle Button - Overlay */}
-                                        <button 
-                                            onClick={() => setShowMetadata(!showMetadata)}
-                                            className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 shadow-sm ${
-                                                showMetadata 
-                                                    ? 'bg-white text-black' 
-                                                    : 'bg-black/40 hover:bg-black/60 text-white'
-                                            }`}
-                                            title={showMetadata ? "Ẩn chi tiết" : "Hiện chi tiết"}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <div className={cn(
+                                            "size-6 rounded-full flex items-center justify-center border",
+                                            job.status === 'completed' ? "border-green-500/30 bg-green-500/10" : "border-yellow-500/30 bg-yellow-500/10"
+                                        )}>
+                                            {job.status === 'completed' ? <CheckIcon className="text-green-500 w-3 h-3" /> : <Loader2 className="text-yellow-500 w-3 h-3 animate-spin" />}
+                                        </div>
+                                        <button
+                                            onClick={(e) => handleDeleteJob(e, job.job_id)}
+                                            className="size-8 rounded-lg flex items-center justify-center text-[#6B7280] hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+                                            title="Xóa"
                                         >
-                                            <Info className="w-5 h-5" />
+                                            <Trash2 className="w-3.5 h-3.5" />
                                         </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </aside>
 
-                                        {/* Metadata Overlay Panel */}
-                                        {showMetadata && selectedJob && (
-                                            <div className="absolute bottom-0 left-0 right-0 bg-black/75 backdrop-blur-md pt-8 pb-6 px-6 text-white animate-in slide-in-from-bottom-4 duration-300 z-10">
-                                                <div className="flex flex-col gap-5">
-                                                    {/* Prompt with Copy */}
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2 text-[11px] font-bold text-white/50 uppercase tracking-widest">
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            Prompt
-                                                        </div>
-                                                        <p className="text-[15px] font-medium text-white/90 italic leading-relaxed line-clamp-3 hover:line-clamp-none transition-all cursor-default">
-                                                            "{selectedJob.prompt}"
-                                                        </p>
-                                                    </div>
-                                                    
-                                                    {/* Divider */}
-                                                    <div className="h-px w-full bg-white/10" />
+            {/* Right Panel - Preview */}
+            <section className="flex-1 bg-[#0A0E13] relative flex flex-col">
+                <div className="absolute inset-0 p-6 md:p-10 flex items-center justify-center">
+                    <div className="w-full h-full max-h-[800px] rounded-2xl border border-white/10 bg-[#1F2833] flex flex-col items-center justify-center relative overflow-hidden group">
+                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(#6B7280 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+                        
+                        {result?.video_url ? (
+                            <>
+                                <button 
+                                    onClick={() => setShowMetadata(!showMetadata)}
+                                    className={cn(
+                                        "absolute top-4 right-4 z-20 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 shadow-sm",
+                                        showMetadata ? "bg-white text-black" : "bg-black/40 hover:bg-black/60 text-white"
+                                    )}
+                                >
+                                    <InfoIcon className="w-5 h-5" />
+                                </button>
 
-                                                    {/* Params Grid */}
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest block mb-1.5">Model</span>
-                                                            <span className="text-sm font-semibold text-white block truncate tracking-wide" title={selectedJob.model}>
-                                                                {activeVideoModels.find(m => m.value === selectedJob.model)?.label || selectedJob.model}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest block mb-1.5">Thời lượng</span>
-                                                            <span className="text-sm font-semibold text-white block tracking-wide">
-                                                                {(() => {
-                                                                    if (selectedJob.input_params) {
-                                                                        try {
-                                                                            const params = typeof selectedJob.input_params === 'string' ? JSON.parse(selectedJob.input_params) : selectedJob.input_params
-                                                                            return params.duration || 'N/A'
-                                                                        } catch (e) { return 'N/A' }
-                                                                    }
-                                                                    return duration
-                                                                })()}
-                                                            </span>
-                                                        </div>
-                                                        <div className="col-span-2">
-                                                            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest block mb-1.5">Tỷ lệ & Chất lượng</span>
-                                                             <span className="text-sm font-semibold text-white block truncate tracking-wide">
-                                                               {(() => {
-                                                                    let ar = aspectRatio;
-                                                                    let q = quality;
-                                                                    if (selectedJob.input_params) {
-                                                                        try {
-                                                                            const params = typeof selectedJob.input_params === 'string' ? JSON.parse(selectedJob.input_params) : selectedJob.input_params
-                                                                            if (params.aspect_ratio) ar = params.aspect_ratio;
-                                                                            if (params.quality) q = params.quality;
-                                                                        } catch (e) {}
-                                                                    }
-                                                                    return `${ar} • ${q}`
-                                                                })()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                {showMetadata && selectedJob && (
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/75 backdrop-blur-md pt-8 pb-6 px-6 text-white animate-in slide-in-from-bottom-4 duration-300 z-10">
+                                        <div className="flex flex-col gap-5">
+                                            <div className="space-y-2">
+                                                <div className="text-[11px] font-bold text-white/50 uppercase tracking-widest">Prompt</div>
+                                                <p className="text-[15px] font-medium text-white/90 italic leading-relaxed">"{selectedJob.prompt}"</p>
+                                            </div>
+                                            <div className="h-px w-full bg-white/10" />
+                                            <div className="grid grid-cols-2 gap-8">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-white/50 uppercase block mb-1.5">Model</span>
+                                                    <span className="text-sm font-semibold text-white">{selectedJob.model}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-white/50 uppercase block mb-1.5">Trạng thái</span>
+                                                    <span className="text-sm font-semibold text-white">{selectedJob.status}</span>
                                                 </div>
                                             </div>
-                                        )}
-                                        <VideoPreview videoUrl={result.video_url} />
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 text-center max-w-md">
-                                        <div className="w-24 h-24 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-                                            <Video className="h-10 w-10 opacity-50" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-foreground text-lg mb-2">Chưa có video</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Nhập mô tả video và click tạo video
-                                            </p>
                                         </div>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Action Bar - Inside Card */}
-                            {result?.video_url && !loading && (
-                                <div className="p-3 md:p-4 border-t border-border/50 bg-background/30 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-                                    <Button
-                                        onClick={handleGenerate}
-                                        className="h-10 px-6 rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground shadow-sm transition-all duration-200 hover:scale-[1.02]"
-                                    >
-                                        <Sparkles className="h-4 w-4 mr-2" />
-                                        Tạo lại
-                                    </Button>
-                                    <Button
-                                        onClick={async () => {
-                                            if (!result?.video_url) return
-                                            try {
-                                                const a = document.createElement('a')
-                                                a.href = result.video_url
-                                                a.download = `generated-video-${Date.now()}.mp4`
-                                                document.body.appendChild(a)
-                                                a.click()
-                                                document.body.removeChild(a)
-                                                toast.success('Tải video thành công!')
-                                            } catch (error) {
-                                                console.error('Download failed:', error)
-                                                toast.error('Lỗi khi tải video')
-                                            }
-                                        }}
-                                        className="h-10 px-8 rounded-full bg-gradient-to-r from-[#0F766E] to-[#0D655E] hover:from-[#0D655E] hover:to-[#0B544E] text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                                    >
-                                        <Download className="h-4 w-4 mr-2" />
+                                
+                                <video src={result.video_url} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
+                                
+                                <div className="absolute bottom-10 right-10 flex gap-2 z-20">
+                                    <Button onClick={() => window.open(result.video_url, '_blank')} className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm">
+                                        <DownloadIcon className="h-4 w-4 mr-2" />
                                         Tải xuống
                                     </Button>
+                                    <Button onClick={handleGenerate} className="h-10 px-6 rounded-full bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-lg shadow-[#00BCD4]/20">
+                                        <RefreshIcon className="h-4 w-4 mr-2" />
+                                        Tạo lại
+                                    </Button>
                                 </div>
-                            )}
-
-                            {/* Metadata Section Removed - using Overlay */}
-                        </div>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center gap-6 z-10 p-6 text-center max-w-md">
+                                <div className="size-24 rounded-full bg-[#252D3D] border border-white/10 flex items-center justify-center shadow-2xl shadow-black/50">
+                                    <Clapperboard className="text-[#6B7280] w-12 h-12 group-hover:text-[#00BCD4] transition-colors duration-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-2">Chưa có video nào được tạo</h3>
+                                    <p className="text-[#B0B8C4] text-sm leading-relaxed">
+                                        Nhập mô tả ở bảng bên trái và nhấn "Tạo Video" để bắt đầu quá trình sáng tạo của bạn.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
-
-
-                 {/* Right Panel - History Sidebar (Collapsible) */}
-                {preferences.showHistorySidebar && (
-                    <div className="w-[60px] hover:w-[320px] transition-all duration-300 ease-in-out shrink-0 h-full hidden lg:block border-l border-border bg-card relative group z-20">
-                         <HistorySidebar 
-                            type="video" 
-                            onSelect={(job) => {
-                                 if (job.status === 'completed' && job.output_url) {
-                                    setResult({ 
-                                        video_url: job.output_url, 
-                                        job_id: job.job_id, 
-                                        status: 'completed' 
-                                    })
-                                    setSelectedJob({
-                                        ...job,
-                                        input_params: typeof job.input_params === 'string' 
-                                            ? JSON.parse(job.input_params || '{}') 
-                                            : job.input_params
-                                    })
-                                }
-                            }}
-                            selectedJobId={result?.job_id}
-                        />
-                    </div>
-                )}
-            </div>
+            </section>
+            
+            <InsufficientCreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} required={estimatedCost} available={balance} />
         </div>
     )
 }

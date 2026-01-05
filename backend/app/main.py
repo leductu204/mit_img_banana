@@ -173,6 +173,10 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(image.router, prefix="/api/generate/image", tags=["image"])
 app.include_router(video.router, prefix="/api/generate/video", tags=["video"])
 
+# Payment endpoint
+from app.routers import payment
+app.include_router(payment.router, prefix="/api/payment", tags=["payment"])
+
 # Job management
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 

@@ -13,10 +13,10 @@ export default function MobileNav() {
     const { user, isAuthenticated } = useAuth();
 
     const navItems = [
-        { href: '/create-image', icon: Sparkles, label: 'Tạo ảnh' },
+        { href: '/image', icon: Sparkles, label: 'Tạo ảnh' },
         { href: '/studio', icon: Palette, label: 'Studio' },
         { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
-        { href: '/create-video', icon: Video, label: 'Tạo Video' },
+        { href: '/video', icon: Video, label: 'Tạo Video' },
         { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },
     ];

@@ -1,142 +1,313 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  /* Light Mode - Standard HSL/Hex for maximum compatibility */
-  --background: 0 0% 100%; /* #ffffff */
-  --foreground: 240 10% 3.9%; /* #09090b */
-  --card: 0 0% 100%; /* #ffffff */
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%; /* Dark grey/black for primary in light mode */
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
-  --radius: 0.75rem;
-}
+/* ============================================
+   Dark Theme Color System (CSS Variables)
+   These map to Tailwind semantic color classes:
+   bg-background, text-foreground, bg-muted, etc.
+   ============================================ */
 
-.dark {
-  /* Dark Mode - Premium Dark Theme (OKLCH) */
-  --background: oklch(0.13 0.01 260);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.18 0.01 260);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.18 0.01 260);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.7 0.15 180); /* Teal/Cyan */
-  --primary-foreground: oklch(0.13 0.01 260);
-  --secondary: oklch(0.25 0.01 260);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.22 0.01 260);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.25 0.01 260);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.28 0.01 260);
-  --input: oklch(0.22 0.01 260);
-  --ring: oklch(0.7 0.15 180);
-}
-
-@theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+@theme {
+  /* Backgrounds */
+  --color-background: #0A0E13;
+  --color-foreground: #FFFFFF;
   
-  /* Map variables - using hsl() wrapper for HSL values if needed, but here we assume raw values for hsl() usage in Tailwind v4 or direct mapping */
-  /* Note: In Tailwind v4, if we define --color-background: var(--background), it expects the value to be a color. 
-     If we use HSL numbers (0 0% 100%), we need to ensure Tailwind handles it. 
-     Safest is to use color-mix or just standard CSS colors in variables if we want to be sure. 
-     Let's use fully formed colors in :root to avoid confusion. */
+  /* Card/Surface Colors */
+  --color-card: #1F2833;
+  --color-card-foreground: #FFFFFF;
+  
+  /* Muted Colors */
+  --color-muted: #252D3D;
+  --color-muted-foreground: #6B7280;
+  
+  /* Accent Colors - Cyan */
+  --color-accent: #00BCD4;
+  --color-accent-foreground: #FFFFFF;
+  
+  /* Primary Colors */
+  --color-primary: #00BCD4;
+  --color-primary-foreground: #FFFFFF;
+  
+  /* Secondary Colors */
+  --color-secondary: #1A1F2E;
+  --color-secondary-foreground: #B0B8C4;
+  
+  /* Border Colors */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-input: #6B7280;
+  --color-ring: #00BCD4;
+  
+  /* Destructive/Error Colors */
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+  
+  /* Popover/Dropdown */
+  --color-popover: #1F2833;
+  --color-popover-foreground: #FFFFFF;
+  
+  /* Border Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 }
 
-/* Redefining :root with full color values for safety */
 :root {
-  --background: #ffffff;
-  --foreground: #09090b;
-  --card: #ffffff;
-  --card-foreground: #09090b;
-  --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #18181b;
-}
-
-@theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Font Variables */
+  --font-inter: 'Inter', sans-serif; 
+  --font-manrope: 'Manrope', sans-serif;
+  
+  /* Legacy color variables for JS usage */
+  --color-primary-legacy: #00BCD4;
+  --color-background-dark: #0A0E13;
+  --color-surface: #1F2833;
+  --color-border-legacy: rgba(255, 255, 255, 0.1);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  body {
+    background-color: #0A0E13;
+    color: #FFFFFF;
+    font-family: var(--font-inter);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0A0E13; 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2A3B47; 
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00BCD4; 
   }
 }
 
+/* Custom scrollbar class */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 188, 212, 0.5);
+}
+
+/* Custom utility for card with glow effect on hover */
 @layer utilities {
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  .card-hover-glow:hover {
+    border-color: #00BCD4;
+    box-shadow: 0 0 25px rgba(0, 188, 212, 0.3);
   }
+  
+  .icon-glow {
+    filter: drop-shadow(0 0 5px rgba(0, 188, 212, 0.5));
+  }
+}
 
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
+/* LANDING PAGE STYLES MERGED BELOW */
 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/20 rounded-full transition-colors;
-  }
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(31, 40, 51, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(20px);
+}
 
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/40;
+.glass-card-hover {
+  @apply transition-all duration-300;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(0, 188, 212, 0.3);
+  box-shadow: 0 0 30px rgba(0, 188, 212, 0.1);
+}
+
+/* Primary glow effects - Cyan #00BCD4 */
+.primary-glow {
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.3);
+}
+
+.btn-glow {
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.3);
+  @apply transition-all duration-300;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 188, 212, 0.5);
+}
+
+/* Gradient text utility - Cyan ecosystem */
+.gradient-text {
+  background: linear-gradient(135deg, #00bcd4 0%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Sequential glow animation for headline pair */
+@keyframes headline-glow {
+  0%,
+  100% {
+    box-shadow: none;
+    background: rgba(0, 188, 212, 0.1);
   }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 188, 212, 0.4);
+    background: rgba(0, 188, 212, 0.2);
+  }
+}
+
+.headline-glow-1 {
+  animation: headline-glow 4s ease-in-out infinite;
+}
+
+.headline-glow-2 {
+  animation: headline-glow 4s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Soft pulse for promo banner */
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(0, 188, 212, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 188, 212, 0.4);
+  }
+}
+
+.banner-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for CTA button */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.btn-shimmer {
+  background: linear-gradient(90deg, #00bcd4 0%, #22d3ee 25%, #4dd0e1 50%, #22d3ee 75%, #00bcd4 100%);
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Typing cursor animation */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  animation: blink 1s infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-slide-up 0.5s ease-out forwards;
+}
+
+/* Countdown timer number styling */
+.countdown-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Yellow/gold gradient text for highlight - Warning color */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Coral CTA button style - Destructive color */
+.btn-coral {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+  @apply transition-all duration-300;
+}
+
+.btn-coral:hover {
+  box-shadow: 0 6px 30px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Feature pill styling - Secondary background */
+.feature-pill {
+  background: #1a1f2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* Typewriter animation */
+@keyframes typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriter 2s steps(20) forwards;
+}
+
+/* Fade in animation for grid items */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
 }

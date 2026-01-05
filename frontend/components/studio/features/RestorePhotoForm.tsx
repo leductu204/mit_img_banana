@@ -6,7 +6,7 @@ import FeatureHeader from "../shared/FeatureHeader";
 import ImageUpload from "@/components/generators/ImageUpload";
 import BeforeAfterCompare from "../shared/BeforeAfterCompare";
 import ResultPreview from "../shared/ResultPreview";
-import { History, Wand2, Sparkles, Zap, Coins, AlertCircle } from "lucide-react";
+import { History, Wand2, Sparkles, Zap, Coins, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useGenerateImage } from "@/hooks/useGenerateImage";
 import { useCredits } from "@/hooks/useCredits";
@@ -151,8 +151,8 @@ export default function RestorePhotoForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto shrink-0">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto shrink-0 bg-[#1A1F2E]">
         <FeatureHeader 
           title="Restore Old Photo" 
           description="Phục hồi ảnh cũ, mờ, xước"
@@ -169,23 +169,23 @@ export default function RestorePhotoForm() {
             />
           </div>
 
-          <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground flex gap-2">
-            <Wand2 className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+          <div className="p-4 bg-[#1F2833] border border-white/10 rounded-xl text-sm text-[#94A3B8] flex gap-2">
+            <Wand2 className="w-4 h-4 shrink-0 mt-0.5 text-[#00BCD4]" />
             <p>AI sẽ tự động khử nhiễu, làm nét khuôn mặt và cân bằng màu sắc.</p>
           </div>
 
           {/* Quality Selector */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Độ phân giải</label>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-4">
+            <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Độ phân giải</label>
+            <div className="grid grid-cols-3 gap-2 bg-black/20 p-1 rounded-xl">
                 {['1k', '2k', '4k'].map((q) => (
                     <button
                         key={q}
                         onClick={() => setQuality(q)}
-                        className={`py-2 rounded-lg border text-sm font-medium transition-all ${
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
                             quality === q 
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
-                                : 'bg-background hover:bg-muted border-border text-muted-foreground'
+                                ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm' 
+                                : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                         }`}
                     >
                         {q.toUpperCase()}
@@ -201,13 +201,13 @@ export default function RestorePhotoForm() {
 
            {/* Speed Selector */}
           <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tốc độ xử lý</label>
-              <div className="flex bg-muted p-1 rounded-xl">
+              <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Tốc độ xử lý</label>
+              <div className="flex bg-black/20 p-1 rounded-xl">
                   <button
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                           speed === 'fast'
-                              ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                              ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm'
+                              : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                       }`}
                       onClick={() => setSpeed('fast')}
                   >
@@ -218,8 +218,8 @@ export default function RestorePhotoForm() {
                       <button
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                               speed === 'slow'
-                                  ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                  ? 'bg-green-500/20 text-green-400 shadow-sm'
+                                  : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                           }`}
                           onClick={() => setSpeed('slow')}
                       >
@@ -230,31 +230,31 @@ export default function RestorePhotoForm() {
           </div>
           
            {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
                 {loading ? (
                     <>
-                        <Sparkles className="mr-2 h-4 w-4 animate-spin" /> 
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
                         Restoring...
                     </>
                 ) : (
@@ -263,7 +263,7 @@ export default function RestorePhotoForm() {
                         Phục Hồi Ngay
                     </>
                 )}
-            </Button>
+            </button>
         </div>
 
         <InsufficientCreditsModal
@@ -274,7 +274,7 @@ export default function RestorePhotoForm() {
         />
       </div>
 
-      <div className="flex-1 bg-muted/10 p-4 lg:p-8 overflow-hidden flex flex-col items-center justify-center">
+      <div className="flex-1 bg-[#0A0E13] p-4 lg:p-8 overflow-hidden flex flex-col items-center justify-center">
          {result?.image_url && referenceImages.length > 0 ? (
              <div className="w-full h-full max-w-5xl max-h-[800px] bg-background/50 rounded-xl border border-border/50 shadow-sm overflow-hidden relative backdrop-blur-sm">
                  <BeforeAfterCompare 

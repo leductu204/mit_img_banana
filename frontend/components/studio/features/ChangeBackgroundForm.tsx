@@ -10,7 +10,7 @@ import ResultPreview from "../shared/ResultPreview";
 import ImageUpload from "@/components/generators/ImageUpload";
 import BackgroundPresetGrid, { BackgroundPreset } from "../shared/BackgroundPresetGrid";
 import InsufficientCreditsModal from "@/components/common/InsufficientCreditsModal";
-import { Layers, AlertCircle, Sparkles } from "lucide-react";
+import { Layers, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
 const BASE_BG_PROMPT = "Change the background of this image. The main subject should remain perfectly preserved and isolated. The new background should be: ";
@@ -201,8 +201,8 @@ export default function ChangeBackgroundForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Change Background" 
           description="Thay đổi bối cảnh với AI"
@@ -233,14 +233,14 @@ export default function ChangeBackgroundForm() {
 
           <div className="relative">
              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                <span className="bg-card px-2 text-xs text-muted-foreground">HOẶC</span>
+                <span className="bg-[#1A1F2E] px-2 text-xs font-bold text-[#6B7280]">HOẶC</span>
              </div>
-             <div className="border-t border-border" />
+             <div className="border-t border-white/10" />
           </div>
 
           <div className="space-y-2">
-             <label className="text-sm font-medium flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
+             <label className="text-sm font-medium flex items-center gap-2 text-[#B0B8C4]">
+                <Sparkles className="w-3.5 h-3.5 text-[#00BCD4]" />
                 Mô tả bối cảnh riêng
              </label>
              <textarea 
@@ -250,7 +250,7 @@ export default function ChangeBackgroundForm() {
                     setSelectedPresetId(null); // Clear preset if typing custom
                 }}
                 placeholder="Ví dụ: trên đỉnh núi tuyết phủ, ánh nắng hoàng hôn..."
-                className="w-full min-h-[80px] rounded-md border border-input bg-background p-3 text-sm focus:ring-primary focus:border-primary"
+                className="w-full min-h-[80px] rounded-xl border border-[#6B7280] bg-[#252D3D] p-3 text-sm text-white placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4]"
              />
           </div>
 
@@ -262,23 +262,28 @@ export default function ChangeBackgroundForm() {
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || !activePrompt || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
-                {loading ? "Đang xử lý..." : "Đổi Background"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Đổi Background"}
+            </button>
         </div>
 
         <InsufficientCreditsModal
@@ -289,7 +294,7 @@ export default function ChangeBackgroundForm() {
         />
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden">
          <ResultPreview 
             loading={loading} 
             resultUrl={result?.image_url} 

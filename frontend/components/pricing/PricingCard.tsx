@@ -1,54 +1,94 @@
-import { Check, Star, AlarmClock, Flame, Video, Image, Zap, Calendar } from 'lucide-react';
+'use client';
+
+import { Check, Video, Image, Zap, Clock, Flame, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import Button from '@/components/common/Button';
 
 export interface PricingFeature {
     text: string;
     highlightText?: string;
-    icon?: 'video' | 'image' | 'zap' | 'calendar' | 'check';
-    subtitle?: string; // Secondary text line
+    icon?: 'video' | 'image' | 'zap' | 'clock' | 'check';
+    subtitle?: string;
 }
 
-// Helper function to determine icon based on feature text
 function getFeatureIcon(feature: PricingFeature) {
-    // If icon is explicitly set, use it
-    if (feature.icon) {
-        return feature.icon;
-    }
+    if (feature.icon) return feature.icon;
     
     const text = feature.text.toLowerCase();
-    
-    // Auto-detect based on keywords
     if (text.includes('video')) return 'video';
     if (text.includes('ảnh') || text.includes('image')) return 'image';
-    if (text.includes('fast mode') || text.includes('luồng') || text.includes('nhanh hơn') || text.includes('xử lý đồng thời')) return 'zap';
-    if (text.includes('ngày') || text.includes('day')) return 'calendar';
+    if (text.includes('fast mode') || text.includes('luồng') || text.includes('nhanh hơn')) return 'zap';
     
-    return 'check'; // Default
+    return 'check';
 }
 
 export interface PackageProps {
     id: string;
     name: string;
     price: string;
-    originalPrice?: string; // New: Original price to show strikethrough
     currency: string;
     credits: string;
-    highlightCredits?: string; // New: Highlighted credits (e.g. X2)
+    highlightCredits?: string;
     duration: string;
     features: PricingFeature[];
     onSelect: (pkgId: string) => void;
+    onBuy?: (pkgId: string) => void;
     isHighlighted?: boolean;
     badge?: string;
-    color?: string; // e.g., "bg-blue-500"
-    borderColor?: string; // e.g., "border-blue-500"
-    ringColor?: string; // e.g., "ring-blue-500"
-    highlightBg?: string; // e.g., "bg-blue-50"
-    hexColor?: string; // e.g., "#3B82F6" for inline styles
-    hexBg?: string; // e.g., "#DBEAFE" for inline styles
-    link?: string; // New: Link for button redirection
-    cornerBadgeText?: string; // New: Top right badge (e.g. -50%)
+    color?: string;
+    borderColor?: string;
+    ringColor?: string;
+    highlightBg?: string;
+    hexColor?: string;
+    hexBg?: string;
+    link?: string;
+    cornerBadgeText?: string;
+    variant?: 'blue' | 'purple' | 'green' | 'orange';
+    isComingSoon?: boolean;
 }
+
+// Dark theme color variants
+const colorVariants = {
+    blue: {
+        headerBg: 'bg-gradient-to-br from-blue-500/10 to-transparent',
+        headerText: 'text-blue-300',
+        headerLine: 'via-blue-400/30',
+        badgeBg: 'bg-gradient-to-r from-blue-500/80 to-blue-400/80',
+        buttonBg: 'border-blue-400/30 text-blue-400 hover:bg-blue-500 hover:text-white',
+        iconBg: 'bg-blue-500/20 text-blue-300',
+        hoverBorder: 'hover:border-blue-400/30',
+        shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(96,165,250,0.2)]'
+    },
+    purple: {
+        headerBg: 'bg-gradient-to-b from-fuchsia-500/10 to-transparent',
+        headerText: 'text-fuchsia-300',
+        headerLine: 'via-fuchsia-400/30',
+        badgeBg: 'bg-gradient-to-r from-fuchsia-500 to-purple-500',
+        buttonBg: 'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-lg shadow-fuchsia-900/40',
+        iconBg: 'bg-fuchsia-500/20 text-fuchsia-300',
+        hoverBorder: 'border-fuchsia-500/30',
+        shadow: 'shadow-[0_20px_40px_-15px_rgba(232,121,249,0.2)]'
+    },
+    green: {
+        headerBg: 'bg-gradient-to-br from-green-500/10 to-transparent',
+        headerText: 'text-green-300',
+        headerLine: 'via-green-400/30',
+        badgeBg: 'bg-gradient-to-r from-orange-500/80 to-amber-500/80',
+        buttonBg: 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white shadow-lg shadow-emerald-900/30',
+        iconBg: 'bg-green-500/20 text-green-300',
+        hoverBorder: 'hover:border-green-400/30',
+        shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(74,222,128,0.2)]'
+    },
+    orange: {
+        headerBg: 'bg-gradient-to-br from-orange-500/10 to-transparent',
+        headerText: 'text-orange-300',
+        headerLine: 'via-orange-400/30',
+        badgeBg: 'bg-gradient-to-r from-orange-500 to-amber-500',
+        buttonBg: 'border-dashed border-orange-500/30 text-orange-400 hover:bg-orange-500 hover:text-white hover:border-solid cursor-not-allowed',
+        iconBg: 'bg-orange-500/20 text-orange-300',
+        hoverBorder: 'hover:border-orange-400/30',
+        shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(251,146,60,0.2)]'
+    }
+};
 
 export default function PricingCard({
     pk,
@@ -58,219 +98,172 @@ export default function PricingCard({
     isHighlighted?: boolean;
 }) {
     const { 
-        name, price, originalPrice, currency, credits, highlightCredits, duration, features, onSelect, badge, color = "bg-blue-500", borderColor = "border-blue-500", ringColor = "ring-blue-500", highlightBg,
-        hexColor, hexBg, link, cornerBadgeText
+        name, price, currency, credits, highlightCredits, duration, features, onSelect, onBuy, badge, 
+        link, cornerBadgeText, variant = 'blue', isComingSoon
     } = pk;
 
+    const colors = colorVariants[variant];
+
     const handleButtonClick = (e: React.MouseEvent) => {
-        // If already highlighted and has a link, button acts as a link (or we can navigate manually)
-        if (isHighlighted && link) {
-            e.stopPropagation(); // Stop card selection logic if any
-            window.location.href = link; // Or use router.push if internal, but window.location is safer for external payment links usually
+        e.stopPropagation(); // Prevent card select
+        if (isComingSoon) {
+            e.preventDefault();
             return;
         }
-        // Otherwise, Select the plan
-        onSelect(pk.id);
+        if (link) {
+            window.location.href = link;
+            return;
+        }
+        if (onBuy) {
+            onBuy(pk.id);
+        } else {
+             onSelect(pk.id);
+        }
+    };
+
+    const iconConfig = {
+        video: { Icon: Video, bgColor: 'bg-blue-500/20', iconColor: 'text-blue-300' },
+        image: { Icon: Image, bgColor: 'bg-fuchsia-500/20', iconColor: 'text-fuchsia-300' },
+        zap: { Icon: Zap, bgColor: 'bg-amber-500/20', iconColor: 'text-amber-300' },
+        clock: { Icon: Clock, bgColor: 'bg-slate-500/20', iconColor: 'text-slate-300' },
+        check: { Icon: Check, bgColor: 'bg-emerald-500/20', iconColor: 'text-emerald-400' }
     };
 
     return (
         <div 
             onClick={() => onSelect(pk.id)}
             className={cn(
-                "relative h-full transition-all duration-300 flex flex-col cursor-pointer group",
-                isHighlighted ? "z-10 scale-105" : "hover:-translate-y-1"
+                "relative bg-[#131820] rounded-3xl border p-10 flex flex-col h-full transition-all duration-500 group cursor-pointer",
+                isHighlighted 
+                    ? `border-2 ${colors.hoverBorder.replace('hover:', '')} ${colors.shadow.replace('hover:', '')} scale-[1.03] z-10`
+                    : `border-white/5 ${colors.hoverBorder} ${colors.shadow}`,
+                isComingSoon && "bg-[#131820]/60 hover:bg-[#131820]"
             )}
         >
-            {/* Badge (Center Top) */}
+            {/* Top Badge (PHỔ BIẾN) */}
             {isHighlighted && badge && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
                     <div className={cn(
-                        "text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1 whitespace-nowrap",
-                        "bg-gradient-to-r from-orange-400 to-pink-500",
-                        "animate-in fade-in zoom-in duration-250"
+                    "text-white px-5 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg flex items-center gap-1.5 ring-4 ring-[#0A0E13]",
+                        colors.badgeBg
                     )}>
-                        <Flame className="w-3 h-3 fill-yellow-200 text-yellow-200" />
+                        <Flame className="w-3.5 h-3.5" />
                         {badge}
                     </div>
                 </div>
             )}
 
-            {/* Main Card */}
-            <div 
-                className={cn(
-                    "flex flex-col rounded-2xl overflow-hidden h-full transition-all duration-250",
-                    isHighlighted 
-                        ? `shadow-2xl z-10 scale-105`
-                        : "bg-white border border-gray-100 shadow-lg group-hover:border-gray-200"
+            {/* Corner Badge (BONUS/EXTRA) */}
+            {cornerBadgeText && (
+                <div className="absolute top-0 right-0 overflow-hidden rounded-tr-3xl">
+                    <div className={cn(
+                        "backdrop-blur-md text-white text-sm font-bold px-4 py-1.5 rounded-bl-2xl shadow-sm",
+                        variant === 'green' ? "bg-gradient-to-r from-orange-500/80 to-amber-500/80" : "bg-gradient-to-r from-blue-500/80 to-blue-400/80"
+                    )}>
+                        {cornerBadgeText}
+                    </div>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className={cn(
+                "border-b border-white/5 py-4 -mx-6 -mt-6 rounded-t-3xl mb-6 flex flex-col items-center justify-center relative overflow-hidden",
+                colors.headerBg
+            )}>
+                <div className={cn("absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent to-transparent", colors.headerLine)}></div>
+                <span className={cn("font-bold tracking-widest uppercase text-lg", colors.headerText)}>{name}</span>
+            </div>
+
+            {/* Price Block */}
+            <div className={cn("text-center mb-10", isComingSoon && "opacity-80")}>
+                <div className="flex items-center justify-center gap-1.5">
+                    <span className={cn("font-bold text-white", isHighlighted ? "text-6xl tracking-tight" : "text-5xl")}>
+                        {price}
+                    </span>
+                    {currency !== 'VNĐ' || price !== 'INCOMING' && (
+                        <span className="text-lg text-slate-500 font-medium self-end mb-1">{currency}</span>
+                    )}
+                </div>
+                
+                {highlightCredits ? (
+                    <div className={cn(
+                        "mt-3 flex items-center justify-center gap-2 rounded-full py-1 px-3 w-max mx-auto border",
+                        isHighlighted ? "bg-fuchsia-500/10 border-fuchsia-500/20" : "bg-white/5 border-white/5"
+                    )}>
+                        <span className="text-lg text-slate-500 line-through">{credits}</span>
+                        <span className={cn("font-bold text-emerald-400", isHighlighted ? "text-2xl" : "text-xl")}>{highlightCredits} Credits</span>
+                    </div>
+                ) : (
+                    <div className="mt-3 flex items-center justify-center gap-2 py-1 px-3 w-max mx-auto">
+                        <span className="text-2xl font-bold text-emerald-400">{credits} <span className="text-slate-400 text-lg font-normal">Credits</span></span>
+                    </div>
                 )}
-                style={isHighlighted ? {
-                    border: '4px solid',
-                    borderColor: hexColor || '#6D4AFF', 
-                    backgroundColor: hexBg || '#FAF5FF', 
-                } : {}}
-            >
-                {/* Background Layer */}
-                <div className={cn(
-                    "absolute inset-0 -z-10",
-                    isHighlighted ? highlightBg : "bg-white"
-                )} />
-
-                {/* Corner Badge (Top Right) */}
-                 {cornerBadgeText && (
-                    <div className="absolute top-0 right-0 z-20 overflow-hidden w-28 h-28 pointer-events-none">
-                        <div className="absolute top-6 -right-8 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs font-extrabold py-1.5 w-32 text-center rotate-45 shadow-md transform transition-transform group-hover:scale-110 uppercase">
-                            {cornerBadgeText}
-                        </div>
-                    </div>
-                 )}
-
-                {/* Debug Info */}
-                <div className="text-[10px] text-gray-400 text-center pt-1 hidden">
-                    {pk.id} {isHighlighted ? '(ACTIVE)' : ''}
-                </div>
-                {/* Colored Header */}
-                <div className={cn("py-6 px-5 text-center text-white relative", color)}>
-                     {/* Add relative to ensure specific z-index context if needed, but text needs to be readable */}
-                    <h3 className="font-bold uppercase tracking-wider text-base mb-1 opacity-90">{name}</h3>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 p-8 flex flex-col items-center">
-                    
-                    {/* Price Block */}
-                    <div className="text-center w-full border-b border-gray-100 pb-5 mb-5">
-                         <div className="flex items-center justify-center gap-3 mb-2">
-                             {originalPrice && (
-                                 <div className="text-gray-400 text-xl font-medium line-through decoration-gray-400/80 decoration-2">
-                                     {originalPrice}
-                                 </div>
-                             )}
-                         <div className="flex items-baseline gap-1">
-                                <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                                    {price}
-                                </span>
-                                <span className="text-gray-500 text-base font-bold">
-                                    {currency}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        {highlightCredits ? (
-                             <div className="flex items-end justify-center gap-3 mb-2">
-                                 <div className="text-gray-400 text-2xl font-medium line-through decoration-gray-400/80 decoration-2 mb-1">
-                                    {credits}
-                                </div>
-                                <div className="font-bold text-4xl text-green-600 animate-pulse flex items-baseline gap-1">
-                                    {highlightCredits}
-                                    <span className="text-xl font-medium text-green-600">Credits</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className={cn("font-bold text-3xl mb-2", "text-green-500")}>
-                                {credits} <span className="text-gray-400 text-sm font-normal">Credits</span>
-                            </div>
-                        )}
-
-                        <div className="flex items-center justify-center gap-1.5 text-gray-400 text-sm font-medium mt-4">
-                            <AlarmClock className="w-4 h-4" />
-                            <span>{duration}</span>
-                        </div>
-                    </div>
-
-                    {/* Features List */}
-                    <div className="w-full space-y-2 mb-6 flex-1">
-                        {features.map((feature, idx) => {
-                            // Split text if highlighting is needed
-                            const renderText = () => {
-                                if (!feature.highlightText) return feature.text;
-                                
-                                const parts = feature.text.split(new RegExp(`(${feature.highlightText})`, 'gi'));
-                                return (
-                                    <>
-                                        {parts.map((part, i) => (
-                                            part.toLowerCase() === feature.highlightText!.toLowerCase() 
-                                                ? <span key={i} className="text-gray-900 font-extrabold">{part}</span> 
-                                                : part
-                                        ))}
-                                    </>
-                                );
-                            };
-
-                            // Determine which icon to show
-                            const iconType = getFeatureIcon(feature);
-                            
-                            // Icon components and styling
-                            const iconConfig = {
-                                video: {
-                                    Icon: Video,
-                                    bgColor: 'bg-blue-100',
-                                    iconColor: 'text-blue-600'
-                                },
-                                image: {
-                                    Icon: Image,
-                                    bgColor: 'bg-purple-100',
-                                    iconColor: 'text-purple-600'
-                                },
-                                zap: {
-                                    Icon: Zap,
-                                    bgColor: 'bg-yellow-100',
-                                    iconColor: 'text-yellow-600'
-                                },
-                                calendar: {
-                                    Icon: Calendar,
-                                    bgColor: 'bg-green-100',
-                                    iconColor: 'text-green-600'
-                                },
-                                check: {
-                                    Icon: Check,
-                                    bgColor: 'bg-green-100',
-                                    iconColor: 'text-green-600'
-                                }
-                            };
-
-                            const { Icon, bgColor, iconColor } = iconConfig[iconType];
-
-                            return (
-                                <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-900/5 dark:bg-gray-800/30 transition-colors hover:bg-gray-900/10">
-                                    <div className={cn("rounded-lg p-2 shrink-0", bgColor)}>
-                                        <Icon className={cn("w-5 h-5", iconColor)} />
-                                    </div>
-                                    <div className="flex flex-col flex-1">
-                                        <span className="text-gray-700 dark:text-gray-300 text-base font-medium leading-tight">
-                                            {renderText()}
-                                        </span>
-                                        {feature.subtitle && (
-                                            <span className="text-gray-500 dark:text-gray-400 text-sm font-normal mt-0.5">
-                                                {feature.subtitle}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Button */}
-                    <div className="w-full mt-auto">
-                        <Button
-                            onClick={handleButtonClick}
-                            className={cn(
-                                "w-full h-12 rounded-full font-bold text-base text-white shadow-md hover:shadow-lg transition-all hover:brightness-110",
-                                color
-                            )}
-                        >
-                            {isHighlighted ? (
-                                <span className="flex items-center gap-2">
-                                    <Check className="w-5 h-5" />
-                                    ĐĂNG KÝ NGAY
-                                </span>
-                            ) : (
-                                'Đăng ký ngay'
-                            )}
-                        </Button>
-                    </div>
+                
+                <div className="mt-4 text-lg text-slate-500 flex items-center justify-center gap-1.5">
+                    <Clock className="w-5 h-5" />
+                    <span>{duration}</span>
                 </div>
             </div>
+
+            {/* Features List */}
+            <div className={cn("space-y-5 mb-10 flex-grow", isComingSoon && "opacity-70 hover:opacity-100 transition-opacity")}>
+                {features.map((feature, idx) => {
+                    const iconType = getFeatureIcon(feature);
+                    const { Icon, bgColor, iconColor } = iconConfig[iconType];
+                    
+                    const renderText = () => {
+                        if (!feature.highlightText) return feature.text;
+                        const parts = feature.text.split(new RegExp(`(${feature.highlightText})`, 'gi'));
+                        return (
+                            <>
+                                {parts.map((part, i) => (
+                                    part.toLowerCase() === feature.highlightText!.toLowerCase() 
+                                        ? <span key={i} className="font-semibold text-slate-100">{part}</span>
+                                        : part
+                                ))}
+                            </>
+                        );
+                    };
+
+                    return (
+                        <div 
+                            key={idx} 
+                            className={cn(
+                                "flex items-start gap-4 p-2.5 rounded-xl border transition-all duration-300",
+                                isHighlighted 
+                                    ? "bg-gradient-to-r from-white/5 to-transparent border-white/10"
+                                    : "bg-transparent border-transparent hover:bg-white/5"
+                            )}
+                        >
+                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", bgColor)}>
+                                <Icon className={cn("w-5 h-5", iconColor)} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-lg text-slate-300">{renderText()}</span>
+                                {feature.subtitle && (
+                                    <span className="text-base text-slate-500 mt-0.5">{feature.subtitle}</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Button */}
+            <button
+                onClick={handleButtonClick}
+                className={cn(
+                    "w-full py-5 rounded-2xl font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2",
+                    isHighlighted 
+                        ? colors.buttonBg
+                        : isComingSoon 
+                            ? colors.buttonBg
+                            : `border ${colors.buttonBg}`
+                )}
+            >
+                {isHighlighted && !isComingSoon && <Check className="w-5 h-5" />}
+                {isComingSoon ? 'Nhận thông báo' : (isHighlighted ? 'ĐĂNG KÝ NGAY' : 'Đăng ký ngay')}
+            </button>
         </div>
     );
 }

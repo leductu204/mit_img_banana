@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     # Recaptcha API Authentication (Bearer token)
     RECAPTCHA_AUTH_KEY: Optional[str] = Field(default="", env="RECAPTCHA_AUTH_KEY")
     
+    # Recaptcha API Authentication (Bearer token)
+    RECAPTCHA_AUTH_KEY: Optional[str] = Field(default="", env="RECAPTCHA_AUTH_KEY")
+
+    # PayOS Credentials
+    PAYOS_CLIENT_ID: Optional[str] = Field(default="", env="PAYOS_CLIENT_ID")
+    PAYOS_API_KEY: Optional[str] = Field(default="", env="PAYOS_API_KEY")
+    PAYOS_CHECKSUM_KEY: Optional[str] = Field(default="", env="PAYOS_CHECKSUM_KEY")
+    
     @model_validator(mode='after')
     def validate_jwt_secret(self):
         """Warn if using default JWT_SECRET"""

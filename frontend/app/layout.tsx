@@ -1,11 +1,11 @@
 import type React from "react"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, Manrope } from "next/font/google"
 import "../styles/globals.css"
 import NotificationDialog from "@/components/common/NotificationDialog"
 import Providers from "./providers"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" })
 
 export const metadata = {
   title: "Trạm Sáng Tạo - AI Studio",
@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`font-sans antialiased`} suppressHydrationWarning>
+            <body className={`${inter.variable} ${manrope.variable} font-sans antialiased bg-background-dark text-slate-200`} suppressHydrationWarning>
                 <Providers>
                     <NotificationDialog />
                     {children}

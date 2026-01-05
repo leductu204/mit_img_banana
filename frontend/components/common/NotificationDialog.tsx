@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import Button from './Button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { NEXT_PUBLIC_API } from '@/lib/config'
 
 interface NotificationDialogProps {
@@ -14,6 +15,7 @@ export default function NotificationDialog({ onClose }: NotificationDialogProps)
     const [title, setTitle] = useState("Thông báo")
     const [content, setContent] = useState<string>("")
     const [loading, setLoading] = useState(true)
+    const [dontShowAgain, setDontShowAgain] = useState(false)
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -23,6 +25,20 @@ export default function NotificationDialog({ onClose }: NotificationDialogProps)
                     const data = await res.json()
                     
                     if (data.notification_active === 'true') {
+                        // Check if this specific message was dismissed
+                        const dismissedMessage = localStorage.getItem('dismissed_notification_content')
+                        
+                        const currentMessage = data.notification_message ? data.notification_message.trim() : ""
+                        const dismissed = dismissedMessage ? dismissedMessage.trim() : ""
+
+                        // Debug logging
+                        // console.log('Current:', currentMessage)
+                        // console.log('Dismissed:', dismissed)
+                        
+                        if (currentMessage && dismissed === currentMessage) {
+                            return // Don't show if matched
+                        }
+
                         if (data.notification_title) setTitle(data.notification_title)
                         if (data.notification_message) setContent(data.notification_message)
                         
@@ -40,6 +56,9 @@ export default function NotificationDialog({ onClose }: NotificationDialogProps)
     }, [])
 
     const handleClose = () => {
+        if (dontShowAgain && content) {
+            localStorage.setItem('dismissed_notification_content', content)
+        }
         setIsOpen(false)
         onClose?.()
     }
@@ -75,6 +94,21 @@ export default function NotificationDialog({ onClose }: NotificationDialogProps)
                             className="text-gray-700 dark:text-gray-300 text-base leading-relaxed mb-6 [&>a]:text-blue-500 [&>a]:hover:underline [&>a]:font-medium"
                             dangerouslySetInnerHTML={{ __html: content }}
                         />
+
+                        <div className="flex items-center space-x-2 mb-4">
+                            <Checkbox 
+                                id="dont-show" 
+                                checked={dontShowAgain}
+                                onCheckedChange={(checked) => setDontShowAgain(checked as boolean)}
+                                className="border-blue-500 data-[state=checked]:bg-blue-500 dark:border-blue-400 dark:data-[state=checked]:bg-blue-400"
+                            />
+                            <label 
+                                htmlFor="dont-show" 
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+                            >
+                                Không hiển thị lại thông báo này
+                            </label>
+                        </div>
 
                         {/* Action Button */}
                         <Button

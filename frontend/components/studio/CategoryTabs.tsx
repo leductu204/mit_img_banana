@@ -20,7 +20,7 @@ export default function CategoryTabs() {
   }, [currentCategory]);
 
   return (
-    <div className="border-b border-border bg-background sticky top-0 z-20">
+    <div className="border-b border-white/10 bg-[#1A1F2E] sticky top-0 z-20">
       <div 
         ref={scrollContainerRef}
         className="flex overflow-x-auto hide-scrollbar px-4 py-3 gap-2"
@@ -38,8 +38,8 @@ export default function CategoryTabs() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
                 isActive 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-[#00BCD4] text-white shadow-sm shadow-[#00BCD4]/30" 
+                  : "bg-[#252D3D] text-[#B0B8C4] hover:bg-[#1F2833] hover:text-white"
               )}
             >
               <Icon className="w-4 h-4" />

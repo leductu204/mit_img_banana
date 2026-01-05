@@ -87,14 +87,9 @@ export default function TextToImageForm() {
         } else if (rawPrompt.includes("Expand the image with request:")) {
              const match = rawPrompt.match(/request: (.*?)\. Expand/);
              cleanPromptText = match ? match[1] : rawPrompt;
-             // Expand prompts ARE text prompts, so we might want to keep them in textarea?
-             // But the wrapper "Expand..." is system.
-             isSystem = false; // Treat as editable?
-             // Actually, if I put "starry night" in T2I, it works.
-             // So for Expand, I should setPrompt(cleanPromptText).
+             isSystem = false;
         }
 
-        // Only update form input if it's NOT a pure system operation like Restore/Upscale
         if (!isSystem) {
              setPrompt(cleanPromptText);
         }
@@ -102,7 +97,6 @@ export default function TextToImageForm() {
         if (selectedHistoryJob.model_id) setModel(selectedHistoryJob.model_id);
         if (selectedHistoryJob.aspect_ratio) setAspectRatio(selectedHistoryJob.aspect_ratio);
         
-        // Update metadata display with CLEAN text
         setLastUsedParams({
             prompt: cleanPromptText,
             model: selectedHistoryJob.model_id || model,
@@ -110,9 +104,6 @@ export default function TextToImageForm() {
         });
     }
   }, [selectedHistoryJob, setResult, model, aspectRatio]);
-
-
-
 
   // State for metadata display
   const [lastUsedParams, setLastUsedParams] = useState<{prompt: string; model: string; aspectRatio: string; resolution?: string} | null>(null);
@@ -129,7 +120,6 @@ export default function TextToImageForm() {
     setError(null);
     setCurrentJobStatus("starting");
 
-    // Capture params at start of generation
     const modelConfig = getModelConfig(model, 'image');
     const isPro = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
 
@@ -141,9 +131,6 @@ export default function TextToImageForm() {
     });
 
     try {
-      // API Logic (Dynamic based on ImageGenerator.tsx)
-      
-      // Dynamic endpoint based on model
       const endpoint = `/api/generate/image/${model}/generate`;
       
       const payload: any = {
@@ -166,7 +153,6 @@ export default function TextToImageForm() {
         updateCredits(genRes.credits_remaining);
       }
 
-      // Poll Status
       const checkStatus = async () => {
         try {
           const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`);
@@ -182,7 +168,7 @@ export default function TextToImageForm() {
             setLoading(false);
             toast.error(errorMsg);
           } else {
-            setTimeout(checkStatus, 5000); // Poll every 3s
+            setTimeout(checkStatus, 5000);
           }
         } catch (e: any) {
           setError(`Check status failed: ${e.message}`);
@@ -201,9 +187,9 @@ export default function TextToImageForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
       {/* Left Panel: Form */}
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Text to Image" 
           description="Biến ý tưởng thành hình ảnh"
@@ -215,40 +201,40 @@ export default function TextToImageForm() {
           {/* Prompt */}
           {settings.prompt?.enabled !== false && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">{settings.prompt?.label || "Mô tả ảnh (Prompt)"}</label>
+              <label className="text-sm font-medium text-[#B0B8C4]">{settings.prompt?.label || "Mô tả ảnh (Prompt)"}</label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={settings.prompt?.placeholder || "Một chú mèo phi hành gia trên sao Hỏa, digital art..."}
-                className="min-h-[140px] w-full resize-none rounded-md border border-input bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="min-h-[140px] w-full resize-none rounded-xl border border-[#6B7280] bg-[#252D3D] p-3 text-sm text-white placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#00BCD4] focus:border-[#00BCD4]"
               />
             </div>
           )}
 
           {/* Collapsible Advanced Settings */}
-          <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
+          <div className="rounded-xl bg-[#1F2833] border border-white/10 shadow-sm transition-all duration-200 hover:shadow-md hover:border-[#00BCD4]/30 group">
               <button 
                   onClick={() => setShowSettings(!showSettings)}
-                  className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
+                  className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-[#252D3D]/50' : 'bg-transparent hover:bg-[#252D3D]/30'}`}
               >
                   <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-pink-500/10 text-pink-500' : 'bg-muted text-muted-foreground group-hover:bg-pink-500/5 group-hover:text-pink-500'}`}>
+                      <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-[#00BCD4]/10 text-[#00BCD4]' : 'bg-[#252D3D] text-[#6B7280] group-hover:bg-[#00BCD4]/5 group-hover:text-[#00BCD4]'}`}>
                           <Settings className="w-4 h-4" />
                       </div>
                       <div className="text-left">
-                          <span className="block text-sm font-semibold text-foreground">Cấu hình nâng cao</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">Model, chất lượng & tốc độ</span>
+                          <span className="block text-sm font-semibold text-white">Cấu hình nâng cao</span>
+                          <span className="block text-xs text-[#6B7280] mt-0.5">Model, chất lượng & tốc độ</span>
                       </div>
                   </div>
                   {showSettings ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      <ChevronUp className="w-4 h-4 text-[#6B7280]" />
                   ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      <ChevronDown className="w-4 h-4 text-[#6B7280]" />
                   )}
               </button>
               
               {showSettings && (
-                  <div className="p-4 space-y-6 border-t border-border/50 animate-in slide-in-from-top-2 duration-300 ease-out bg-muted/10">
+                  <div className="p-4 space-y-6 border-t border-white/10 animate-in slide-in-from-top-2 duration-300 ease-out bg-[#252D3D]/30">
                       {/* Model Selector */}
                       <ModelSelector value={model} onChange={setModel} mode="image" />
 
@@ -289,25 +275,24 @@ export default function TextToImageForm() {
                       {/* Speed Selector */}
                       {settings.speed?.enabled !== false && (
                           <div className="space-y-2">
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tốc độ xử lý</label>
-                              <div className="flex bg-muted p-1 rounded-xl">
+                              <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Tốc độ xử lý</label>
+                              <div className="flex bg-black/20 p-1 rounded-xl">
                                   <button
                                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                                           speed === 'fast'
-                                              ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                              ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm'
+                                              : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                                       }`}
                                       onClick={() => setSpeed('fast')}
                                   >
                                       <Zap className="w-3.5 h-3.5" /> Nhanh
                                   </button>
-                                  {/* Only show Slow mode if enabled for model */}
                                   {(costsLoaded && (!modelCosts[model] || modelCosts[model].is_slow_mode_enabled !== 0)) && (
                                       <button
                                           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                                               speed === 'slow'
-                                                  ? 'bg-background text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                                                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                                  ? 'bg-green-500/20 text-green-400 shadow-sm'
+                                                  : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                                           }`}
                                           onClick={() => setSpeed('slow')}
                                       >
@@ -322,7 +307,7 @@ export default function TextToImageForm() {
           </div>
 
           {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
+            <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-sm flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
@@ -330,8 +315,8 @@ export default function TextToImageForm() {
         </div>
 
         {/* Action Button */}
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
@@ -339,10 +324,10 @@ export default function TextToImageForm() {
              <Button
                 onClick={handleGenerate}
                 disabled={loading || !prompt.trim() || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full font-medium h-11 rounded-xl shadow-sm transition-all duration-200 ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
                 {loading ? (
@@ -368,7 +353,7 @@ export default function TextToImageForm() {
       </div>
 
       {/* Right Panel: Result */}
-      <div className="flex-1 bg-muted/10 p-4 lg:p-8 overflow-hidden flex items-center justify-center">
+      <div className="flex-1 bg-[#0A0E13] p-4 lg:p-8 overflow-hidden flex items-center justify-center">
          <div className="w-full max-w-3xl relative">
             <ResultPreview 
                 loading={loading} 

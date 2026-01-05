@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Video, User, BookOpenText, CreditCard, Palette, Download } from 'lucide-react';
+import { Sparkles, Video, User, BookOpenText, CreditCard, Palette, Download, Layout } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
 import { ConcurrentLimitIndicator } from '../common/ConcurrentLimitIndicator';
 import QueueStatus from '../common/QueueStatus';
@@ -14,10 +14,11 @@ export default function Sidebar() {
     const { user, isAuthenticated } = useAuth();
 
     const navItems = [
-        { href: '/create-image', icon: Sparkles, label: 'Tạo ảnh' },
+        { href: '/image', icon: Sparkles, label: 'Tạo ảnh' },
         { href: '/studio', icon: Palette, label: 'Studio' },
+        { href: '/tools', icon: Layout, label: 'Tiện ích' },
         // { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
-        { href: '/create-video', icon: Video, label: 'Tạo Video' },
+        { href: '/video', icon: Video, label: 'Tạo Video' },
         { href: '/sora', icon: Download, label: 'Sora Downloader' },
         { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },

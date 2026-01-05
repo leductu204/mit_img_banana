@@ -1,24 +1,24 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, X, Image as ImageIcon, Plus } from 'lucide-react';
+import { X, ImagePlus, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ImageUploadProps {
     onImagesSelected: (files: File[]) => void;
     maxImages?: number;
     label?: React.ReactNode;
     description?: string;
+    compact?: boolean;
 }
 
 export default function ImageUpload({ 
     onImagesSelected, 
     maxImages = 5,
-    label = "Hình ảnh tham chiếu",
-    description 
+    label,
+    description,
+    compact = false
 }: ImageUploadProps) {
     const [previews, setPreviews] = useState<{ id: string; url: string; file: File }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const defaultDescription = `Tải lên tối đa ${maxImages} hình ảnh tham chiếu.`;
-    const finalDescription = description !== undefined ? description : defaultDescription;
 
     // Cleanup object URLs to avoid memory leaks
     useEffect(() => {
@@ -31,7 +31,6 @@ export default function ImageUpload({
         if (e.target.files) {
             addFiles(Array.from(e.target.files));
         }
-        // Reset input so same file can be selected again if needed
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -74,12 +73,16 @@ export default function ImageUpload({
 
     return (
         <div className="space-y-2">
-            {label && <label className="text-sm font-medium text-foreground">{label}</label>}
+            {label && (
+                <label className="text-sm font-medium text-[#B0B8C4] block">
+                    {label}
+                </label>
+            )}
             
             <div className="flex flex-wrap gap-3">
                 {/* Image Thumbnails */}
                 {previews.map((preview) => (
-                    <div key={preview.id} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-border bg-muted">
+                    <div key={preview.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-white/10 bg-[#252D3D]">
                         <img 
                             src={preview.url} 
                             alt="Reference" 
@@ -94,16 +97,28 @@ export default function ImageUpload({
                     </div>
                 ))}
 
-                {/* Add Button */}
+                {/* Add Button - Dashed Dropzone */}
                 {previews.length < maxImages && (
                     <div 
                         onClick={() => fileInputRef.current?.click()}
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
-                        className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-accent/50 flex flex-col items-center justify-center cursor-pointer transition-all"
+                        className={cn(
+                            "border border-dashed border-[#6B7280] bg-[#252D3D]/50 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#00BCD4] hover:bg-[#252D3D] transition-all cursor-pointer group",
+                            (previews.length === 0 && !compact) ? "w-full p-6 h-[140px]" : "w-20 h-20 p-0"
+                        )}
                     >
-                        <Plus className="h-6 w-6 text-muted-foreground" />
-                        <input 
+                        {(previews.length === 0 && !compact) ? (
+                            <>
+                                <div className="p-3 bg-[#1F2833] rounded-full group-hover:scale-110 transition-transform">
+                                    <ImagePlus className="text-[#6B7280] group-hover:text-[#00BCD4] w-6 h-6" />
+                                </div>
+                                <p className="text-xs text-[#6B7280] text-center">Kéo thả hoặc nhấn để tải ảnh lên</p>
+                            </>
+                        ) : (
+                             <Plus className="h-6 w-6 text-[#6B7280] group-hover:text-[#00BCD4] transition-colors" />
+                        )}
+                         <input 
                             type="file" 
                             ref={fileInputRef} 
                             className="hidden" 
@@ -114,8 +129,8 @@ export default function ImageUpload({
                     </div>
                 )}
             </div>
-            {previews.length === 0 && finalDescription && (
-                <p className="text-xs text-muted-foreground">{finalDescription}</p>
+            {description && (
+                <p className="text-xs text-[#6B7280]">{description}</p>
             )}
         </div>
     );

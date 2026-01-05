@@ -10,7 +10,7 @@ import ResultPreview from "../shared/ResultPreview";
 import ImageUpload from "@/components/generators/ImageUpload";
 import InsufficientCreditsModal from "@/components/common/InsufficientCreditsModal";
 import AspectRatioSelector from "@/components/generators/AspectRatioSelector";
-import { Eraser, AlertCircle, Settings, ChevronUp, ChevronDown, Zap, Coins } from "lucide-react";
+import { Eraser, AlertCircle, Settings, ChevronUp, ChevronDown, Zap, Coins, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { NEXT_PUBLIC_API } from "@/lib/config";
 import { getAuthHeader } from "@/lib/auth";
@@ -148,8 +148,8 @@ export default function RemoveBackgroundForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Remove Background" 
           description="Tách nền tự động trong vài giây"
@@ -166,35 +166,43 @@ export default function RemoveBackgroundForm() {
             />
           </div>
 
-          <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-            <p>💡 Mẹo: Chọn ảnh có chủ thể rõ ràng để có kết quả tốt nhất.</p>
+          <div className="p-4 bg-[#1F2833] border border-white/10 rounded-xl text-sm text-[#94A3B8]">
+            <p className="flex items-center gap-2">
+                <span className="text-[#00BCD4]">💡</span>
+                Mẹo: Chọn ảnh có chủ thể rõ ràng để có kết quả tốt nhất.
+            </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
-                {loading ? "Đang xử lý..." : "Tách Nền Ngay"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Tách Nền Ngay"}
+            </button>
         </div>
 
         <InsufficientCreditsModal
@@ -205,7 +213,7 @@ export default function RemoveBackgroundForm() {
         />
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden flex flex-col">
          {/* Transparency Grid Background for Result */}
          <div className="flex-1 relative">
             <ResultPreview 

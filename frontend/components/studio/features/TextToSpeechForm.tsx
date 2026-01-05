@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Button from "@/components/common/Button";
 import FeatureHeader from "../shared/FeatureHeader";
-import { Mic, Volume2, PlayCircle } from "lucide-react";
+import { Mic, Volume2, PlayCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import ResultPreview from "../shared/ResultPreview";
 
@@ -35,8 +35,8 @@ export default function TextToSpeechForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Text to Speech" 
           description="Chuyển văn bản thành giọng nói tự nhiên"
@@ -46,26 +46,26 @@ export default function TextToSpeechForm() {
 
         <div className="space-y-6 flex-1">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Văn bản cần đọc</label>
+            <label className="text-sm font-medium text-[#B0B8C4]">Văn bản cần đọc</label>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Nhập nội dung vào đây..."
-              className="min-h-[140px] w-full resize-none rounded-md border border-input bg-background p-3 text-sm focus:ring-primary"
+              className="min-h-[140px] w-full resize-none rounded-xl border border-[#6B7280] bg-[#252D3D] p-3 text-sm text-white placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4]"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Chọn giọng đọc</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm font-medium text-[#B0B8C4]">Chọn giọng đọc</label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-black/20 rounded-xl">
                 {VOICES.map((v) => (
                     <button
                         key={v.id}
                         onClick={() => setVoice(v.id)}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-all text-left flex items-center gap-2 ${
+                        className={`p-3 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-2 ${
                             voice === v.id 
-                                ? 'bg-primary text-primary-foreground border-primary' 
-                                : 'bg-background hover:bg-muted border-input'
+                                ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm' 
+                                : 'text-[#B0B8C4] hover:text-white hover:bg-white/5'
                         }`}
                     >
                         <Volume2 className="w-3.5 h-3.5" /> {v.name}
@@ -75,18 +75,27 @@ export default function TextToSpeechForm() {
           </div>
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <Button
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <button
                 onClick={handleGenerate}
                 disabled={loading || !text.trim()}
-                className="w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 bg-[#0F766E] hover:bg-[#0D655E] text-white"
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
+                    loading || !text.trim()
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
+                }`}
             >
-                {loading ? "Đang xử lý..." : "Đọc Ngay"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Đọc Ngay"}
+            </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex items-center justify-center">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden flex items-center justify-center">
          <ResultPreview
             loading={loading}
             resultUrl={result}

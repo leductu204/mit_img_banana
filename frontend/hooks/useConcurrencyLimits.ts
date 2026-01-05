@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 
@@ -11,7 +11,9 @@ export interface ConcurrentLimitDetails {
 
 export interface UserLimitsResponse {
     plan_id: string;
-    plan_name?: string;
+    plan_name: string;
+    plan_description?: string;
+    plan_expires_at?: string;
     limits: ConcurrentLimitDetails;
     active_counts: ConcurrentLimitDetails;
     pending_counts: ConcurrentLimitDetails;
@@ -22,7 +24,7 @@ export function useConcurrencyLimits(refreshInterval = 0) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
-    const fetchLimits = async () => {
+    const fetchLimits = useCallback(async () => {
         try {
             // Check if we have a token first (simple check to avoid 401 loops on public pages)
             const token = getToken();
@@ -40,7 +42,7 @@ export function useConcurrencyLimits(refreshInterval = 0) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchLimits();

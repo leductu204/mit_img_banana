@@ -13,9 +13,10 @@ import FeatureHeader from "../shared/FeatureHeader";
 import ResultPreview from "../shared/ResultPreview";
 import ImageUpload from "@/components/generators/ImageUpload";
 import InsufficientCreditsModal from "@/components/common/InsufficientCreditsModal";
-import { Sparkles, AlertCircle, Zap, Settings, ChevronUp, ChevronDown, Coins } from "lucide-react";
+import { Sparkles, AlertCircle, Zap, Settings, ChevronUp, ChevronDown, Coins, Loader2 } from "lucide-react";
 import { getFeatureById } from "@/lib/studio-config";
 import { useStudio } from "../StudioContext";
+import { cn } from "@/lib/utils";
 
 export default function ImageEditorForm() {
   const feature = getFeatureById('image-editor');
@@ -204,8 +205,9 @@ export default function ImageEditorForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      {/* Left Panel - Form */}
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Image Editor" 
           description="Chỉnh sửa chi tiết với mô tả văn bản"
@@ -228,41 +230,47 @@ export default function ImageEditorForm() {
           {/* Prompt */}
           {settings.prompt?.enabled !== false && (
             <div className="space-y-2">
-                <label className="text-sm font-medium">{settings.prompt?.label || "Bạn muốn sửa gì?"}</label>
+                <label className="text-sm font-medium text-[#B0B8C4]">{settings.prompt?.label || "Bạn muốn sửa gì?"}</label>
                 <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={settings.prompt?.placeholder || "Thêm một chiếc mũ màu đỏ, đổi màu tóc thành vàng..."}
-                className="min-h-[100px] w-full resize-none rounded-md border border-input bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="min-h-[100px] w-full resize-none rounded-xl border border-[#6B7280] bg-[#252D3D] p-3 text-sm text-white placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4]"
                 />
             </div>
           )}
 
           {/* Collapsible Advanced Settings */}
-          <div className="rounded-xl bg-card border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-pink-500/20 group">
+          <div className="rounded-xl bg-[#1F2833] border border-white/10 shadow-sm transition-all duration-200">
               <button 
                   onClick={() => setShowSettings(!showSettings)}
-                  className={`w-full flex items-center justify-between p-4 transition-all duration-200 ${showSettings ? 'bg-muted/30' : 'bg-transparent hover:bg-muted/20'}`}
+                  className={cn(
+                      "w-full flex items-center justify-between p-4 transition-all duration-200 rounded-xl",
+                      showSettings ? 'bg-[#252D3D]' : 'hover:bg-[#252D3D]/50'
+                  )}
               >
                   <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-pink-500/10 text-pink-500' : 'bg-muted text-muted-foreground group-hover:bg-pink-500/5 group-hover:text-pink-500'}`}>
+                      <div className={cn(
+                          "p-2 rounded-lg transition-colors",
+                          showSettings ? 'bg-[#00BCD4]/10 text-[#00BCD4]' : 'bg-[#252D3D] text-[#6B7280]'
+                      )}>
                           <Settings className="w-4 h-4" />
                       </div>
                       <div className="text-left">
-                          <span className="block text-sm font-semibold text-foreground">Cấu hình nâng cao</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">Tỷ lệ khung hình, chất lượng & tốc độ</span>
+                          <span className="block text-sm font-semibold text-white">Cấu hình nâng cao</span>
+                          <span className="block text-xs text-[#6B7280] mt-0.5">Tỷ lệ khung hình, chất lượng & tốc độ</span>
                       </div>
                   </div>
                   {showSettings ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      <ChevronUp className="w-4 h-4 text-[#6B7280]" />
                   ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      <ChevronDown className="w-4 h-4 text-[#6B7280]" />
                   )}
               </button>
               
               {showSettings && (
-                  <div className="p-4 space-y-6 border-t border-border/50 animate-in slide-in-from-top-2 duration-300 ease-out bg-muted/10">
-                      {/* Aspect Ratio Only */}
+                  <div className="p-4 space-y-6 border-t border-white/10 animate-in slide-in-from-top-2 duration-300 ease-out bg-[#252D3D]/50">
+                      {/* Aspect Ratio */}
                       {settings.aspectRatio?.enabled !== false && (() => {
                           const modelConfig = getModelConfig(model, 'image');
                           const ratiosToShow = costsLoaded && dynamicAspectRatios.length > 0
@@ -271,7 +279,7 @@ export default function ImageEditorForm() {
                           
                           return (
                               <div className="space-y-2">
-                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tỷ lệ khung hình</label>
+                                <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Tỷ lệ khung hình</label>
                                 <AspectRatioSelector 
                                     value={aspectRatio} 
                                     onChange={setAspectRatio} 
@@ -285,40 +293,41 @@ export default function ImageEditorForm() {
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || !prompt.trim() || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
-                    balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
-                }`}
+                className={cn(
+                    "w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98]",
+                    loading || !prompt.trim() || referenceImages.length === 0 || balance < estimatedCost
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
+                )}
             >
                 {loading ? (
                     <>
-                        <Sparkles className="mr-2 h-4 w-4 animate-spin" /> 
+                        <Loader2 className="w-5 h-5 animate-spin" /> 
                         Đang xử lý...
                     </>
                 ) : (
                     <>
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <Sparkles className="w-5 h-5" />
                         Chỉnh Sửa Ảnh
                     </>
                 )}
-            </Button>
+            </button>
         </div>
 
         <InsufficientCreditsModal
@@ -329,7 +338,8 @@ export default function ImageEditorForm() {
         />
       </div>
 
-         <div className="flex-1 bg-muted/10 p-4 lg:p-8 overflow-hidden flex items-center justify-center">
+       {/* Right Panel - Result Preview */}
+       <div className="flex-1 bg-[#0A0E13] p-4 lg:p-8 overflow-hidden flex items-center justify-center">
             <div className="w-full max-w-3xl relative">
               <ResultPreview 
                  loading={loading} 

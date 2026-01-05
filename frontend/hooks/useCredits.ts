@@ -285,14 +285,43 @@ export function useCredits() {
         const firstKey = keys[0];
         const firstValue = costs[firstKey];
         
-        // If the value is a number, this model has direct aspect ratios (no resolutions)
-        if (typeof firstValue === 'number') {
-            return [];
-        }
+        // If the value is a number, it could be a flat structure (nano-banana: aspect ratios, OR nano-banana-pro: resolutions)
+        // We must check if we can parse resolutions from keys before giving up.
+        // if (typeof firstValue === 'number') {
+        //    return [];
+        // }
         
         // If the value is an object, these are resolution tiers
         if (typeof firstValue === 'object' && firstValue !== null) {
             return keys;
+        }
+
+        // Flat structure - parse keys to extract resolutions
+        const resolutions = new Set<string>();
+        keys.forEach(key => {
+            // Check for known resolution prefixes or patterns
+            // nano-banana-pro: "1k-...", "2k-...", "4k-..."
+            // kling: "720p-...", "1080p-..."
+            
+            const parts = key.split('-');
+            if (parts.length > 0) {
+                const possibleRes = parts[0];
+                // Heuristic: contains 'k' (1k, 2k, 4k) or 'p' (720p, 1080p)
+                if (possibleRes.match(/^[0-9]+[kp]$/)) {
+                    resolutions.add(possibleRes);
+                }
+            }
+        });
+
+        if (resolutions.size > 0) {
+             // Sort numerically if possible? 1k < 2k < 4k, 720p < 1080p
+             return Array.from(resolutions).sort((a, b) => {
+                 const aNum = parseInt(a.replace(/[kp]/g, ''));
+                 const bNum = parseInt(b.replace(/[kp]/g, ''));
+                 if (a.endsWith('k') && b.endsWith('k')) return aNum - bNum;
+                 if (a.endsWith('p') && b.endsWith('p')) return aNum - bNum;
+                 return a.localeCompare(b);
+             });
         }
         
         return [];

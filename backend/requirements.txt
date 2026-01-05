@@ -31,3 +31,6 @@ selenium>=4.15.0
 
 # Production Server (for VPS deployment)
 gunicorn>=21.2.0
+
+# Payment
+payos>=1.0.0

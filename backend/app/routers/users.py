@@ -139,7 +139,10 @@ async def get_limits(
     active_counts = ConcurrencyService.get_active_job_counts(current_user.user_id)
     
     return UserLimitsResponse(
-        plan_id=plan_limits.get("plan_name", "Unknown"),
+        plan_id=str(plan_limits.get("plan_id", "1")),
+        plan_name=plan_limits.get("plan_name", "Free"),
+        plan_description=plan_limits.get("plan_description"),
+        plan_expires_at=plan_limits.get("plan_expires_at"),
         limits=ConcurrentLimitDetails(
             total=plan_limits["total_concurrent_limit"],
             image=plan_limits["image_concurrent_limit"],

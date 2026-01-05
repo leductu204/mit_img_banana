@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Sparkles, AlertCircle } from "lucide-react";
+import { User, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useGenerateImage } from "@/hooks/useGenerateImage";
 import { useCredits } from "@/hooks/useCredits";
@@ -166,8 +166,8 @@ export default function ProfileImageGeneratorForm() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-border p-6 flex flex-col overflow-y-auto">
+    <div className="flex flex-col lg:flex-row h-full bg-[#0A0E13]">
+      <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-white/10 p-6 flex flex-col overflow-y-auto bg-[#1A1F2E]">
         <FeatureHeader 
           title="Profile Image Generator" 
           description="Tạo ảnh đại diện chuyên nghiệp theo phong cách"
@@ -185,16 +185,16 @@ export default function ProfileImageGeneratorForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Chọn phong cách</label>
+            <label className="text-sm font-medium text-[#B0B8C4]">Chọn phong cách</label>
             <div className="grid grid-cols-2 gap-2">
                 {STYLES.map((style) => (
                     <button
                         key={style.id}
                         onClick={() => setSelectedStyle(style.id)}
-                        className={`p-4 rounded-lg border text-sm font-medium transition-all flex flex-col items-center gap-2 ${
+                        className={`p-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center gap-2 ${
                             selectedStyle === style.id 
-                                ? 'bg-primary text-primary-foreground border-primary' 
-                                : 'bg-background hover:bg-muted border-input'
+                                ? 'bg-[#00BCD4]/20 text-[#00BCD4] shadow-sm ring-1 ring-[#00BCD4]' 
+                                : 'bg-black/20 text-[#B0B8C4] hover:bg-white/5 hover:text-white'
                         }`}
                     >
                         <span className="text-3xl">{style.thumbnail}</span>
@@ -205,50 +205,55 @@ export default function ProfileImageGeneratorForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium text-[#B0B8C4]">
                 Tùy chỉnh thêm (tùy chọn)
             </label>
             <textarea
                 value={additionalPrompt}
                 onChange={(e) => setAdditionalPrompt(e.target.value)}
                 placeholder="Ví dụ: đeo kính, làm đẹp, làm tấm ảnh nhiều màu sắc..."
-                className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-[#6B7280] bg-[#252D3D] text-white placeholder:text-[#6B7280] focus:outline-none focus:border-[#00BCD4] focus:ring-1 focus:ring-[#00BCD4] resize-none"
                 rows={3}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B7280]">
                 Thêm chi tiết tùy chỉnh để điều chỉnh kết quả theo ý bạn
             </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl flex items-start gap-2 border border-red-500/20">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-border">
-             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+        <div className="mt-8 pt-4 border-t border-white/10">
+             <div className="flex items-center justify-between text-xs text-[#6B7280] mb-3">
                 <span>Chi phí: {estimatedCost} credits</span>
                 <span>Số dư: {balance}</span>
              </div>
              
-             <Button
+             <button
                 onClick={handleGenerate}
                 disabled={loading || referenceImages.length === 0 || balance < estimatedCost}
-                className={`w-full font-medium h-11 rounded-md shadow-sm transition-all duration-200 ${
+                className={`w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] ${
                     balance < estimatedCost 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#0F766E] hover:bg-[#0D655E] text-white'
+                        ? 'bg-[#6B7280]/50 cursor-not-allowed text-[#B0B8C4]' 
+                        : 'bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-[0_0_15px_rgba(0,188,212,0.3)]'
                 }`}
             >
-                {loading ? "Đang xử lý..." : "Tạo Avatar"}
-            </Button>
+                {loading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" /> 
+                        Đang xử lý...
+                    </>
+                ) : "Tạo Avatar"}
+            </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/20 p-6 lg:p-10 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[#0A0E13] p-6 lg:p-10 overflow-hidden flex flex-col">
          <ResultPreview 
             loading={loading} 
             resultUrl={result?.image_url} 
