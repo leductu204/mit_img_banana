@@ -336,7 +336,7 @@ def seed_subscription_plans(conn):
         # ID 2: Starter
         {
             "name": "Starter",
-            "price": 49000.0,
+            "price": 99000.0,
             "total_concurrent_limit": 2,
             "image_concurrent_limit": 1,
             "video_concurrent_limit": 1,
@@ -346,7 +346,7 @@ def seed_subscription_plans(conn):
         # ID 3: Professional
         {
             "name": "Professional",
-            "price": 149000.0,
+            "price": 199000.0,
             "total_concurrent_limit": 4,
             "image_concurrent_limit": 2,
             "video_concurrent_limit": 2,

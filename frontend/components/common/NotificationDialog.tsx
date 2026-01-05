@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import Button from './Button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -11,6 +12,7 @@ interface NotificationDialogProps {
 }
 
 export default function NotificationDialog({ onClose }: NotificationDialogProps) {
+    const pathname = usePathname()
     const [isOpen, setIsOpen] = useState(false)
     const [title, setTitle] = useState("Thông báo")
     const [content, setContent] = useState<string>("")
@@ -25,6 +27,9 @@ export default function NotificationDialog({ onClose }: NotificationDialogProps)
                     const data = await res.json()
                     
                     if (data.notification_active === 'true') {
+                        // Don't show on landing page
+                        if (pathname === '/') return
+                        
                         // Check if this specific message was dismissed
                         const dismissedMessage = localStorage.getItem('dismissed_notification_content')
                         

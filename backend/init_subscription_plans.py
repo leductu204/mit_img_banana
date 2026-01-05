@@ -35,8 +35,8 @@ def init_subscription_plans():
         # Insert or update plans
         plans = [
             (1, 'Free', 0.0, 2, 1, 1, 'Basic plan for casual users'),
-            (2, 'Starter', 49000.0, 2, 1, 1, 'Gói Trải Nghiệm'),
-            (3, 'Professional', 149000.0, 4, 2, 2, 'Gói Tiết Kiệm'),
+            (2, 'Starter', 99000.0, 2, 1, 1, 'Gói Trải Nghiệm'),
+            (3, 'Professional', 199000.0, 4, 2, 2, 'Gói Tiết Kiệm'),
             (4, 'Business', 499000.0, 6, 3, 3, 'Gói Sáng Tạo')
         ]
         

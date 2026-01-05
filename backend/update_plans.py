@@ -1,11 +1,21 @@
 import sqlite3
 import os
 
-db_path = "backend/database/app.db"
+# Try common locations
+possible_paths = [
+    "database/app.db",          # Running from /backend
+    "backend/database/app.db",  # Running from root
+]
+
+db_path = None
+for p in possible_paths:
+    if os.path.exists(p):
+        db_path = p
+        break
 
 def update_plans():
-    if not os.path.exists(db_path):
-        print(f"Error: {db_path} not found")
+    if not db_path:
+        print(f"Error: Database not found in any of: {possible_paths}")
         return
 
     print(f"Connecting to {db_path}...")
