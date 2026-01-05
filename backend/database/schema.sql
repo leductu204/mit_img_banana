@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
     job_id TEXT,
-    type TEXT NOT NULL CHECK (type IN ('deduct', 'refund', 'admin_add', 'admin_reset', 'initial')),
+    type TEXT NOT NULL CHECK (type IN ('deduct', 'refund', 'admin_add', 'admin_reset', 'initial', 'payment_success')),
     amount INTEGER NOT NULL,
     balance_before INTEGER NOT NULL,
     balance_after INTEGER NOT NULL,
@@ -85,6 +85,25 @@ CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON credit_transactions(cr
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON credit_transactions(type);
 
 -- ============================================
+-- ORDERS TABLE (PAYMENT)
+-- Stores payment orders
+-- ============================================
+CREATE TABLE IF NOT EXISTS orders (
+    order_code INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    plan_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    payment_link_id TEXT,
+    checkout_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+
+-- ============================================
 -- SUBSCRIPTION PLANS TABLE
 -- Defines concurrent limits per plan
 -- ============================================
@@ -96,16 +115,17 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
     image_concurrent_limit INTEGER NOT NULL DEFAULT 1,
     video_concurrent_limit INTEGER NOT NULL DEFAULT 1,
     description TEXT,
+    queue_limit INTEGER NOT NULL DEFAULT 5,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Seed default subscription plans
-INSERT OR IGNORE INTO subscription_plans (plan_id, name, price, total_concurrent_limit, image_concurrent_limit, video_concurrent_limit, description)
+INSERT OR IGNORE INTO subscription_plans (plan_id, name, price, total_concurrent_limit, image_concurrent_limit, video_concurrent_limit, queue_limit, description)
 VALUES 
-    (1, 'Free', 0.0, 2, 1, 1, 'Basic plan for casual users'),
-    (2, 'Starter', 49000.0, 2, 1, 1, 'Gói Trải Nghiệm'),
-    (3, 'Professional', 149000.0, 4, 2, 2, 'Gói Tiết Kiệm'),
-    (4, 'Business', 499000.0, 6, 3, 3, 'Gói Sáng Tạo');
+    (1, 'Free', 0.0, 2, 1, 1, 3, 'Basic plan for casual users'),
+    (2, 'Starter', 49000.0, 2, 1, 1, 5, 'Gói Trải Nghiệm'),
+    (3, 'Professional', 149000.0, 4, 2, 2, 15, 'Gói Tiết Kiệm'),
+    (4, 'Business', 499000.0, 6, 3, 3, 30, 'Gói Sáng Tạo');
 
 -- ============================================
 -- ADMINS TABLE

@@ -89,6 +89,46 @@ def execute_in_transaction(operations: Callable[[sqlite3.Connection], Any]) -> A
         conn.close()
 
 
+def init_orders_table(conn=None) -> None:
+    """
+    Initialize orders table for payment processing.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                order_code INTEGER PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                plan_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                status TEXT DEFAULT 'PENDING',
+                payment_link_id TEXT,
+                checkout_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            );
+        """)
+        
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+        """)
+        
+        conn.commit()
+        print("Orders table initialized successfully")
+        
+    except Exception as e:
+        print(f"Error initializing orders table: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
+
+
 def init_higgsfield_accounts_table(conn=None) -> None:
     """
     Initialize Higgsfield Accounts table for managing multiple provider accounts.
@@ -180,6 +220,9 @@ def init_database() -> None:
         
         # Initialize Higgsfield Accounts table
         init_higgsfield_accounts_table(conn)
+        
+        # Initialize Orders table
+        init_orders_table(conn)
         
     except Exception as e:
         print(f"Error initializing database: {e}")
