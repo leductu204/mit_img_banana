@@ -261,11 +261,11 @@ function PricingContent() {
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-white tracking-wide">
-                                Tiệc cuối năm - <span className="bg-gradient-to-r from-[#00BCD4] to-[#67E8F9] bg-clip-text text-transparent">Khuyến mãi Credits!</span>
+                                Đại Tiệc AI - <span className="bg-gradient-to-r from-[#00BCD4] to-[#67E8F9] bg-clip-text text-transparent">Khuyến mãi Credits!</span>
                             </h3>
                             <p className="text-slate-400 text-sm mt-2 leading-relaxed max-w-xl">
                                 Nạp credit ngay hôm nay để nhận bonus tới <span className="text-[#00BCD4] font-semibold">75% Credits</span>. 
-                                Ưu đãi hấp dẫn này chỉ có hiệu lực đến hết ngày <span className="text-white font-medium">31/12/2025</span>.
+                                Ưu đãi hấp dẫn này chỉ có hiệu lực đến hết ngày <span className="text-white font-medium">15/01/2026</span>.
                             </p>
                         </div>
                     </div>
