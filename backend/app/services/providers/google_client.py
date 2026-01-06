@@ -83,24 +83,8 @@ class GoogleVeoClient:
             'content-type': 'text/plain;charset=UTF-8',
             'origin': 'https://labs.google',
             'priority': 'u=1, i',
-            'referer': 'https://labs.google/',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'cross-site',
-            'x-browser-channel': 'stable',
-            'x-browser-copyright': 'Copyright 2025 Google LLC. All Rights reserved.',
-            'x-browser-validation': 'Aj9fzfu+SaGLBY9Oqr3S7RokOtM=', 
-            'x-browser-year': '2025',
+            'referer': 'https://labs.google/'
         }
-        
-        # Use provided UA or default to Chrome v143
-        ua = user_agent or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
-        headers['user-agent'] = ua
-        
-        # Always use the exact sec-ch-ua requested by user for consistency
-        headers['sec-ch-ua'] = '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"'
         
         return headers
 

@@ -11,7 +11,7 @@ import tempfile
 import platform
 
 
-def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
+def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', proxy: str = None):
     """
     Solves reCAPTCHA v3 Enterprise.
     Opens NEW Chrome instance -> Gets token -> Closes Chrome.
@@ -67,11 +67,6 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION'):
         
         # Anti-detection: REMOVE automation indicators
         options.add_argument('--disable-blink-features=AutomationControlled')
-        
-        # Realistic user agent - Set to Chrome v143
-        fixed_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-        options.add_argument(f'--user-agent={fixed_ua}')
-        
         
         # Detect Chrome version and use appropriate driver
         version = None  # Will be set below
