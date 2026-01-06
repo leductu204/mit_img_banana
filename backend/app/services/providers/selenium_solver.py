@@ -1,4 +1,4 @@
-"""
+﻿"""
 Selenium CAPTCHA solver using undetected-chromedriver.
 Simple approach: Open Chrome -> Get token -> Close Chrome
 Each call creates a NEW Chrome instance with isolated profile.
@@ -9,6 +9,7 @@ import random
 import os
 import tempfile
 import platform
+import json
 
 
 def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', proxy: str = None):
@@ -100,40 +101,59 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
                 
                 background_js = """
                 var config = {
-                        mode: "fixed_servers",
-                        rules: {
-                          singleProxy: {
+                    mode: "fixed_servers",
+                    rules: {
+                        singleProxy: {
                             scheme: "socks5",
                             host: "%s",
                             port: parseInt(%s)
-                          },
-                          bypassList: ["localhost"]
-                        }
-                      };
+                        },
+                        bypassList: ["localhost", "127.0.0.1"]
+                    }
+                };
 
                 chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
 
                 chrome.webRequest.onAuthRequired.addListener(
-                        function(details) {
-                            return {
-                                authCredentials: {
-                                    username: "%s",
-                                    password: "%s"
-                                }
-                            };
-                        },
-                        {urls: ["<all_urls>"]},
-                        ['blocking']
+                    function(details) {
+                        return {
+                            authCredentials: {
+                                username: "%s",
+                                password: "%s"
+                            }
+                        };
+                    },
+                    {urls: ["<all_urls>"]},
+                    ["blocking"]
                 );
                 """ % (host, port, user, password)
                 
                 extension_dir = tempfile.mkdtemp(prefix='proxy_ext_')
                 with open(os.path.join(extension_dir, "manifest.json"), 'w') as f:
-                    f.write(manifest_json)
+                    # Use Manifest V2 as it is more stable for webRequestBlocking
+                    f.write(json.dumps({
+                        "version": "1.0.0",
+                        "manifest_version": 2,
+                        "name": "Chrome Proxy",
+                        "permissions": [
+                            "proxy",
+                            "tabs",
+                            "unlimitedStorage",
+                            "storage",
+                            "<all_urls>",
+                            "webRequest",
+                            "webRequestBlocking"
+                        ],
+                        "background": {
+                            "scripts": ["background.js"]
+                        }
+                    }))
                 with open(os.path.join(extension_dir, "background.js"), 'w') as f:
                     f.write(background_js)
                     
                 options.add_argument(f'--load-extension={extension_dir}')
+                # CRITICAL: We also need to set this to enable the proxy system to initialize
+                options.add_argument(f'--proxy-server=socks5://{host}:{port}')
             else:
                 print(f"[*] Configuring simple proxy: {proxy}")
                 options.add_argument(f'--proxy-server={proxy}')
@@ -178,7 +198,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
         )
         
         
-        print(f"[*] ✓ Chrome window should be VISIBLE now!")
+        print(f"[*] âœ“ Chrome window should be VISIBLE now!")
         print(f"[*] Check if you can see Chrome window on screen...")
         
         # Set timeouts
@@ -188,6 +208,20 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
         # Navigate to site
         print(f"[*] Navigating to {site_url}...")
         driver.get(site_url)
+        
+        # --- BROWSER IP VERIFICATION ---
+        try:
+            print("[*] Verifying BROWSER IP...")
+            driver.execute_script("window.open('https://api64.ipify.org?format=json', '_blank');")
+            time.sleep(3)
+            driver.switch_to.window(driver.window_handles[-1])
+            browser_ip_text = driver.find_element("xpath", "//pre" if "json" in driver.current_url else "//body").text
+            print(f"[*] BROWSER RESPONSE: {browser_ip_text}")
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+        except Exception as e:
+            print(f"[*] Warning: Could not verify browser IP: {e}")
+        # -------------------------------
         
         # Human-like delay (longer to appear more natural)
         delay = random.uniform(2.0, 4.0)
@@ -248,7 +282,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
         if not token or len(token) < 50:
             raise ValueError(f"Invalid token received: {token}")
         
-        print(f"[*] ✓ Token received ({len(token)} chars)")
+        print(f"[*] âœ“ Token received ({len(token)} chars)")
         print(f"[*] Token: {token[:50]}...{token[-20:]}")
         
         # Keep window open a bit longer for verification
@@ -267,7 +301,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
             try:
                 print(f"[*] Closing Chrome instance...")
                 driver.quit()
-                print(f"[*] ✓ Chrome closed")
+                print(f"[*] âœ“ Chrome closed")
             except:
                 pass
         
@@ -287,3 +321,4 @@ def cleanup_chrome():
     """
     print("[*] Cleanup called (no-op in non-persistent mode)")
     pass
+
