@@ -68,6 +68,77 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
         # Anti-detection: REMOVE automation indicators
         options.add_argument('--disable-blink-features=AutomationControlled')
         
+        # Proxy support
+        if proxy:
+            # Format: host:port:user:pass
+            parts = proxy.split(':')
+            if len(parts) == 4:
+                host, port, user, password = parts
+                print(f"[*] Configuring authenticated SOCKS5 proxy: {host}:{port}")
+                
+                # Create a Chrome extension for SOCKS5 authentication
+                manifest_json = """
+                {
+                    "version": "1.0.0",
+                    "manifest_version": 2,
+                    "name": "Chrome Proxy",
+                    "permissions": [
+                        "proxy",
+                        "tabs",
+                        "unlimitedStorage",
+                        "storage",
+                        "<all_urls>",
+                        "webRequest",
+                        "webRequestBlocking"
+                    ],
+                    "background": {
+                        "scripts": ["background.js"]
+                    },
+                    "minimum_chrome_version":"22.0.0"
+                }
+                """
+                
+                background_js = """
+                var config = {
+                        mode: "fixed_servers",
+                        rules: {
+                          singleProxy: {
+                            scheme: "socks5",
+                            host: "%s",
+                            port: parseInt(%s)
+                          },
+                          bypassList: ["localhost"]
+                        }
+                      };
+
+                chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
+
+                chrome.webRequest.onAuthRequired.addListener(
+                        function(details) {
+                            return {
+                                authCredentials: {
+                                    username: "%s",
+                                    password: "%s"
+                                }
+                            };
+                        },
+                        {urls: ["<all_urls>"]},
+                        ['blocking']
+                );
+                """ % (host, port, user, password)
+                
+                extension_dir = tempfile.mkdtemp(prefix='proxy_ext_')
+                with open(os.path.join(extension_dir, "manifest.json"), 'w') as f:
+                    f.write(manifest_json)
+                with open(os.path.join(extension_dir, "background.js"), 'w') as f:
+                    f.write(background_js)
+                    
+                options.add_argument(f'--load-extension={extension_dir}')
+            else:
+                print(f"[*] Configuring simple proxy: {proxy}")
+                options.add_argument(f'--proxy-server={proxy}')
+        
+        
         # Detect Chrome version and use appropriate driver
         version = None  # Will be set below
         
