@@ -27,11 +27,15 @@ class EnvSettingsResponse(BaseModel):
     HIGGSFIELD_SSES: str
     HIGGSFIELD_COOKIE: str
     GOOGLE_VEO_COOKIE: str
+    PROXY_ENABLED: str
+    PROXY_URL: str
 
 class UpdateEnvRequest(BaseModel):
     HIGGSFIELD_SSES: Optional[str] = None
     HIGGSFIELD_COOKIE: Optional[str] = None
     GOOGLE_VEO_COOKIE: Optional[str] = None
+    PROXY_ENABLED: Optional[str] = None
+    PROXY_URL: Optional[str] = None
 
 @router.get("/env", response_model=EnvSettingsResponse)
 async def get_env_settings(
@@ -44,7 +48,9 @@ async def get_env_settings(
     return {
         "HIGGSFIELD_SSES": get_key(env_path, "HIGGSFIELD_SSES") or "",
         "HIGGSFIELD_COOKIE": get_key(env_path, "HIGGSFIELD_COOKIE") or "",
-        "GOOGLE_VEO_COOKIE": get_key(env_path, "GOOGLE_VEO_COOKIE") or ""
+        "GOOGLE_VEO_COOKIE": get_key(env_path, "GOOGLE_VEO_COOKIE") or "",
+        "PROXY_ENABLED": get_key(env_path, "PROXY_ENABLED") or "false",
+        "PROXY_URL": get_key(env_path, "PROXY_URL") or ""
     }
 
 @router.put("/env")
@@ -73,7 +79,9 @@ async def update_env_settings(
     updates = {
         "HIGGSFIELD_SSES": body.HIGGSFIELD_SSES,
         "HIGGSFIELD_COOKIE": body.HIGGSFIELD_COOKIE,
-        "GOOGLE_VEO_COOKIE": body.GOOGLE_VEO_COOKIE
+        "GOOGLE_VEO_COOKIE": body.GOOGLE_VEO_COOKIE,
+        "PROXY_ENABLED": body.PROXY_ENABLED,
+        "PROXY_URL": body.PROXY_URL
     }
     
     updated_keys = []

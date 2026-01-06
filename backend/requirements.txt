@@ -28,6 +28,7 @@ email-validator>=2.0.0
 
 # Browser Automation (for reCAPTCHA solving)
 selenium>=4.15.0
+playwright>=1.40.0
 
 # Production Server (for VPS deployment)
 gunicorn>=21.2.0

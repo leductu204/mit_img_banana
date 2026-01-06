@@ -81,7 +81,7 @@ export function HeroSection() {
             className="btn-coral gap-3 font-bold text-lg h-14 px-10 rounded-full text-foreground"
             asChild
           >
-            <a href="#signup">
+            <a href="/login">
               <Rocket className="h-5 w-5" />
               Sử dụng ngay
             </a>

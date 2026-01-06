@@ -57,9 +57,45 @@ class GoogleVeoClient:
         if not self.cookie:
             print("WARNING: GOOGLE_VEO_COOKIE is not set!")
             
+        # Proxy settings
+        self.proxy_enabled = getattr(settings, 'PROXY_ENABLED', False)
+        self.proxy_url = getattr(settings, 'PROXY_URL', '')
+        self._proxies = self._get_proxies()
+            
         # Current access token
         self._access_token = None
         self._token_expiry = 0
+    
+    def _get_proxies(self) -> dict:
+        """Get proxies dict for requests library. Supports multiple formats."""
+        if not (self.proxy_enabled and self.proxy_url):
+            return {}
+
+        url = self.proxy_url.strip()
+        
+        # Determine protocol (default to socks5 if not specified)
+        is_http = url.startswith('http://')
+        
+        # Handle "socks5://host:port:user:pass", "http://host:port:user:pass" or raw "host:port:user:pass"
+        clean_url = url.replace('socks5://', '').replace('http://', '')
+        parts = clean_url.split(':')
+        
+        if len(parts) == 4:
+            # Format is host:port:user:pass
+            h, p, u, pw = parts
+            protocol = "http" if is_http else "socks5h"
+            final_url = f"{protocol}://{u}:{pw}@{h}:{p}"
+        elif '@' not in url and url.count(':') >= 2:
+            # Maybe it's just host:port:user:pass without protocol
+            # We already handled this above, but for safety:
+            final_url = url # fallback
+        else:
+            # Standard format like socks5://user:pass@host:port
+            final_url = url
+            if final_url.startswith('socks5://'):
+                final_url = final_url.replace('socks5://', 'socks5h://', 1)
+        
+        return {"http": final_url, "https": final_url}
     
     def reload_credentials(self):
         """Reload credentials from .env file (called after admin updates)."""
@@ -67,8 +103,12 @@ class GoogleVeoClient:
         load_dotenv(override=True)  # Force reload from .env
         import os
         self.cookie = os.getenv("GOOGLE_VEO_COOKIE", "")
+        self.proxy_enabled = os.getenv("PROXY_ENABLED", "false").lower() == "true"
+        self.proxy_url = os.getenv("PROXY_URL", "")
+        self._proxies = self._get_proxies()
         self._access_token = None  # Clear cached token
         self._token_expiry = 0
+        print(f"[GoogleVeoClient] Credentials reloaded. Proxy: {'enabled' if self.proxy_enabled else 'disabled'}")
 
     def _generate_random_string(self) -> str:
         """Generate a random alphanumeric boundary string."""
@@ -112,7 +152,7 @@ class GoogleVeoClient:
         }
         
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, proxies=self._proxies)
             response.raise_for_status()
             token = response.json().get('access_token')
             if not token:
@@ -151,7 +191,7 @@ class GoogleVeoClient:
         headers = self._get_common_headers(token, user_agent=user_agent)
         headers['content-type'] = 'application/json'
         
-        response = requests.post(url, json=payload_dict, headers=headers)
+        response = requests.post(url, json=payload_dict, headers=headers, proxies=self._proxies)
         response.raise_for_status()
         
         return response.json().get('mediaGenerationId', {}).get('mediaGenerationId')
@@ -201,7 +241,7 @@ class GoogleVeoClient:
         
         headers = self._get_common_headers(token, user_agent=user_agent)
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, proxies=self._proxies)
         response.raise_for_status()
         data = response.json()
         
@@ -259,7 +299,7 @@ class GoogleVeoClient:
         headers['cache-control'] = 'no-cache'
         headers['pragma'] = 'no-cache'
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, proxies=self._proxies)
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError:
@@ -294,7 +334,7 @@ class GoogleVeoClient:
         
         headers = self._get_common_headers(token)
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, proxies=self._proxies)
         response.raise_for_status()
         data = response.json()
         

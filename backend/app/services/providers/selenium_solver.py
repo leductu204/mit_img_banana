@@ -198,7 +198,7 @@ def solve_recaptcha_v3_enterprise(site_key, site_url, action='FLOW_GENERATION', 
         )
         
         
-        print(f"[*] âœ“ Chrome window should be VISIBLE now!")
+        print(f"[*] Chrome window should be VISIBLE now!")
         print(f"[*] Check if you can see Chrome window on screen...")
         
         # Set timeouts
