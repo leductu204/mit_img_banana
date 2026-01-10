@@ -103,6 +103,9 @@ export function useCredits() {
         // 2. Try default + speed (nano-banana)
         const defaultKey = `default-${speedSuffix}`;
         if (costs[defaultKey] !== undefined) return costs[defaultKey];
+        
+        // 2b. Try plain default (Google models / Flat rate)
+        if (costs["default"] !== undefined) return costs["default"];
 
         // 3. Fallback to nested structure (old format/fallback support)
         if (resolution && costs[resolution]) {

@@ -25,6 +25,7 @@ export default function VideoGenerationForm() {
     if (mode === 'text' && !prompt.trim()) return;
     if (mode === 'image' && referenceImages.length === 0) return;
     
+    setResult(undefined);
     setLoading(true);
     
     setTimeout(() => {

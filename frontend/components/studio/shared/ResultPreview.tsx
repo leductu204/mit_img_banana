@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Loader2, Download, RefreshCw, Sparkles, Image as ImageIcon, Info } from "lucide-react";
+import { Loader2, Download, RefreshCw, Sparkles, Image as ImageIcon, Info, Video as VideoIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/common/Button";
 import { useToast } from "@/hooks/useToast";
 
@@ -38,6 +39,7 @@ export default function ResultPreview({
   details
 }: ResultPreviewProps) {
   const toast = useToast();
+  const router = useRouter();
   const [showMetadata, setShowMetadata] = useState(false);
 
   const handleDownload = async () => {
@@ -218,6 +220,17 @@ export default function ResultPreview({
                     >
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Tạo lại
+                    </Button>
+                )}
+                {type === 'image' && resultUrl && (
+                    <Button
+                        onClick={() => {
+                            router.push(`/video?image_url=${encodeURIComponent(resultUrl)}`);
+                        }}
+                        className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm shadow-sm transition-all duration-200 hover:scale-[1.02]"
+                    >
+                        <VideoIcon className="h-4 w-4 mr-2" />
+                        Tạo video
                     </Button>
                 )}
                 {(resultUrl || onDownload) && (

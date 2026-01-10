@@ -439,3 +439,178 @@ async def generate_nano_banana_pro(
         import traceback
         print(f"Generation error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to generate image")
+
+
+# ============================================
+# GOOGLE IMAGE ENDPOINTS (Veo/Gemini/Imagen)
+# ============================================
+
+from app.services.providers.google_client import google_veo_client
+from app.services.providers.playwright_solver import solve_recaptcha_playwright
+import asyncio
+from concurrent.futures import ProcessPoolExecutor
+
+async def _generate_google_image(
+    model: str,
+    request: NanoBananaRequest,
+    current_user: UserInDB
+) -> GenerateResponse:
+    """
+    Helper for Google image generation models.
+    """
+    job_type = "t2i" # Google models currently T2I only for this endpoints
+    
+    try:
+        # 1. Calculate cost (Fixed cost based on model for now, or use service)
+        # Assuming existing service handles these keys or fallback
+        # Valid keys in model_costs: nano-banana-cheap, nano-banana-pro-cheap, image-4.0
+        # Passing 'speed="fast"' as they are single-speed default models
+        cost = credits_service.calculate_generation_cost(
+            model=model,
+            aspect_ratio=request.aspect_ratio,
+            speed="default" # Google models use 'default' key in DB
+        )
+        
+        # 2. Check credits
+        has_enough, current_balance = credits_service.check_credits(
+            current_user.user_id, cost
+        )
+        
+        if not has_enough:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "Insufficient credits",
+                    "required": cost,
+                    "available": current_balance
+                }
+            )
+            
+        # 3. Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        # For synchronous Google generation, we might want to fail if can't start immediately
+        # But standard behavior is to queue. However, since we process immediately below...
+        
+        if not can_start:
+             raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue limit reached",
+                    "message": "Please wait for your other generations to finish."
+                }
+            )
+        
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        status = "pending"
+        
+        # 4. Generate immediately (Synchronous wrapper around async logic)
+        
+        try:
+            # Use Isolated Solver in a separate thread
+            # This ensures it runs on its own ProactorEventLoop, avoiding Uvicorn's SelectorLoop on Windows
+            from app.services.providers.playwright_solver import get_token_isolated
+            from concurrent.futures import ThreadPoolExecutor
+            
+            loop = asyncio.get_event_loop()
+            
+            recaptcha_token, user_agent = await loop.run_in_executor(
+                ThreadPoolExecutor(), 
+                get_token_isolated,
+                '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
+                'https://labs.google'
+            )
+            
+            if not recaptcha_token:
+                raise ValueError("Failed to retrieve reCAPTCHA token")
+                
+        except Exception as e:
+            print(f"CAPTCHA Error: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to verify CAPTCHA: {str(e)}")
+
+        # Call Google Client
+        # generate_image returns "image|URL"
+        result_str = google_veo_client.generate_image(
+            prompt=request.prompt,
+            recaptchaToken=recaptcha_token,
+            model=model,
+            aspect_ratio=request.aspect_ratio,
+            user_agent=user_agent
+        )
+        
+        if not result_str or not result_str.startswith("image|"):
+             raise HTTPException(status_code=500, detail="Invalid response from provider")
+             
+        image_url = result_str.split("|")[1]
+        
+        # 5. Create Job in DB (Mark as COMPLETED immediately)
+        status = "completed"
+        
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=current_user.user_id,
+            type=job_type,
+            model=model,
+            prompt=request.prompt,
+            input_params=json.dumps({
+                "aspect_ratio": request.aspect_ratio
+            }),
+            input_images=json.dumps([]),
+            credits_cost=cost,
+            provider_job_id="completed_via_sync" # No polling needed
+        )
+        
+        jobs_repo.create(job_data, status=status)
+        
+        # Update with result URL
+        jobs_repo.update_status(job_id, "completed", output_url=image_url)
+        
+        # 6. Deduct credits
+        reason = f"Image generation: {model} {request.aspect_ratio}"
+        new_balance = credits_service.deduct_credits(
+            user_id=current_user.user_id,
+            amount=cost,
+            job_id=job_id,
+            reason=reason
+        )
+        
+        return GenerateResponse(
+            job_id=job_id,
+            credits_cost=cost,
+            credits_remaining=new_balance
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Google Image Generation error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate image: {str(e)}")
+
+
+@router.post("/nano-banana-cheap/generate", response_model=GenerateResponse)
+async def generate_nano_banana_cheap(
+    request: NanoBananaRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Generate image using Nano Banana Cheap (Google Gemini)."""
+    return await _generate_google_image("nano-banana-cheap", request, current_user)
+
+
+@router.post("/nano-banana-pro-cheap/generate", response_model=GenerateResponse)
+async def generate_nano_banana_pro_cheap(
+    request: NanoBananaRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Generate image using Nano Banana Pro Cheap (Google Gemini Pro)."""
+    return await _generate_google_image("nano-banana-pro-cheap", request, current_user)
+
+
+@router.post("/image-4.0/generate", response_model=GenerateResponse)
+async def generate_image_4_0(
+    request: NanoBananaRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Generate image using Imagen 4.0 (Google Imagen)."""
+    return await _generate_google_image("image-4.0", request, current_user)

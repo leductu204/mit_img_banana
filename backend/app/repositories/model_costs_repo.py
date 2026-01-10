@@ -140,6 +140,16 @@ def seed_default_costs() -> None:
         
         # Veo 3.1 HIGH (standard high quality)
         ("veo3.1-high", "8s", 20),
+
+        # Google Veo Image Models (New)
+        ("nano-banana-cheap", "default", 1),      # Nano Banana Cheap (Gemini 2.5)
+        ("nano-banana-pro-cheap", "default", 2),  # Nano Banana Pro Cheap (Gemini 3.0)
+        ("image-4.0", "default", 2),              # Imagen 4.0
+
+        # Enable New Models
+        ("nano-banana-cheap", "is_enabled", 1),
+        ("nano-banana-pro-cheap", "is_enabled", 1),
+        ("image-4.0", "is_enabled", 1),
     ]
     
     with get_db_context() as conn:

@@ -116,6 +116,7 @@ export default function TextToImageForm() {
       return;
     }
 
+    setResult(null);
     setLoading(true);
     setError(null);
     setCurrentJobStatus("starting");

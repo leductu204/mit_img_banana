@@ -161,7 +161,11 @@ export default function AdminModelCostsPage() {
               addExpectation(m.value, 'is_slow_mode_enabled_4k', 1);
           }
 
-          if (m.resolutions && m.resolutions.length > 0) {
+          if (['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(m.value)) {
+              // Google Models: Single default cost
+              const cost = m.value === 'nano-banana-cheap' ? 1 : 2;
+              addExpectation(m.value, 'default', cost);
+          } else if (m.resolutions && m.resolutions.length > 0) {
               m.resolutions.forEach((r: string) => {
                  addExpectation(m.value, `${r}-fast`, 5);
                  addExpectation(m.value, `${r}-slow`, 2);
@@ -537,8 +541,8 @@ export default function AdminModelCostsPage() {
                           // Nano Banana & Kling Models: ONLY show fast/slow keys
                           // This hides legacy keys like '1k', '16:9', 'default', '720p-10s' (without suffix) etc.
                           // Allow new models to pass through by default or add them here if they follow the standard pattern
-                          if (model.startsWith('nano-banana') || model.startsWith('kling') || model.startsWith('wand')) {
-                              if (!c.config_key.endsWith('-fast') && !c.config_key.endsWith('-slow')) {
+                          if (model.startsWith('nano-banana') || model.startsWith('kling') || model.startsWith('wand') || model.startsWith('image-')) {
+                              if (!c.config_key.endsWith('-fast') && !c.config_key.endsWith('-slow') && c.config_key !== 'default') {
                                   return false;
                               }
                           }

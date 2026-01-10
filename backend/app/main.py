@@ -1,6 +1,14 @@
 # main.py
 """FastAPI application entry point with database initialization."""
 
+import asyncio
+import sys
+
+# Enforce ProactorEventLoop on Windows for Playwright/Subprocess support
+# This MUST be done before any other imports that might initialize the loop
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +42,6 @@ from .repositories import model_costs_repo
 from .tasks.cleanup import run_pending_jobs_cleanup
 from .tasks.job_monitor import run_job_monitor
 from .tasks.old_jobs_cleanup import run_old_jobs_cleanup
-import asyncio
 
 
 @asynccontextmanager

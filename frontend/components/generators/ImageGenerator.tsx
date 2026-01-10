@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { useGenerateImage } from "@/hooks/useGenerateImage"
 import { useCredits } from "@/hooks/useCredits"
 import { useToast } from "@/hooks/useToast"
@@ -27,7 +28,8 @@ import {
     X,
     Plus,
     Coins,
-    Trash2
+    Trash2,
+    Video as VideoIcon
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -69,6 +71,7 @@ export function ImageGenerator() {
         modelCosts 
     } = useCredits()
     const toast = useToast()
+    const router = useRouter()
 
     // Load recent jobs
     const fetchRecentJobs = () => {
@@ -166,6 +169,7 @@ export function ImageGenerator() {
         if (!isAuthenticated) { login(); return }
         if (!hasEnoughCredits(estimatedCost)) { setShowCreditsModal(true); return }
 
+        setResult(null)
         if (model.toLowerCase().includes("nano banana") || model.toLowerCase().includes("nano-banana")) {
             setLoading(true)
             setError(null)
@@ -183,11 +187,25 @@ export function ImageGenerator() {
                     }
                 }
 
+                // Determine endpoint based on model
+                let endpoint = '';
+                if (model === 'nano-banana-cheap') endpoint = '/api/generate/image/nano-banana-cheap/generate';
+                else if (model === 'nano-banana-pro-cheap') endpoint = '/api/generate/image/nano-banana-pro-cheap/generate';
+                else if (model === 'image-4.0') endpoint = '/api/generate/image/image-4.0/generate';
+                else if (model === 'nano-banana-pro') endpoint = '/api/generate/image/nano-banana-pro/generate';
+                else endpoint = '/api/generate/image/nano-banana/generate';
+
                 const modelConfig = getModelConfig(model, 'image');
                 const isPro = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
-                const endpoint = isPro ? '/api/generate/image/nano-banana-pro/generate' : '/api/generate/image/nano-banana/generate';
+                // const endpoint = isPro ? '/api/generate/image/nano-banana-pro/generate' : '/api/generate/image/nano-banana/generate';
                 
-                const payload: any = { prompt, input_images: inputImages, aspect_ratio: aspectRatio, speed: speed };
+                const payload: any = { prompt, input_images: inputImages, aspect_ratio: aspectRatio };
+                
+                // Only include speed for Higgsfield models
+                if (!['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(model)) {
+                    payload.speed = speed;
+                }
+
                 if (isPro) payload.resolution = quality;
 
                 const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, { method: 'POST', body: JSON.stringify(payload) })
@@ -223,6 +241,7 @@ export function ImageGenerator() {
                 return
             }
         }
+        setResult(null)
         await generate({ prompt, model, aspect_ratio: aspectRatio, resolution: quality, image_url: referenceImages.length > 0 ? URL.createObjectURL(referenceImages[0]) : undefined, keep_style: isImageToImage ? keepStyle : undefined })
     }
 
@@ -300,6 +319,9 @@ export function ImageGenerator() {
                             <ModelSelector value={model} onChange={setModel} mode="image" />
                              
                              {(() => {
+                                 // Hide Speed Selector for Google Models (Single Default Cost)
+                                 if (['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(model)) return null;
+
                                  const isSlowModeAllowed = (() => {
                                      if (!costsLoaded || !modelCosts[model]) return true;
                                      if (model === 'nano-banana-pro') {
@@ -390,10 +412,15 @@ export function ImageGenerator() {
                                     }}
                                     className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
                                 >
-                                    <div 
-                                        className="w-16 h-10 rounded-lg bg-cover bg-center shrink-0 border border-white/10" 
-                                        style={{ backgroundImage: `url(${job.output_url})` }}
-                                    ></div>
+                                    <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10 bg-[#0A0E13]">
+                                        {job.output_url ? (
+                                            <img src={job.output_url} alt="Thumbnail" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <LucideImage className="w-4 h-4 text-[#6B7280]" />
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-medium text-white truncate group-hover:text-[#00BCD4]">{job.prompt}</p>
                                         <p className="text-[10px] text-[#6B7280]">
@@ -481,6 +508,16 @@ export function ImageGenerator() {
                                 
                                 {/* Action Buttons */}
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
+                                    <Button
+                                        onClick={() => {
+                                            if (!result?.image_url) return;
+                                            router.push(`/video?image_url=${encodeURIComponent(result.image_url)}`);
+                                        }}
+                                        className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
+                                    >
+                                        <VideoIcon className="h-4 w-4 mr-2" />
+                                        Tạo video
+                                    </Button>
                                      <Button
                                          onClick={async () => {
                                              if (!result?.image_url) return
@@ -500,6 +537,15 @@ export function ImageGenerator() {
                                     </Button>
                                 </div>
                             </>
+                        ) : loading ? (
+                            <div className="flex flex-col items-center gap-4 text-[#6B7280] animate-pulse text-center z-10">
+                                <div className="relative">
+                                    <div className="w-16 h-16 rounded-full border-4 border-[#252D3D] border-t-[#00BCD4] animate-spin" />
+                                </div>
+                                <p className="text-sm font-medium">
+                                    {currentJobStatus === 'pending' ? 'Đang hàng đợi... Vui lòng đợi' : 'Đang xử lý...'}
+                                </p>
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center gap-6 z-10 p-6 text-center max-w-md">
                                 <div className="size-24 rounded-full bg-[#252D3D] border border-white/10 flex items-center justify-center shadow-2xl shadow-black/50">

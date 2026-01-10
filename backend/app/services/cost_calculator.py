@@ -99,6 +99,12 @@ def calculate_image_cost(
             
         raise CostCalculationError(f"Invalid resolution/speed: {key}")
     
+    elif model in ["nano-banana-cheap", "nano-banana-pro-cheap", "image-4.0"]:
+        # Google models: Single default cost
+        if "default" in model_costs:
+            return model_costs["default"]
+        raise CostCalculationError(f"Missing cost config for: {model}")
+
     else:
         raise CostCalculationError(f"Unknown image model: {model}")
 

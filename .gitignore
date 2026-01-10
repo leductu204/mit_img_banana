@@ -25,6 +25,7 @@ __pycache__/
 .shared/
 
 *.db
+browser_data/
 
 *test*
 *debug*

@@ -18,6 +18,7 @@ export interface ModelConfig {
 }
 
 export const IMAGE_MODELS: ModelConfig[] = [
+    // Higgsfield Models
     { 
         value: 'nano-banana', 
         label: 'Nano Banana', 
@@ -35,6 +36,33 @@ export const IMAGE_MODELS: ModelConfig[] = [
         // PRO supports resolution selection
         resolutions: ['1k', '2k', '4k'],  // Lowercase as required by API
         aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5']
+    },
+
+    // Google Client Models
+    { 
+        value: 'nano-banana-cheap', 
+        label: 'Nano Banana Cheap', 
+        description: 'Phiên bản Nano Banana của Google - Rẻ',
+        icon: Banana,
+        aspectRatios: ['9:16', '16:9']
+    },
+    { 
+        value: 'nano-banana-pro-cheap', 
+        label: 'Nano Banana PRO Cheap', 
+        description: 'Phiên bản "Chuối" PRO của Google - Rẻ',
+        icon: Banana,
+        badge: 'HOT',
+        colors: 'yellow',
+        aspectRatios: ['9:16', '16:9']
+    },
+    { 
+        value: 'image-4.0', 
+        label: 'Imagen 4.0', 
+        description: 'Mô hình tạo ảnh mới nhất - Imagen 4.0',
+        icon: Sparkles,
+        badge: 'NEW',
+        colors: 'blue',
+        aspectRatios: ['9:16', '16:9']
     }
 ];
 

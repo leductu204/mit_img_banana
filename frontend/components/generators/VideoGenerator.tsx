@@ -5,6 +5,7 @@ import { useGenerateVideo } from "@/hooks/useGenerateVideo"
 import { useCredits } from "@/hooks/useCredits"
 import { apiRequest } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
+import { useSearchParams } from "next/navigation"
 import { NEXT_PUBLIC_API } from "@/lib/config"
 import { useToast } from "@/hooks/useToast"
 import { VIDEO_MODELS, getModelConfig } from "@/lib/models-config"
@@ -56,6 +57,28 @@ export function VideoGenerator() {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
     const [recentJobs, setRecentJobs] = useState<Job[]>([])
+
+    const searchParams = useSearchParams()
+    
+    // Check for image_url from ImageGenerator
+    useEffect(() => {
+        const imageUrl = searchParams.get('image_url')
+        if (imageUrl) {
+            const fetchImage = async () => {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], "generated-image.png", { type: blob.type });
+                    setReferenceImages([file]);
+                    toast.success("Đã tải ảnh từ kết quả tạo ảnh!");
+                } catch (error) {
+                    console.error("Error fetching image from URL:", error);
+                    toast.error("Không thể tải ảnh từ liên kết.");
+                }
+            };
+            fetchImage();
+        }
+    }, [searchParams]);
 
     const { isAuthenticated, login } = useAuth()
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
@@ -154,6 +177,7 @@ export function VideoGenerator() {
             return
         }
 
+        setResult(null)
         setLoading(true)
         setError(null)
         
@@ -545,6 +569,15 @@ export function VideoGenerator() {
                                     </Button>
                                 </div>
                             </>
+                        ) : loading ? (
+                            <div className="flex flex-col items-center gap-4 text-[#6B7280] animate-pulse text-center z-10">
+                                <div className="relative">
+                                    <div className="w-16 h-16 rounded-full border-4 border-[#252D3D] border-t-[#00BCD4] animate-spin" />
+                                </div>
+                                <p className="text-sm font-medium">
+                                    {currentJobStatus === 'pending' ? 'Đang hàng đợi... Vui lòng đợi' : 'Đang xử lý...'}
+                                </p>
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center gap-6 z-10 p-6 text-center max-w-md">
                                 <div className="size-24 rounded-full bg-[#252D3D] border border-white/10 flex items-center justify-center shadow-2xl shadow-black/50">
