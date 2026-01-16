@@ -145,6 +145,26 @@ export default function ActivityTable({
         }
     };
 
+    const handleDownload = async (url: string, filename?: string) => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const blob = await response.blob();
+            const urlBlob = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlBlob;
+            a.download = filename || url.split('/').pop() || 'download';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(urlBlob);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback to opening in new tab if fetch fails (e.g. CORS)
+            window.open(url, '_blank');
+        }
+    };
+
     const filters = [
         { value: undefined, label: 'Tất cả' },
         { value: 'completed', label: 'Hoàn thành' },
@@ -302,16 +322,15 @@ export default function ActivityTable({
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap text-right">
-                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <div className="flex items-center justify-end gap-1">
                                                     {job.output_url && (
-                                                        <Link 
-                                                            href={job.output_url} 
-                                                            target="_blank"
+                                                        <button 
+                                                            onClick={() => handleDownload(job.output_url!)}
                                                             className="p-2 text-[#94A3B8] hover:text-white hover:bg-white/10 rounded-xl transition-all" 
                                                             title="Download"
                                                         >
                                                             <Download className="w-5 h-5" />
-                                                        </Link>
+                                                        </button>
                                                     )}
                                                     {job.status === 'failed' && (
                                                         <button className="p-2 text-[#94A3B8] hover:text-[#22d3ee] hover:bg-[#22d3ee]/10 rounded-xl transition-all" title="Retry">

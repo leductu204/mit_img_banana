@@ -1228,3 +1228,231 @@ async def generate_veo31_high_i2v(
         print(f"Veo 3.1 HIGH I2V error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to generate video")
 
+
+# ============================================
+# SORA 2.0 ENDPOINTS
+# ============================================
+
+from app.services.sora_service import sora_service
+from app.services.providers.sora_client import sora_client_instance
+
+
+def map_sora_aspect_ratio(ratio: str) -> str:
+    """Map frontend aspect ratio to Sora API format."""
+    mapping = {
+        "16:9": "landscape",
+        "9:16": "portrait"
+    }
+    return mapping.get(ratio, ratio) # Fallback to original if not found
+
+
+@router.post("/sora-2_0/t2v", response_model=GenerateResponse)
+async def generate_sora_2_0_t2v(
+    current_user: UserInDB = Depends(get_current_user),
+    prompt: str = Form(...),
+    duration: int = Form(10),
+    aspect_ratio: str = Form("16:9"),
+    speed: str = Form("fast")
+):
+    """Sora 2.0 Text-to-Video (form-based)."""
+    try:
+        # Calculate cost
+        cost = credits_service.calculate_generation_cost(
+            model="sora-2.0",
+            duration=f"{duration}s",
+            aspect_ratio=aspect_ratio,
+            speed=speed
+        )
+        
+        # Check credits
+        has_enough, current_balance = credits_service.check_credits(
+            current_user.user_id, cost
+        )
+        if not has_enough:
+            raise HTTPException(status_code=402, detail="Insufficient credits")
+        
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "t2v")
+        if not limit_check["allowed"]:
+             raise HTTPException(status_code=429, detail=limit_check["reason"])
+             
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if limit_check["can_start"]:
+            # Get Active Token
+            account = sora_service.get_active_token()
+            if not account:
+                raise HTTPException(status_code=503, detail="No active Sora accounts available")
+            token = account['access_token']
+            
+            # Map parameters
+            n_frames = 300 # Default 10s
+            if duration == 15: n_frames = 450
+            
+            orientation = map_sora_aspect_ratio(aspect_ratio)
+            
+            # Generate
+            provider_job_id = await sora_client_instance.generate_video(
+                prompt=prompt,
+                model="sy_8", # Sora 2.0 default
+                n_frames=n_frames,
+                orientation=orientation,
+                size="small",
+                token=token
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
+        
+        # Create job record
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=current_user.user_id,
+            type="t2v",
+            model="sora-2.0",
+            prompt=prompt,
+            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
+            credits_cost=cost,
+            provider_job_id=provider_job_id
+        )
+        jobs_repo.create(job_data, status=status)
+        
+        # Deduct credits
+        new_balance = credits_service.deduct_credits(
+            user_id=current_user.user_id,
+            amount=cost,
+            job_id=job_id,
+            reason=f"Video: sora-2.0 t2v {duration}s"
+        )
+        
+        return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Sora 2.0 T2V error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
+
+
+@router.post("/sora-2_0/i2v", response_model=GenerateResponse)
+async def generate_sora_2_0_i2v(
+    current_user: UserInDB = Depends(get_current_user),
+    prompt: str = Form(...),
+    duration: int = Form(10),
+    aspect_ratio: str = Form("16:9"),
+    img_url: str = Form(...),
+    speed: str = Form("fast")
+):
+    """Sora 2.0 Image-to-Video (form-based)."""
+    try:
+        # Calculate cost
+        cost = credits_service.calculate_generation_cost(
+            model="sora-2.0",
+            duration=f"{duration}s",
+            aspect_ratio=aspect_ratio,
+            speed=speed
+        )
+        
+        # Check credits
+        has_enough, current_balance = credits_service.check_credits(
+            current_user.user_id, cost
+        )
+        if not has_enough:
+            raise HTTPException(status_code=402, detail="Insufficient credits")
+        
+        # Check Concurrent limits
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, "i2v")
+        if not limit_check["allowed"]:
+             raise HTTPException(status_code=429, detail=limit_check["reason"])
+        
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        provider_job_id = None
+        status = "pending"
+        
+        if limit_check["can_start"]:
+            # Get Active Token
+            account = sora_service.get_active_token()
+            if not account:
+                raise HTTPException(status_code=503, detail="No active Sora accounts available")
+            token = account['access_token']
+            
+            # Map parameters
+            n_frames = 300 # Default 10s
+            if duration == 15: n_frames = 450
+            elif duration == 25: n_frames = 750
+            
+            # Download and Upload Image to Sora
+            # 1. Download from our storage/proxy using requests (sync) or client
+            # Here img_url is likely internal or proxyable. 
+            import requests
+            try:
+                # We need raw bytes.
+                # Assuming img_url is accessible.
+                # If it's internal (localhost), might need special handling but usually it's public/proxied.
+                # sora_client needs bytes.
+                
+                # Use a simple get for now.
+                r = requests.get(img_url, timeout=30)
+                r.raise_for_status()
+                image_data = r.content
+                
+                filename = "input_image.png"
+                # specialized handling for filename if possible, but optional
+                
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to fetch input image: {str(e)}")
+
+            # 2. Upload to Sora
+            media_id = await sora_client_instance.upload_image(image_data, token, filename=filename)
+            
+            # 3. Generate
+            provider_job_id = await sora_client_instance.generate_video(
+                prompt=prompt,
+                model="sy_8", # Sora 2.0 default
+                n_frames=n_frames,
+                orientation=map_sora_aspect_ratio(aspect_ratio),
+                size="small",
+                media_id=media_id,
+                token=token
+            )
+            
+            if not provider_job_id:
+                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
+            
+            status = "processing"
+        
+        # Create job record
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=current_user.user_id,
+            type="i2v",
+            model="sora-2.0",
+            prompt=prompt,
+            input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
+            input_images=json.dumps([{"url": img_url}]),
+            credits_cost=cost,
+            provider_job_id=provider_job_id
+        )
+        jobs_repo.create(job_data, status=status)
+        
+        # Deduct credits
+        new_balance = credits_service.deduct_credits(
+            user_id=current_user.user_id,
+            amount=cost,
+            job_id=job_id,
+            reason=f"Video: sora-2.0 i2v {duration}s"
+        )
+        
+        return GenerateResponse(job_id=job_id, credits_cost=cost, credits_remaining=new_balance)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Sora 2.0 I2V error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")

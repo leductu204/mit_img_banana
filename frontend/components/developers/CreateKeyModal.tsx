@@ -30,6 +30,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
           ...getAuthHeader()
         },
         body: JSON.stringify({
+          name: name || "My API Key", 
           initial_balance: 0, // Default 0, user must top up
           mode: 'live'
         })
@@ -77,6 +78,21 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
               <p className="text-sm text-teal-100/80">
                 Generate a new API key to access our Public API. You will need to transfer credits to this key to use it.
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Key Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Production App"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-gray-600"
+                required
+                autoFocus
+              />
             </div>
 
             {error && (

@@ -77,11 +77,16 @@ export async function apiRequest<T>(
     const url = `${NEXT_PUBLIC_API}${endpoint}`;
     
     // Merge auth headers with provided headers
-    const headers = {
-        'Content-Type': 'application/json',
+    // Merge auth headers with provided headers
+    const headers: Record<string, string> = {
         ...getAuthHeader(),
         ...(options.headers || {}),
-    };
+    } as Record<string, string>; // Cast to string mapping
+
+    // Only set Content-Type to json if NOT FormData and not already set
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
     
     const response = await fetch(url, {
         ...options,

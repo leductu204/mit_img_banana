@@ -14,6 +14,7 @@ function PricingContent() {
     const router = useRouter();
     const [activePlan, setActivePlan] = useState('professional');
     const [pollingOrder, setPollingOrder] = useState<number | null>(null);
+    const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
     const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'cancelled' | null>(null);
     
     const handleSelect = (pkgId: string) => {
@@ -40,6 +41,7 @@ function PricingContent() {
             // Open Payment Link in New Tab
             window.open(data.checkoutUrl, '_blank');
             
+            setCheckoutUrl(data.checkoutUrl);
             // Start Polling
             setPollingOrder(data.orderCode);
             setPaymentStatus('pending');
@@ -210,6 +212,19 @@ function PricingContent() {
                                 Cổng thanh toán đã được mở trong tab mới.<br/>
                                 Vui lòng hoàn tất thanh toán để tiếp tục.
                             </p>
+                            {checkoutUrl && (
+                                <p className="text-sm text-slate-400 mt-2">
+                                    Không thấy trang thanh toán?{' '}
+                                    <a 
+                                        href={checkoutUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-[#00BCD4] hover:text-[#67E8F9] hover:underline transition-colors"
+                                    >
+                                        Nhấn vào đây để mở trang thanh toán
+                                    </a>
+                                </p>
+                            )}
                         </div>
                         <div className="flex flex-col gap-3">
                             <p className="text-xs text-slate-500">Mã đơn hàng: #{pollingOrder}</p>

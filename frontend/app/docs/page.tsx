@@ -1,14 +1,19 @@
 "use client"
 
 import { useState } from 'react'
-import { Copy, Check, ChevronDown, ChevronRight, Zap, Image, Video, Key, CreditCard } from 'lucide-react'
+import { Copy, Check, ChevronDown, ChevronRight, Zap, Image, Video, Key, CreditCard, Box, FileText, AlertTriangle, Info, Sparkles, Clapperboard } from 'lucide-react'
+import { IMAGE_MODELS, VIDEO_MODELS, ModelConfig } from '@/lib/models-config'
+import { NEXT_PUBLIC_API } from '@/lib/config'
+
+// --- Components ---
 
 interface CodeBlockProps {
   code: string
   language?: string
+  title?: string
 }
 
-function CodeBlock({ code, language = 'bash' }: CodeBlockProps) {
+function CodeBlock({ code, language = 'bash', title }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
@@ -18,16 +23,27 @@ function CodeBlock({ code, language = 'bash' }: CodeBlockProps) {
   }
 
   return (
-    <div className="relative group">
-      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
-        <code>{code}</code>
-      </pre>
-      <button
-        onClick={handleCopy}
-        className="absolute top-2 right-2 p-2 bg-gray-700 hover:bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-      </button>
+    <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-[#0d1117] my-4 shadow-sm">
+      {title && (
+        <div className="px-4 py-2 border-b border-gray-700 bg-gray-800/50 text-xs text-gray-400 font-mono">
+          {title}
+        </div>
+      )}
+      <div className="relative group">
+        <div className="absolute top-2 right-2 flex gap-2">
+            <span className="text-xs text-gray-500 font-mono px-2 py-1 select-none">{language}</span>
+            <button
+                onClick={handleCopy}
+                className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors border border-gray-700"
+                title="Copy to clipboard"
+            >
+                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+            </button>
+        </div>
+        <pre className="p-4 text-sm overflow-x-auto text-gray-300 font-mono leading-relaxed pb-8">
+          <code>{code}</code>
+        </pre>
+      </div>
     </div>
   )
 }
@@ -43,26 +59,31 @@ function Endpoint({ method, path, description, children }: EndpointProps) {
   const [isOpen, setIsOpen] = useState(false)
   
   const methodColors = {
-    GET: 'bg-green-500',
-    POST: 'bg-blue-500',
-    DELETE: 'bg-red-500'
+    GET: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+    POST: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+    DELETE: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
   }
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg mb-4 overflow-hidden">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg mb-6 overflow-hidden shadow-sm bg-white dark:bg-gray-800/50">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
       >
-        {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-        <span className={`${methodColors[method]} text-white text-xs font-bold px-2 py-1 rounded`}>
+        <div className={`shrink-0 px-3 py-1 rounded text-xs font-bold border ${methodColors[method]}`}>
           {method}
+        </div>
+        <code className="text-sm font-mono text-gray-700 dark:text-gray-200 font-semibold truncate flex-1">
+          {path}
+        </code>
+        <span className="text-gray-500 dark:text-gray-400 text-sm hidden sm:block shrink-0">
+          {description}
         </span>
-        <code className="text-sm font-mono">{path}</code>
-        <span className="text-gray-500 text-sm ml-auto">{description}</span>
+        {isOpen ? <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />}
       </button>
+      
       {isOpen && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
           {children}
         </div>
       )}
@@ -70,459 +91,528 @@ function Endpoint({ method, path, description, children }: EndpointProps) {
   )
 }
 
+interface ParameterTableProps {
+    params: { name: string; type: string; required: boolean; description: string }[]
+    title?: string
+}
+
+function ParameterTable({ params, title = "Parameters" }: ParameterTableProps) {
+    return (
+        <div className="mb-6">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{title}</h4>
+            <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium">
+                        <tr>
+                            <th className="px-4 py-2 border-b dark:border-gray-700 w-1/4">Name</th>
+                            <th className="px-4 py-2 border-b dark:border-gray-700 w-1/6">Type</th>
+                            <th className="px-4 py-2 border-b dark:border-gray-700 w-1/6">Required</th>
+                            <th className="px-4 py-2 border-b dark:border-gray-700">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900/50">
+                        {params.map((p, i) => (
+                            <tr key={i}>
+                                <td className="px-4 py-3 font-mono text-blue-600 dark:text-blue-400">{p.name}</td>
+                                <td className="px-4 py-3 text-gray-500">{p.type}</td>
+                                <td className="px-4 py-3">
+                                    {p.required ? (
+                                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium dark:bg-red-900/30 dark:text-red-400">Required</span>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">Optional</span>
+                                    )}
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.description}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+}
+
+interface InteractiveModelEndpointProps {
+  title: string
+  method: 'POST'
+  path: string
+  description: string
+  models: ModelConfig[]
+  defaultModelId: string
+  type: 'image' | 'video'
+}
+
+function InteractiveModelEndpoint({ title, method, path, description, models, defaultModelId, type }: InteractiveModelEndpointProps) {
+  const [selectedModelId, setSelectedModelId] = useState(defaultModelId)
+  const selectedModel = models.find(m => m.value === selectedModelId) || models[0]
+
+  // Dynamic Parameters
+  const getParams = () => {
+    const baseParams = [
+      { name: "prompt", type: "string", required: true, description: "Text description of the desired content." },
+      { name: "model", type: "string", required: true, description: `Selected model ID: '${selectedModel.value}'` },
+    ]
+
+    // API-specific dynamic params
+    if (type === 'image') {
+       if (selectedModel.resolutions) {
+         baseParams.push({ 
+           name: "resolution", 
+           type: "string", 
+           required: false, 
+           description: `Allowed: ${selectedModel.resolutions.map(r => `'${r}'`).join(', ')}. Default: '${selectedModel.resolutions[1] || selectedModel.resolutions[0]}'` 
+         })
+       }
+       if (selectedModel.aspectRatios) {
+         baseParams.push({
+           name: "aspect_ratio",
+           type: "string",
+           required: false,
+           description: `Allowed: ${selectedModel.aspectRatios.map(r => `'${r}'`).join(', ')}. Default: '16:9'`
+         })
+       }
+       if (selectedModel.speeds) {
+          baseParams.push({
+            name: "speed",
+            type: "string",
+            required: false,
+            description: `Allowed: ${selectedModel.speeds.map(s => `'${s}'`).join(', ')}. Default: 'fast'`
+          })
+       }
+        baseParams.push({ name: "input_image", type: "file", required: false, description: "For Image-to-Image (I2I)." })
+    }
+
+    if (type === 'video') {
+       baseParams.push({ name: "mode", type: "string", required: false, description: "'t2v' (Text-to-Video) or 'i2v' (Image-to-Video)." })
+       
+       if (selectedModel.durations) {
+         baseParams.push({
+            name: "duration",
+            type: "string",
+            required: false,
+             description: `Allowed: ${selectedModel.durations.map(d => `'${d}'`).join(', ')}.`
+         })
+       }
+       
+       if (selectedModel.aspectRatios) {
+          baseParams.push({
+           name: "aspect_ratio",
+           type: "string",
+           required: false,
+           description: `Allowed: ${selectedModel.aspectRatios.map(r => `'${r}'`).join(', ')}.`
+         })
+       }
+
+       if (selectedModel.value.includes('kling')) {
+          baseParams.push({ name: "img_id", type: "string", required: false, description: "Recommended for Kling I2I. Returns from /files/upload/kling." })
+       }
+       if (selectedModel.value.includes('veo')) {
+          baseParams.push({ name: "media_id", type: "string", required: false, description: "Required for Veo I2I. Returns from /files/upload/veo." })
+       }
+    }
+
+    return baseParams
+  }
+
+  // Dynamic Code Example
+  const getCode = () => {
+    // Determine the base URL without /v1 suffix if it's already included (it shouldn't be per config.ts, but safety first)
+    const baseUrl = NEXT_PUBLIC_API.endsWith('/') ? NEXT_PUBLIC_API.slice(0, -1) : NEXT_PUBLIC_API;
+    // Construct full URL. Example: http://localhost:8000/v1/image/generate
+    // Note: NEXT_PUBLIC_API usually includes /v1 if configured that way, but let's assume it's the host:port based on config.ts default.
+    // However, config.ts says "http://localhost:8000". The paths in this file are like "/image/generate".
+    // We need to ensure /v1 is present.
+    // Let's assume NEXT_PUBLIC_API is the ROOT URL.
+    
+    // In config.ts: export const NEXT_PUBLIC_API = process.env.NEXT_PUBLIC_API || "http://localhost:8000";
+    // We want: http://localhost:8000/v1/image/generate
+    let apiUrl = baseUrl;
+    if (!apiUrl.includes('/v1')) {
+        apiUrl += '/v1';
+    }
+
+    let lines = [`curl -X ${method} ${apiUrl}${path} \\`,
+      `  -H "Authorization: Bearer sk_live_your_key" \\`,
+      `  -F "prompt=A cinematic shot..." \\`,
+      `  -F "model=${selectedModel.value}"`]
+
+    if (type === 'image') {
+        if (selectedModel.resolutions) lines.push(`  -F "resolution=${selectedModel.resolutions[0]}" \\`)
+        if (selectedModel.aspectRatios) lines.push(`  -F "aspect_ratio=16:9" \\`)
+        if (selectedModel.speeds) lines.push(`  -F "speed=fast"`) // Default
+    } else {
+         if (selectedModel.durations) lines.push(`  -F "duration=${selectedModel.durations[0]}" \\`)
+         lines.push(`  -F "aspect_ratio=16:9"`)
+    }
+    
+    // clean up trailing slash on last line
+    if (lines[lines.length-1].endsWith(' \\')) {
+        lines[lines.length-1] = lines[lines.length-1].slice(0, -2)
+    }
+    
+    return lines.join('\n')
+  }
+
+  return (
+    <div className="mb-12">
+      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+        {type === 'image' ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />} {title}
+      </h3>
+      
+      <Endpoint method={method} path={path} description={description}>
+         <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Model to see params:</label>
+            <div className="flex flex-wrap gap-2">
+                {models.map(model => (
+                    <button
+                        key={model.value}
+                        onClick={() => setSelectedModelId(model.value)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2
+                            ${selectedModelId === model.value 
+                                ? 'bg-blue-600 text-white shadow-md' 
+                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-400'}`}
+                    >
+                        {model.label}
+                        {model.badge && <span className="bg-yellow-400 text-black text-[10px] px-1 rounded font-bold">{model.badge}</span>}
+                    </button>
+                ))}
+            </div>
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{selectedModel.description}</p>
+         </div>
+
+         <ParameterTable 
+            title={`Parameters for ${selectedModel.label}`}
+            params={getParams()}
+         />
+
+         <CodeBlock 
+            title={`Example request for ${selectedModel.label}`}
+            code={getCode()}
+         />
+         
+         <CodeBlock 
+             title="Response 200 OK" 
+             language="json"
+             code={`{
+  "job_id": "job_123456789",
+  "status": "pending",
+  "cost": 10,
+  "balance_remaining": 1490
+}`} 
+         />
+      </Endpoint>
+    </div>
+  )
+}
+
+// --- Main Page ---
+
 export default function ApiDocsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-5xl mx-auto px-4 py-12">
+    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <div className="max-w-6xl mx-auto px-6 py-16">
+        
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
+        <div className="mb-16 border-b border-gray-200 dark:border-gray-800 pb-12">
+            <h1 className="text-5xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
             API Documentation
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-lg">
-            Integrate AI image and video generation into your applications
-          </p>
+            </h1>
         </div>
 
         {/* Quick Start */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Zap className="w-6 h-6 text-yellow-500" />
-            Quick Start
-          </h2>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <p className="mb-4 text-gray-600 dark:text-gray-400">
-              All API requests require authentication using a Bearer token. Get your API key from the{' '}
-              <a href="/developers" className="text-purple-600 hover:underline">Developer Dashboard</a>.
-            </p>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/v1/video/generate \\
-  -H "Authorization: Bearer sk_live_your_api_key" \\
-  -F "prompt=A cat running in a sunny field" \\
-  -F "model=kling-2.6" \\
-  -F "mode=t2v"`} />
+        <section className="mb-20">
+          <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <Zap className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <h2 className="text-2xl font-bold">Quick Start</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-8 border border-gray-200 dark:border-gray-800">
+                <h3 className="font-semibold text-lg mb-4">1. Get your API Key</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Sign up for an account and navigate to the Developer Dashboard to generate your secret API key.
+                </p>
+                <a href="/developers" className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500">
+                    Go to Dashboard <ChevronRight className="w-4 h-4 ml-1" />
+                </a>
+            </div>
+            
+             <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-8 border border-gray-200 dark:border-gray-800">
+                <h3 className="font-semibold text-lg mb-4">2. Make your first request</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Use the `Authorization` header with all your requests.
+                </p>
+                <CodeBlock 
+                    title="Example Request" 
+                    code={`curl -X POST ${NEXT_PUBLIC_API}/v1/image/generate \\
+  -H "Authorization: Bearer sk_live_your_key" \\
+  -F "prompt=A futuristic city" \\
+  -F "model=nano-banana"`} 
+                />
+            </div>
           </div>
         </section>
 
-        {/* Base URL */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">Base URL</h2>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <CodeBlock code="https://api.tramsangtao.com/v1" />
-          </div>
-        </section>
+        {/* Authentication & Base URL */}
+        <section className="mb-20 grid md:grid-cols-2 gap-12">
+            <div>
+                 <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        <Key className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold">Authentication</h2>
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    The API uses Bearer Token authentication. Pass your API key in the `Authorization` header.
+                </p>
+                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-lg p-4 mb-4">
+                    <div className="flex gap-2">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                            Keep your API keys secure. Do not share them in client-side code (browsers, mobile apps).
+                        </p>
+                    </div>
+                </div>
+                <CodeBlock title="Header Format" code="Authorization: Bearer sk_live_xxxxxxxxxxxxxxxx" />
+            </div>
 
-        {/* Authentication */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Key className="w-6 h-6 text-purple-500" />
-            Authentication
-          </h2>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <p className="mb-4 text-gray-600 dark:text-gray-400">
-              Include your API key in the <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Authorization</code> header:
-            </p>
-            <CodeBlock code={`Authorization: Bearer your_api_key_here`} />
-          </div>
+            <div>
+                 <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                        <Box className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold">Base URL</h2>
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    All API requests should be prefixed with the current version path.
+                </p>
+                <CodeBlock title="Current Version (v1)" code={`${NEXT_PUBLIC_API}/v1`} />
+            </div>
         </section>
 
         {/* Endpoints */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">Endpoints</h2>
-
-          {/* Balance */}
-          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2 mt-8">
-            <CreditCard className="w-5 h-5 text-green-500" />
-            Account
-          </h3>
-          
-          <Endpoint method="GET" path="/balance" description="Check API key balance">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">Returns the current credit balance for your API key.</p>
-            <h4 className="font-semibold mb-2">Response</h4>
-            <CodeBlock code={`{
-  "balance": 150,
+        <section className="mb-20">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h2 className="text-2xl font-bold">Endpoints</h2>
+            </div>
+            
+            {/* Account */}
+            <div className="mb-12">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+                    <CreditCard className="w-4 h-4" /> Account
+                </h3>
+                
+                <Endpoint method="GET" path="/balance" description="Retrieve current credit balance">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Returns details about the API key's associated account, including the remaining credit balance.
+                    </p>
+                    <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json"
+                        code={`{
+  "balance": 1500,
+  "currency": "credits",
   "key_prefix": "sk_live_abc",
-  "created_at": "2024-01-15T10:30:00Z"
-}`} language="json" />
-          </Endpoint>
-
-          {/* Image Generation */}
-          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2 mt-8">
-            <Image className="w-5 h-5 text-blue-500" />
-            Image Generation
-          </h3>
-
-          <Endpoint method="POST" path="/image/generate" description="Generate an image">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">Generate an image using AI models.</p>
-            
-            <h4 className="font-semibold mb-2">Parameters (form-data)</h4>
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left p-2">Name</th>
-                    <th className="text-left p-2">Type</th>
-                    <th className="text-left p-2">Required</th>
-                    <th className="text-left p-2">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>prompt</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">Yes</td>
-                    <td className="p-2">Text description of the image</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>model</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">nano-banana, nano-banana-pro (default)</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>resolution</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">1k, 2k (default), 4k</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>aspect_ratio</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">1:1, 16:9 (default), 9:16, 4:3, 3:4</td>
-                  </tr>
-                </tbody>
-              </table>
+  "organization": "My Organization"
+}`} 
+                    />
+                </Endpoint>
             </div>
 
-            <h4 className="font-semibold mb-2">Example</h4>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/v1/image/generate \\
-  -H "Authorization: Bearer sk_live_xxx" \\
-  -F "prompt=A beautiful sunset over mountains" \\
-  -F "model=nano-banana-pro" \\
-  -F "resolution=2k" \\
-  -F "aspect_ratio=16:9"`} />
-
-            <h4 className="font-semibold mb-2 mt-4">Response</h4>
-            <CodeBlock code={`{
-  "job_id": "abc123-def456",
-  "status": "pending",
-  "cost": 6,
-  "balance_remaining": 144
-}`} language="json" />
-          </Endpoint>
-
-          {/* Video Generation */}
-          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2 mt-8">
-            <Video className="w-5 h-5 text-red-500" />
-            Video Generation
-          </h3>
-
-          <Endpoint method="POST" path="/video/generate" description="Generate a video">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">
-              Generate a video using AI models. <br />
-              <span className="text-sm">
-                <strong>Veo Models:</strong> Fixed 8s duration.<br />
-                <strong>Kling Models:</strong> Configurable duration (5s/10s) and resolution (720p/1080p).
-              </span>
-            </p>
-            
-            <h4 className="font-semibold mb-2">Parameters (form-data)</h4>
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left p-2">Name</th>
-                    <th className="text-left p-2">Type</th>
-                    <th className="text-left p-2">Required</th>
-                    <th className="text-left p-2">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>prompt</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">Yes</td>
-                    <td className="p-2">Text description of the video</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>model</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">See models table below</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>mode</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">t2v (default), i2v</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>aspect_ratio</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">No</td>
-                    <td className="p-2">9:16 (default), 16:9</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>duration</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">For Kling</td>
-                    <td className="p-2">5s, 10s (Kling only). Veo is fixed 8s.</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>resolution</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">For Kling</td>
-                    <td className="p-2">720p, 1080p </td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>img_url</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">For Kling I2V</td>
-                    <td className="p-2">Image URL from /files/upload/kling</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>img_id</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">For Kling I2V</td>
-                    <td className="p-2">Image ID from /files/upload/kling</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2"><code>media_id</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">For Veo I2V</td>
-                    <td className="p-2">Media ID from /files/upload/veo</td>
-                  </tr>
-                </tbody>
-              </table>
+            {/* Models */}
+            <div className="mb-12">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+                    <Box className="w-4 h-4" /> Models
+                </h3>
+                
+                <Endpoint method="GET" path="/models" description="List available models">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Retrieve a list of all available image and video generation models with their capabilities (aspect ratios, durations, etc.).
+                    </p>
+                    <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json"
+                        code={`{
+  "data": [
+    {
+      "id": "nano-banana-pro",
+      "name": "Nano Banana PRO",
+      "type": "image",
+      "description": "Google Nano Banana PRO Version",
+      "provider": "Higgsfield",
+      "badge": "HOT",
+      "capabilities": {
+        "aspect_ratios": ["auto", "1:1", "16:9", ...],
+        "resolutions": ["1k", "2k", "4k"]
+      }
+    },
+    {
+      "id": "kling-2.6",
+      "name": "Kling 2.6",
+      "type": "video",
+      "description": "Flagship model with Audio",
+      "provider": "Kling",
+      "capabilities": {
+        "durations": ["5s", "10s"],
+        "audio": true
+      }
+    }
+  ]
+}`} 
+                    />
+                </Endpoint>
             </div>
 
-            <h4 className="font-semibold mb-2">Available Models</h4>
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left p-2">Model</th>
-                    <th className="text-left p-2">T2V</th>
-                    <th className="text-left p-2">I2V</th>
-                    <th className="text-left p-2">Duration</th>
-                    <th className="text-left p-2">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>kling-2.5-turbo</code></td>
-                    <td className="p-2">❌</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">5s / 10s</td>
-                    <td className="p-2">Fast I2V only</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>kling-o1-video</code></td>
-                    <td className="p-2">❌</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">5s / 10s</td>
-                    <td className="p-2">High quality I2V only</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>kling-2.6</code></td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">5s / 10s</td>
-                    <td className="p-2">Flagship model with audio</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>veo3.1-low</code></td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">8s</td>
-                    <td className="p-2">Google Veo - Economy</td>
-                  </tr>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>veo3.1-fast</code></td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">8s</td>
-                    <td className="p-2">Google Veo - Fast</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2"><code>veo3.1-high</code></td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">✅</td>
-                    <td className="p-2">8s</td>
-                    <td className="p-2">Google Veo - High Quality</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* Image Generation */}
+            <InteractiveModelEndpoint 
+                title="Image Generation"
+                method="POST"
+                path="/image/generate"
+                description="Create a new image generation job"
+                models={IMAGE_MODELS}
+                defaultModelId="nano-banana-pro"
+                type="image"
+            />
 
-            <h4 className="font-semibold mb-2">Example (Text to Video)</h4>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/v1/video/generate \\
-  -H "Authorization: Bearer sk_live_xxx" \\
-  -F "prompt=A cat running in a sunny field" \\
-  -F "model=kling-2.6" \\
-  -F "mode=t2v" \\
-  -F "aspect_ratio=16:9"`} />
+            {/* Video Generation */}
+            <InteractiveModelEndpoint 
+                title="Video Generation"
+                method="POST"
+                path="/video/generate"
+                description="Create a video generation job"
+                models={VIDEO_MODELS}
+                defaultModelId="kling-2.6"
+                type="video"
+            />
 
-            <h4 className="font-semibold mb-2 mt-8">Example (Image to Video - Veo)</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">First upload image via <code>/files/upload/veo</code> to get a <code>media_id</code>.</p>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/v1/video/generate \\
-  -H "Authorization: Bearer sk_live_xxx" \\
-  -F "prompt=Animate the water flowing" \\
-  -F "model=veo3.1-high" \\
-  -F "mode=i2v" \\
-  -F "media_id=CAMaJDNiNTdl..."`} />
-
-            <h4 className="font-semibold mb-2 mt-4">Response</h4>
-            <CodeBlock code={`{
-  "job_id": "xyz789-abc123",
-  "status": "pending",
-  "cost": 50,
-  "balance_remaining": 100
-}`} language="json" />
-          </Endpoint>
-
-          {/* File Upload */}
-          <Endpoint method="POST" path="/files/upload/kling" description="Upload image for Kling I2V">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">Upload an image to use with Kling I2V models.</p>
-            
-            <h4 className="font-semibold mb-2">Parameters (multipart/form-data)</h4>
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left p-2">Name</th>
-                    <th className="text-left p-2">Type</th>
-                    <th className="text-left p-2">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2"><code>file</code></td>
-                    <td className="p-2">file</td>
-                    <td className="p-2">Image file (JPEG, PNG)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 className="font-semibold mb-2">Example</h4>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/files/upload/kling \\
-  -H "Authorization: Bearer sk_live_xxx" \\
-  -F "file=@image.jpg"`} />
-
-            <h4 className="font-semibold mb-2 mt-4">Response</h4>
-            <CodeBlock code={`{
-  "id": "abc123-def456",
-  "url": "https://cdn.example.com/image.jpg",
+            {/* File Uploads */}
+            <div className="mb-12">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+                    <FileText className="w-4 h-4" /> File Uploads
+                </h3>
+                
+                <Endpoint method="POST" path="/files/upload/kling" description="Upload image for Kling I2V">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Upload an image to be used with Kling models. Returns an ID and URL.
+                    </p>
+                    <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json"
+                        code={`{
+  "id": "img_abc123",
+  "url": "https://...",
   "width": 1024,
-  "height": 1024
-}`} language="json" />
-          </Endpoint>
+  "height": 576
+}`} 
+                    />
+                </Endpoint>
 
-          <Endpoint method="POST" path="/files/upload/veo" description="Upload image for Veo I2V">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">Upload an image to use with Google Veo I2V models.</p>
-            
-            <h4 className="font-semibold mb-2">Parameters (multipart/form-data)</h4>
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left p-2">Name</th>
-                    <th className="text-left p-2">Type</th>
-                    <th className="text-left p-2">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b dark:border-gray-700">
-                    <td className="p-2"><code>file</code></td>
-                    <td className="p-2">file</td>
-                    <td className="p-2">Image file (JPEG, PNG)</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2"><code>aspect_ratio</code></td>
-                    <td className="p-2">string</td>
-                    <td className="p-2">9:16 (default), 16:9</td>
-                  </tr>
-                </tbody>
-              </table>
+                <Endpoint method="POST" path="/files/upload/veo" description="Upload image for Veo I2V">
+                     <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Upload an image to be used with Google Veo models. Returns a media_id.
+                    </p>
+                    <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json"
+                        code={`{
+  "media_id": "CAMaJDNiNT..."
+}`} 
+                    />
+                </Endpoint>
             </div>
 
-            <h4 className="font-semibold mb-2">Example</h4>
-            <CodeBlock code={`curl -X POST https://api.tramsangtao.com/files/upload/veo \\
-  -H "Authorization: Bearer sk_live_xxx" \\
-  -F "file=@image.jpg" \\
-  -F "aspect_ratio=9:16"`} />
-
-            <h4 className="font-semibold mb-2 mt-4">Response</h4>
-            <CodeBlock code={`{
-  "media_id": "CAMaJDNiNTdlMGFlLTIx..."
-}`} language="json" />
-          </Endpoint>
-
-          {/* Job Status */}
-          <Endpoint method="GET" path="/jobs/{job_id}" description="Check job status">
-            <p className="mb-3 text-gray-600 dark:text-gray-400">Check the status of a generation job and get the result when complete.</p>
-            
-            <h4 className="font-semibold mb-2">Example</h4>
-            <CodeBlock code={`curl -X GET https://api.tramsangtao.com/jobs/abc123-def456 \\
-  -H "Authorization: Bearer sk_live_xxx"`} />
-
-            <h4 className="font-semibold mb-2 mt-4">Response (Pending)</h4>
-            <CodeBlock code={`{
-  "status": "processing",
-  "result": null
-}`} language="json" />
-
-            <h4 className="font-semibold mb-2 mt-4">Response (Complete)</h4>
-            <CodeBlock code={`{
-  "status": "completed",
-  "result": "https://cdn.example.com/video.mp4"
-}`} language="json" />
-
-            <h4 className="font-semibold mb-2 mt-4">Response (Failed)</h4>
-            <CodeBlock code={`{
-  "status": "failed: Server timeout",
-  "result": null
-}`} language="json" />
-          </Endpoint>
+            {/* Utility / Files */}
+             <div className="mb-12">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+                    <Info className="w-4 h-4" /> Validations & Status
+                </h3>
+                
+                <Endpoint method="GET" path="/jobs/{job_id}" description="Poll job status">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Retrieve the status and result of a background job.
+                    </p>
+                    <CodeBlock title="Response (Processing)" language="json" code={`{ "status": "processing", "result": null }`} />
+                     <CodeBlock title="Response (Completed)" language="json" code={`{ 
+  "status": "completed", 
+  "result": "https://storage.googleapis.com/.../video.mp4" 
+}`} />
+                </Endpoint>
+            </div>
         </section>
 
         {/* Error Codes */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">Error Codes</h2>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-700">
-                <tr>
-                  <th className="text-left p-2">Code</th>
-                  <th className="text-left p-2">Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b dark:border-gray-700">
-                  <td className="p-2"><code>401</code></td>
-                  <td className="p-2">Invalid or missing API key</td>
-                </tr>
-                <tr className="border-b dark:border-gray-700">
-                  <td className="p-2"><code>402</code></td>
-                  <td className="p-2">Insufficient balance</td>
-                </tr>
-                <tr className="border-b dark:border-gray-700">
-                  <td className="p-2"><code>429</code></td>
-                  <td className="p-2">Rate limit exceeded (100 req/min)</td>
-                </tr>
-                <tr>
-                  <td className="p-2"><code>500</code></td>
-                  <td className="p-2">Server error</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <section className="mb-20">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold">Error Codes</h2>
+            </div>
+            
+            <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <table className="w-full text-sm text-left">
+                     <thead className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium">
+                        <tr>
+                            <th className="px-6 py-4 border-b dark:border-gray-700 w-24">Code</th>
+                            <th className="px-6 py-4 border-b dark:border-gray-700 w-1/4">Error</th>
+                            <th className="px-6 py-4 border-b dark:border-gray-700">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                         <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">400</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Bad Request</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">Missing parameters, invalid file format, or malformed request.</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">401</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Unauthorized</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">Invalid or missing API key.</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">402</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Insufficient Funds</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">Account balance is too low for this request. Recharge in Dashboard.</td>
+                        </tr>
+                         <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">403</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Forbidden</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">API key does not have permission for this resource.</td>
+                        </tr>
+                         <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">404</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Not Found</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">The requested job ID or resource does not exist.</td>
+                        </tr>
+                          <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">429</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Too Many Requests</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">Rate limit exceeded (1000 requests per minute).</td>
+                        </tr>
+                         <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">500</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Internal Server Error</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">Something went wrong on our end. Please report this to support.</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">503</td>
+                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">Service Unavailable</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">The AI model provider is currently overloaded or down for maintenance.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         {/* Footer */}
-        <div className="text-center text-gray-500 text-sm">
-          <p>Need help? Contact support@tramsangtao.com</p>
+        <div className="text-center text-gray-500 dark:text-gray-500 text-sm border-t border-gray-200 dark:border-gray-800 pt-12">
+            <p className="mb-2">Need help integration? Contact us at Zalo 0352143210.</p>
+            <a href="mailto:leductummo@gmail.com" className="text-blue-600 hover:underline font-medium">leductummo@gmail.com</a>
         </div>
       </div>
     </div>

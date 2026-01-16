@@ -13,6 +13,7 @@ export interface ModelConfig {
     qualities?: string[]; // If undefined, hide selector. If array with values, show only those options.
     resolutions?: string[]; // If undefined, hide selector. If array with values, show only those options.
     durations?: string[]; // If undefined, hide selector. If array with values, show only those options.
+    speeds?: string[]; // If undefined, hide selector.
     audio?: boolean;
     note?: string; // Specific note to display in the generator UI
 }
@@ -24,7 +25,8 @@ export const IMAGE_MODELS: ModelConfig[] = [
         label: 'Nano Banana', 
         description: 'Phiên bản Nano Banana của Google',
         icon: Banana,
-        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5']
+        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5'],
+        speeds: ['fast', 'slow']
     },
     { 
         value: 'nano-banana-pro', 
@@ -35,21 +37,22 @@ export const IMAGE_MODELS: ModelConfig[] = [
         colors: 'yellow',
         // PRO supports resolution selection
         resolutions: ['1k', '2k', '4k'],  // Lowercase as required by API
-        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5']
+        aspectRatios: ['auto', '1:1', '4:3', '16:9', '21:9', '5:4', '3:2', '2:3', '9:16', '3:4', '4:5'],
+        speeds: ['fast', 'slow']
     },
 
     // Google Client Models
     { 
         value: 'nano-banana-cheap', 
-        label: 'Nano Banana Cheap', 
-        description: 'Phiên bản Nano Banana của Google - Rẻ',
+        label: 'Nano Banana Fast', 
+        description: 'Phiên bản Nano Banana của Google - Nhanh',
         icon: Banana,
         aspectRatios: ['9:16', '16:9']
     },
     { 
         value: 'nano-banana-pro-cheap', 
-        label: 'Nano Banana PRO Cheap', 
-        description: 'Phiên bản "Chuối" PRO của Google - Rẻ',
+        label: 'Nano Banana PRO Fast', 
+        description: 'Phiên bản "Chuối" PRO của Google - Nhanh',
         icon: Banana,
         badge: 'HOT',
         colors: 'yellow',
@@ -116,14 +119,25 @@ export const VIDEO_MODELS: ModelConfig[] = [
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - NHANH',
     },
-    { 
-        value: 'veo3.1-high', 
-        label: 'Veo 3.1 HIGH', 
+    {
+        value: 'veo3.1-high',
+        label: 'Veo 3.1 HIGH',
         description: 'Chất lượng tốt nhất',
         icon: Sparkles,
         colors: 'yellow',
         aspectRatios: ['9:16', '16:9'],
         note: 'Hỗ trợ cả T2V và I2V. Video 8 giây - CHẤT LƯỢNG CAO',
+    },
+    {
+        value: 'sora-2.0',
+        label: 'Sora 2.0',
+        description: 'Tạo video siêu thực từ OpenAI',
+        icon: Sparkles,
+        badge: 'NEW',
+        colors: 'purple',
+        durations: ['10s', '15s'],
+        aspectRatios: ['16:9', '9:16'], 
+        note: 'Hỗ trợ T2V và I2V. Chất lượng phù hợp làm Aff.'
     }
 ];
 

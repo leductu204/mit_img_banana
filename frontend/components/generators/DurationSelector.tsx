@@ -18,7 +18,7 @@ export default function DurationSelector({ value, onChange, options: propOptions
     ];
 
     const options = propOptions 
-        ? propOptions.map(opt => ({ value: opt, label: opt === '5s' ? '5 giây' : '10 giây' }))
+        ? propOptions.map(opt => ({ value: opt, label: opt.replace('s', ' giây') }))
         : defaultOptions;
 
     const selectedOption = options.find(opt => opt.value === value) || options[0];

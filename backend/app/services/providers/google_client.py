@@ -8,6 +8,8 @@ import uuid
 import base64
 import requests
 from typing import Optional, Tuple, List
+import io
+from PIL import Image
 from app.config import settings
 
 
@@ -245,13 +247,33 @@ class GoogleVeoClient:
 
 
     
-    def upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16", user_agent: Optional[str] = None) -> str:
+    def upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16", mime_type: str = "image/jpeg", user_agent: Optional[str] = None) -> str:
         """
-        Upload image bytes for I2V generation.
+        Upload image bytes for I2V generation. Corresponds to `flow_client.upload_image`.
+        Always converts to JPEG to match flow_client hardcoded behavior and ensure compatibility.
         """
         token = self.get_jwt_token()
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
         
+        # Convert to JPEG (standardize input)
+        try:
+            image = Image.open(io.BytesIO(image_data))
+            if image.mode in ('RGBA', 'P'):
+                image = image.convert('RGB')
+                
+            output_buffer = io.BytesIO()
+            image.save(output_buffer, format='JPEG', quality=95)
+            jpeg_data = output_buffer.getvalue()
+            
+            # Use the verified JPEG data
+            image_base64 = base64.b64encode(jpeg_data).decode('utf-8')
+            final_mime_type = "image/jpeg" 
+            
+        except Exception as e:
+            print(f"[GoogleVeoClient] Image check/conversion failed: {e}. Falling back to original data.")
+            # Fallback (e.g. if PIL fails or not installed? though we imported it)
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+            final_mime_type = mime_type
+
         url = "https://aisandbox-pa.googleapis.com/v1:uploadUserImage"
         
         # Determine aspect ratio format for upload
@@ -260,7 +282,7 @@ class GoogleVeoClient:
         payload_dict = {
             "imageInput": {
                 "rawImageBytes": image_base64,
-                "mimeType": "image/jpeg",
+                "mimeType": final_mime_type, # Always JPEG if conversion succeeded
                 "isUserUploaded": True,
                 "aspectRatio": mapped_ratio
             },
@@ -273,7 +295,12 @@ class GoogleVeoClient:
         headers = self._get_common_headers(token, user_agent=user_agent)
         headers['content-type'] = 'application/json'
         
+        print(f"[GoogleVeoClient] Uploading image. Original Size: {len(image_data)}, Final Mime: {final_mime_type}, Ratio: {mapped_ratio}")
         response = requests.post(url, json=payload_dict, headers=headers, proxies=self._proxies)
+        
+        if response.status_code != 200:
+            print(f"[GoogleVeoClient] Upload FAILED: {response.status_code} - {response.text}")
+            
         response.raise_for_status()
         
         return response.json().get('mediaGenerationId', {}).get('mediaGenerationId')
@@ -474,6 +501,7 @@ class GoogleVeoClient:
         recaptchaToken: str,
         model: str = "nano-banana-cheap",
         aspect_ratio: str = "9:16",
+        input_images: List[dict] = None,
         user_agent: Optional[str] = None
     ) -> str:
         """
@@ -500,6 +528,19 @@ class GoogleVeoClient:
         
         mapped_ratio = self._get_valid_aspect_ratio(aspect_ratio, is_image=True)
         
+        # Process Input Images
+        processed_inputs = []
+        if input_images:
+            for img in input_images:
+                # Expecting img to have 'id' (Media ID)
+                if "id" in img and img["id"]:
+                    processed_inputs.append({
+                        "name": img["id"],
+                        "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE"
+                    })
+                # If only URL is present and not ID, we might need to upload?
+                # For now assume ID is provided via the google upload endpoint.
+
         request_data = {
             "clientContext": {
                 "recaptchaToken": recaptchaToken,
@@ -511,7 +552,7 @@ class GoogleVeoClient:
             "imageModelName": model_name,
             "imageAspectRatio": mapped_ratio,
             "prompt": prompt,
-            "imageInputs": []
+            "imageInputs": processed_inputs
         }
 
         payload = {

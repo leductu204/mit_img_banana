@@ -536,6 +536,7 @@ async def _generate_google_image(
             recaptchaToken=recaptcha_token,
             model=model,
             aspect_ratio=request.aspect_ratio,
+            input_images=request.input_images,
             user_agent=user_agent
         )
         
@@ -614,3 +615,45 @@ async def generate_image_4_0(
 ):
     """Generate image using Imagen 4.0 (Google Imagen)."""
     return await _generate_google_image("image-4.0", request, current_user)
+
+
+@router.post("/google/upload", response_model=UploadResponse)
+async def google_upload_image(
+    image: UploadFile = File(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Upload image to Google for use with Google Client models (Nano Banana Cheap/Fast).
+    Returns mediaId as 'id'.
+    """
+    try:
+        image_data = await image.read()
+        
+        # No Recaptcha needed for upload
+        user_agent = None 
+
+        # Call Client
+        # upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16", user_agent: Optional[str] = None)
+        # It needs user_agent maybe.
+        
+        media_id = google_veo_client.upload_image_bytes(
+            image_data, 
+            aspect_ratio="9:16",
+            mime_type=image.content_type or "image/jpeg",
+            user_agent=user_agent
+        )
+        
+        if not media_id:
+            raise HTTPException(status_code=500, detail="Failed to upload to Google (No Media ID)")
+            
+        return UploadResponse(
+            id=media_id,
+            url="", # No public URL
+            width=0, # Dimensions not returned by upload
+            height=0
+        )
+
+    except Exception as e:
+        import traceback
+        print(f"Google Upload failed: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload image to Google: {str(e)}")

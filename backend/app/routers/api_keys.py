@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import List
-from app.schemas.api_keys import APIKeyCreate, APIKeyResponse, APIKeyTopUp
+from app.schemas.api_keys import APIKeyCreate, APIKeyResponse
 from app.schemas.users import UserInDB
 from app.services.api_keys_service import api_keys_service
 from app.deps import get_current_user
@@ -36,19 +36,4 @@ async def revoke_api_key(
         raise HTTPException(status_code=404, detail="Key not found")
     return {"message": "Key revoked successfully"}
 
-@router.post("/{key_id}/top-up")
-async def top_up_api_key(
-    key_id: str,
-    data: APIKeyTopUp,
-    current_user: UserInDB = Depends(get_current_user)
-):
-    """Add credits to an API key."""
-    try:
-        new_balance = api_keys_service.top_up_balance(
-            current_user.user_id, 
-            key_id, 
-            data.amount
-        )
-        return {"balance": new_balance}
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return {"message": "Key revoked successfully"}

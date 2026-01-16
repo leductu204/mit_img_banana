@@ -81,16 +81,63 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                         if "|" in provider_job_id:
                             # Veo3 job
                             result = google_veo_client.get_job_status(provider_job_id)
+                        elif job.get("model") == "sora-2.0":
+                            # Sora 2.0 job
+                            from app.services.providers.sora_client import sora_client_instance
+                            from app.services.sora_service import sora_service
+                            
+                            # Get an active admin token
+                            # Since we don't track which account created the job, we pick the highest priority active one
+                            # This assumes all accounts can see all jobs OR we only have one account
+                            # Use recursion/retry for 401
+                            try:
+                                account = sora_service.get_active_token()
+                                if not account:
+                                    logger.error(f"Job {job_id}: No active Sora account to check status")
+                                    continue
+                                
+                                token = account['access_token']
+                                try:
+                                    result = await sora_client_instance.get_job_status(provider_job_id, token)
+                                except Exception as e:
+                                    # Check for auth error
+                                    if "401" in str(e) or "Signed out" in str(e):
+                                        logger.warning(f"Sora Auth failed for account {account['id']}. Attempting refresh...")
+                                        # Try refresh
+                                        try:
+                                            new_account = await sora_service.refresh_token(account['id'])
+                                            if new_account:
+                                                token = new_account['access_token']
+                                                # Retry once
+                                                result = await sora_client_instance.get_job_status(provider_job_id, token)
+                                            else:
+                                                raise Exception("Refresh returned None")
+                                        except Exception as refresh_error:
+                                            logger.error(f"Token refresh failed: {refresh_error}")
+                                            raise e # Re-raise original or new error
+                                    else:
+                                        raise e
+                            except Exception as e:
+                                logger.error(f"Sora status check failed for job {job_id}: {e}")
+                                # If we caught generic error here, we might want to let the main loop catch it too?
+                                # The main loop has try/except Exception as e logging "Error checking job {job_id}: {e}"
+                                # So raising here allows main loop to handle it consistently.
+                                raise e
                         else:
                             # Kling job - Use dynamic client
                             result = client.get_job_status(provider_job_id)
                         
                         # Debug (commented out)
-                        # print(f"[JobMonitor] Job {job_id[:8]}... Higgsfield returned: {result}")
+                        # print(f"[JobMonitor] Job {job_id[:8]}... returned: {result}")
                         
                         external_status = result.get("status", "processing")
                         new_status = map_external_status(external_status)
                         output_url = result.get("result")
+                        
+                        # Handle Sora error specifically if present
+                        if new_status == "failed" and result.get("error"):
+                            logger.error(f"Job {job_id} failed from provider: {result.get('error')}")
+
                         
                         # Define active (non-terminal) states
                         active_states = {"pending", "processing"}
@@ -109,6 +156,100 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 continue
                             
                             if new_status == "completed":
+                                # Remove Watermark for Sora Jobs
+                                if "sora" in job.get("model", "").lower():
+                                    if output_url:
+                                        try:
+                                            from app.services.providers.sorai_client import sorai_client
+                                            logger.info(f"Sora Job {job_id} Completed. output_url: {output_url}")
+                                            
+                                            import asyncio
+                                            
+                                            # 0. Check raw result for 'id' or 'share_url'
+                                            raw_data = result.get("raw", {})
+                                            if raw_data:
+                                                # Check commonly named fields (adjust based on actual API response)
+                                                if raw_data.get("id"):
+                                                     # Sora ID often starts with 's_' or similar
+                                                     possible_id = raw_data.get("id")
+                                                     logger.info(f"Checking raw ID: {possible_id}")
+                                                     if possible_id and possible_id.startswith("s_"):
+                                                        post_id = possible_id
+                                                     else:
+                                                        logger.info(f"Raw ID {possible_id} does not look like a post ID (s_...). Ignoring.")
+                                            
+                                            # 1. Try to extract from URL if it's a share link (override raw if found)
+                                            import re
+                                            match = re.search(r'/p/([^/?#]+)', output_url)
+                                            if match:
+                                                post_id = match.group(1)
+                                                logger.info(f"Extracted post_id from URL: {post_id}")
+                                            
+                                            # 2. Fallback to usage of provider_job_id
+                                            if not post_id and provider_job_id and not "|" in provider_job_id:
+                                                # If it looks like an s_ ID, use it.
+                                                if provider_job_id.startswith("s_"):
+                                                    post_id = provider_job_id
+                                                    logger.info(f"Using provider_job_id as post_id: {post_id}")
+                                                
+                                            # 3. Last Resort: Identify by UUID/gen_id and create a post to get ID
+                                            if not post_id and provider_job_id: 
+                                                # Likely a gen_ ID or UUID
+                                                logger.info(f"Could not extract s_ ID. Attempting to create temporary post for ID: {provider_job_id}")
+                                                try:
+                                                    from app.services.providers.sora_client import sora_client_instance
+                                                    from app.services.sora_service import sora_service
+                                                    
+                                                    # We need an active token
+                                                    account = sora_service.get_active_token()
+                                                    if account:
+                                                        token = account['access_token']
+                                                        # Create post
+                                                        # Note: provider_job_id should be the 'generation_id' (UUID) if it's not an s_ ID
+                                                        gen_id = provider_job_id
+                                                        logger.info(f"Calling post_video_for_watermark_free for gen_id: {gen_id}")
+                                                        
+                                                        temp_post_id = await sora_client_instance.post_video_for_watermark_free(gen_id, "", token)
+                                                        
+                                                        if temp_post_id:
+                                                            logger.info(f"Created temp post: {temp_post_id}. Waiting 5s for propagation...")
+                                                            await asyncio.sleep(5)
+                                                            post_id = temp_post_id
+                                                    else:
+                                                        logger.warning("No active Sora account found to create temp post.")
+                                                except Exception as e_post:
+                                                    logger.error(f"Failed to create temp post for watermark removal: {e_post}")
+
+                                            if post_id:
+                                                logger.info(f"Attempting watermark removal for job {job_id} (post_id: {post_id})...")
+                                                clean_url = await sorai_client.get_download_link(post_id)
+                                                if clean_url:
+                                                    logger.info(f"Watermark removed for job {job_id}. Old: {output_url} -> New: {clean_url}")
+                                                    # Verify it's different and looks valid
+                                                    if clean_url != output_url and clean_url.startswith("http"):
+                                                        output_url = clean_url
+                                                    else:
+                                                         logger.warning(f"Clean URL is same or invalid. clean: {clean_url}")
+                                                else:
+                                                    logger.warning("sorai_client returned None")
+                                            else:
+                                                logger.warning(f"Could not extract Sora post_id for job {job_id}. URL: {output_url}, Raw keys: {list(raw_data.keys()) if raw_data else 'None'}")
+                                                
+                                        except Exception as e_wm:
+                                            logger.error(f"Failed to remove watermark for job {job_id}: {e_wm}")
+                                            
+                                            # CRITICAL FALLBACK: Try all possible keys to get the Video URL
+                                            # logic ported from reference implementation
+                                            if raw_data:
+                                                fallback_url = raw_data.get("downloadable_url") or raw_data.get("url") or raw_data.get("signed_url") or raw_data.get("video_url")
+                                                if fallback_url:
+                                                    logger.info(f"Fallback URL found: {fallback_url[:50]}...")
+                                                    output_url = fallback_url
+                                                else:
+                                                    logger.error(f"CRITICAL: Video URL not found in fallback logic. Raw keys: {list(raw_data.keys())}")
+                                    else:
+                                        logger.warning(f"Sora Job {job_id} completed but no output_url found.")
+
                                 # Debug (commented out)
                                 # print(f"[JobMonitor] Updating job {job_id} to COMPLETED with URL: {output_url[:50]}...")
                                 success = jobs_repo.update_status(job_id, new_status, output_url=output_url)

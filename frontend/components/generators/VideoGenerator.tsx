@@ -283,6 +283,15 @@ export function VideoGenerator() {
                     endpoint = '/api/generate/video/kling-2.6/t2v'
                     formData.append('aspect_ratio', aspectRatio)
                 }
+            } else if (model === 'sora-2.0') {
+                 formData.append('aspect_ratio', aspectRatio)
+                 formData.append('speed', speed)
+                 if (isImageToVideo) {
+                     endpoint = '/api/generate/video/sora-2_0/i2v'
+                     formData.append('img_url', imgUrl)
+                 } else {
+                     endpoint = '/api/generate/video/sora-2_0/t2v'
+                 }
             } else { throw new Error(`Unknown model: ${model}`) }
 
             const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })

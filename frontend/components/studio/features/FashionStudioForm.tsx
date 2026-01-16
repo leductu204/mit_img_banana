@@ -24,7 +24,7 @@ export default function FashionStudioForm() {
   const { balance, estimateImageCost, hasEnoughCredits, updateCredits } = useCredits();
 
   const estimatedCost = useMemo(() => {
-    return estimateImageCost("nano-banana-pro", "auto", "2k", "fast");
+    return estimateImageCost("nano-banana-pro-cheap", "9:16", "2k", "fast");
   }, [estimateImageCost]);
 
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -50,16 +50,50 @@ export default function FashionStudioForm() {
     setCurrentJobStatus("uploading");
 
     try {
-        // 1. Upload both images
-        const uploadModel = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
-        await fetch(uploadModel.upload_url, { method: 'PUT', body: modelImages[0], headers: { 'Content-Type': 'image/jpeg' } });
-        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadModel.id }) });
-        const modelDim = await getImageDimensionsFromUrl(uploadModel.url);
+        let modelInput, garmentInput;
 
-        const uploadGarment = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
-        await fetch(uploadGarment.upload_url, { method: 'PUT', body: garmentImages[0], headers: { 'Content-Type': 'image/jpeg' } });
-        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadGarment.id }) });
-        const garmentDim = await getImageDimensionsFromUrl(uploadGarment.url);
+        const isGoogleModel = estimatedCost > 0; // Or check model name explicit? estimatedCost doesn't tell model. 
+        // Better:
+        const currentModel = "nano-banana-pro-cheap"; // Hardcoded in this form per previous step
+        const isGoogle = currentModel.includes("cheap") || currentModel.includes("fast");
+
+        if (isGoogle) {
+             // ========= GOOGLE FAST UPLOAD FLOW =========
+             const uploadToGoogle = async (file: File) => {
+                 const formData = new FormData();
+                 formData.append('image', file);
+                 const res = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
+                     method: 'POST',
+                     body: formData,
+                     // Let browser set Content-Type for FormData
+                 });
+                 // Get dimensions locally
+                 const url = URL.createObjectURL(file);
+                 const dim = await getImageDimensionsFromUrl(url);
+                 return { id: res.id, url: "", width: dim.width, height: dim.height };
+             };
+
+             const uModel = await uploadToGoogle(modelImages[0]);
+             const uGarment = await uploadToGoogle(garmentImages[0]);
+             
+             modelInput = { type: "media_input", id: uModel.id, url: "", width: uModel.width, height: uModel.height, label: "model" };
+             garmentInput = { type: "media_input", id: uGarment.id, url: "", width: uGarment.width, height: uGarment.height, label: "garment" };
+
+        } else {
+            // ========= HIGGSFIELD UPLOAD FLOW =========
+            const uploadModel = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
+            await fetch(uploadModel.upload_url, { method: 'PUT', body: modelImages[0], headers: { 'Content-Type': 'image/jpeg' } });
+            await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadModel.id }) });
+            const modelDim = await getImageDimensionsFromUrl(uploadModel.url);
+
+            const uploadGarment = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' });
+            await fetch(uploadGarment.upload_url, { method: 'PUT', body: garmentImages[0], headers: { 'Content-Type': 'image/jpeg' } });
+            await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadGarment.id }) });
+            const garmentDim = await getImageDimensionsFromUrl(uploadGarment.url);
+            
+            modelInput = { type: "media_input", id: uploadModel.id, url: uploadModel.url, width: modelDim.width, height: modelDim.height, label: "model" };
+            garmentInput = { type: "media_input", id: uploadGarment.id, url: uploadGarment.url, width: garmentDim.width, height: garmentDim.height, label: "garment" };
+        }
 
         // 2. Start Job
         const fullPrompt = `Task: Realistically dress the provided model with the provided clothing item.\n\n1. **Clothing Application**: Take the isolated clothing item and fit it perfectly onto the model's body, respecting their pose, shape, and contours.\n2. **Realism Integration**: Adjust the lighting, shadows, and fabric physics to make it look naturally worn by the model.\n3. **Detail Preservation**: Maintain all original details of the clothing (colors, patterns, textures) while adapting to the model's body.\n4. **Professional Result**: The final image should look like a real photograph of the model wearing the outfit.\nInstruction: ${prompt || "make it look natural and realistic"}. High-end fashion editorial style, professional lighting.`;
@@ -67,15 +101,15 @@ export default function FashionStudioForm() {
         const payload = {
             prompt: fullPrompt,
             input_images: [
-                { type: "media_input", id: uploadModel.id, url: uploadModel.url, width: modelDim.width, height: modelDim.height, label: "model" },
-                { type: "media_input", id: uploadGarment.id, url: uploadGarment.url, width: garmentDim.width, height: garmentDim.height, label: "garment" }
+                modelInput,
+                garmentInput
             ],
-            aspect_ratio: "auto",
+            aspect_ratio: "9:16",
             resolution: "2k",
             speed: "fast"
         };
 
-        const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro/generate', {
+        const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>('/api/generate/image/nano-banana-pro-cheap/generate', {
             method: 'POST',
             body: JSON.stringify(payload)
         });

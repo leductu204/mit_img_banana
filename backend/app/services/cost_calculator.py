@@ -166,6 +166,11 @@ def calculate_video_cost(
         if audio:
             base_key += "-audio"
     
+    elif model == "sora-2.0":
+        # Sora 2.0 - Duration based (10s, 15s, 25s)
+        # Expected keys: 10s-fast, 15s-fast, 25s-fast
+        base_key = f"{duration_key}"
+
     elif model in ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]:
         # Veo 3.1 - fixed 8s duration, speed param doesn't affect cost lookup name (already built into model name)
         # We ignore 'speed' param here for lookup as the model name IS the speed variant
@@ -212,7 +217,7 @@ def calculate_cost(
         Credit cost as integer
     """
     # Determine if this is a video model
-    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6", "veo3.1-low", "veo3.1-fast", "veo3.1-high"]
+    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6", "veo3.1-low", "veo3.1-fast", "veo3.1-high", "sora-2.0"]
     
     if model in video_models:
         return calculate_video_cost(

@@ -12,14 +12,16 @@ import {
   History,
   LogOut,
   Shield,
-  Server
+  Server,
+  Video
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/keys', label: 'API Keys', icon: Users },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/model-costs', label: 'Model Costs', icon: CreditCard },
-  { href: '/admin/higgsfield-accounts', label: 'Accounts', icon: Server },
+  { href: '/admin/higgsfield-accounts', label: 'Higgsfield', icon: Server },
+  { href: '/admin/sora-accounts', label: 'Sora', icon: Video },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
   { href: '/admin/logs', label: 'Audit Logs', icon: History },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

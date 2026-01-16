@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
 from typing import Optional
+import uuid
 from app.middleware.api_key_auth import verify_api_key_dependency
-from app.repositories import api_keys_repo, jobs_repo, model_costs_repo
+from app.repositories import api_keys_repo, jobs_repo, model_costs_repo, users_repo
 from app.schemas.jobs import JobCreate
+from app.services.credits_service import credits_service
 from app.services.providers.higgsfield_client import higgsfield_client
 from app.services.providers.google_client import google_veo_client
+from app.services.providers.sora_client import sora_client_instance as sora_client
 
 router = APIRouter()
 
@@ -12,9 +15,12 @@ router = APIRouter()
 async def check_balance(
     key_record: dict = Depends(verify_api_key_dependency)
 ):
-    """Check current balance for the API key."""
+    """Check current balance for the API key (returns user's global credits)."""
+    user_id = key_record["user_id"]
+    current_credits = users_repo.get_credits(user_id) or 0
+    
     return {
-        "balance": key_record["balance"],
+        "balance": current_credits,
         "key_prefix": key_record["key_prefix"],
         "created_at": key_record["created_at"]
     }
@@ -51,62 +57,164 @@ async def public_generate_image(
         cost = 6 if "pro" in model else 2
         
     # 2. Check Balance
-    current_balance = key_record["balance"]
-    if current_balance < cost:
+    # 2. Check Balance (User's Global Credits)
+    user_id = key_record["user_id"]
+    has_credits, current_balance = credits_service.check_credits(user_id, cost)
+    
+    if not has_credits:
         raise HTTPException(
             status_code=402,
-            detail=f"Insufficient balance. Required: {cost}, Available: {current_balance}"
+            detail=f"Insufficient user balance. Required: {cost}, Available: {current_balance}"
         )
 
-    # 3. Call Provider (Higgsfield)
+    # 3. Call Provider
     try:
-        result = higgsfield_client.generate_image(
-            prompt=prompt,
-            model=model,
-            resolution=resolution,
-            aspect_ratio=aspect_ratio
-        )
+        # Check if this is a Google Model (Nano Banana Cheap/Pro Cheap/Imagen 4.0)
+        GOOGLE_MODELS = ["nano-banana-cheap", "nano-banana-pro-cheap", "image-4.0"]
         
-        if isinstance(result, dict):
-            job_id = result.get("job_id", "unknown")
+        if model in GOOGLE_MODELS:
+            # === GOOGLE GENERATION LOGIC ===
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            from app.services.providers.playwright_solver import get_token_isolated
+            
+            # 1. Get Recaptcha Token
+            loop = asyncio.get_event_loop()
+            recaptcha_token, user_agent = await loop.run_in_executor(
+                ThreadPoolExecutor(), 
+                get_token_isolated,
+                '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
+                'https://labs.google'
+            )
+            
+            if not recaptcha_token:
+                raise ValueError("Failed to retrieve reCAPTCHA token for Google generation")
+
+            # 2. Call Google Client
+            # generate_image returns "image|URL"
+            result_str = google_veo_client.generate_image(
+                prompt=prompt,
+                recaptchaToken=recaptcha_token,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                user_agent=user_agent
+            )
+            
+            if not result_str or not result_str.startswith("image|"):
+                 raise ValueError("Invalid response from Google provider")
+                 
+            # Extract URL (removes "image|" prefix)
+            job_id = result_str.split("|")[1] 
+            
+            # Google generation is synchronous/immediate
+            status_for_db = "completed"
+            
+            # NOTE: job_id here is actually the URL for Google models in this implementation
+            # We should probably store a UUID as job_id and valid URL as output
+            # But to match existing flow, let's generate a UUID for the system job_id
+            # and use the URL as the result.
+            
+            final_image_url = job_id # The "job_id" from logic above is actually the URL
+            system_job_id = str(uuid.uuid4())
+            
+            # 4. Create Job Record
+            real_user_id = key_record.get("user_id")
+            user_id = real_user_id if real_user_id else "system_public_api"
+            
+            job_data = JobCreate(
+                job_id=system_job_id,
+                user_id=user_id,
+                type="t2i",
+                model=model,
+                prompt=prompt,
+                credits_cost=cost
+            )
+            
+            jobs_repo.create(job_data, status=status_for_db)
+            jobs_repo.update_status(system_job_id, "completed", output_url=final_image_url)
+            
+            # 5. Deduct Balance
+            new_balance = credits_service.deduct_credits(
+                user_id=user_id,
+                amount=cost,
+                job_id=system_job_id,
+                reason=f"API Image Gen: {model}"
+            )
+            
+            # Log Usage
+            api_keys_repo.log_usage(
+                key_id=key_record["key_id"],
+                endpoint="/v1/image/generate",
+                cost=cost,
+                balance_before=current_balance,
+                balance_after=new_balance,
+                status="success",
+                job_id=system_job_id
+            )
+            
+            return {
+                "job_id": system_job_id,
+                "status": "completed",
+                "cost": cost,
+                "balance_remaining": new_balance,
+                "result": final_image_url
+            }
+
         else:
-            job_id = result if result else "unknown"
-        
-        # 4. Create Job Record
-        real_user_id = key_record.get("user_id")
-        user_id = real_user_id if real_user_id else "system_public_api"
-        
-        job_data = JobCreate(
-            job_id=job_id,
-            user_id=user_id,
-            type="t2i",
-            model=model,
-            prompt=prompt,
-            credits_cost=cost
-        )
-        
-        jobs_repo.create(job_data)
-        
-        # 5. Deduct Balance & Log Usage
-        # Use execute_in_transaction for atomicity
-        new_balance = api_keys_repo.deduct_balance(key_record["key_id"], cost)
-        
-        api_keys_repo.log_usage(
-            key_id=key_record["key_id"],
-            endpoint="/v1/image/generate",
-            cost=cost,
-            balance_before=current_balance,
-            balance_after=new_balance,
-            status="success",
-            job_id=job_id
-        )
-        
-        return {
-            "job_id": job_id,
-            "status": "pending",
-            "cost": cost,
-            "balance_remaining": new_balance
-        }
+            # === HIGGSFIELD GENERATION LOGIC (Existing) ===
+            result = higgsfield_client.generate_image(
+                prompt=prompt,
+                model=model,
+                resolution=resolution,
+                aspect_ratio=aspect_ratio
+            )
+            
+            if isinstance(result, dict):
+                job_id = result.get("job_id", "unknown")
+            else:
+                job_id = result if result else "unknown"
+            
+            # 4. Create Job Record
+            real_user_id = key_record.get("user_id")
+            user_id = real_user_id if real_user_id else "system_public_api"
+            
+            job_data = JobCreate(
+                job_id=job_id,
+                user_id=user_id,
+                type="t2i",
+                model=model,
+                prompt=prompt,
+                credits_cost=cost
+            )
+            
+            jobs_repo.create(job_data)
+            
+            # 5. Deduct Balance & Log Usage
+            # Use credits_service to deduct from user wallet
+            new_balance = credits_service.deduct_credits(
+                user_id=user_id,
+                amount=cost,
+                job_id=job_id,
+                reason=f"API Image Gen: {model}"
+            )
+            
+            # Still log specific API key usage for tracking/analytics (optional but good)
+            api_keys_repo.log_usage(
+                key_id=key_record["key_id"],
+                endpoint="/v1/image/generate",
+                cost=cost,
+                balance_before=current_balance,
+                balance_after=new_balance,
+                status="success",
+                job_id=job_id
+            )
+            
+            return {
+                "job_id": job_id,
+                "status": "pending",
+                "cost": cost,
+                "balance_remaining": new_balance
+            }
         
     except Exception as e:
         api_keys_repo.log_usage(
@@ -125,7 +233,40 @@ async def check_public_job(
     key_record: dict = Depends(verify_api_key_dependency)
 ):
     """Check status of a job created via API."""
-    # Detect provider based on ID format
+    
+    # 1. Check DB first (Source of truth for processed/clean results)
+    job = jobs_repo.get_by_id(job_id)
+    if job:
+        status = job["status"]
+        result_url = job.get("output_url")
+        error = job.get("error_message")
+        
+        # If completed, return successful response (likely has clean URL)
+        if status == "completed":
+            return {
+                "status": "completed",
+                "result": result_url,
+                "progress": 100
+            }
+        
+        # If failed
+        if status == "failed":
+            return {
+                "status": "failed",
+                "result": None,
+                "error": error
+            }
+
+        # If processing/pending, we return that status.
+        # We rely on Background JobMonitor to update status and handle watermark removal.
+        # This prevents returning a raw/watermarked URL prematurely.
+        return {
+            "status": status,
+            "result": None,
+            "progress": 0 # TODO: Store progress in DB if needed
+        }
+
+    # 2. Fallback: Detect provider based on ID format (Legacy/Direct)
     if "|" in job_id:
         # Google Veo ID format: operation_name|scene_id
         return google_veo_client.get_job_status(job_id)
@@ -188,11 +329,14 @@ async def public_generate_video(
          cost = 10 
         
     # 2. Check Balance
-    current_balance = key_record["balance"]
-    if current_balance < cost:
+    # 2. Check Balance (User's Global Credits)
+    user_id = key_record["user_id"]
+    has_credits, current_balance = credits_service.check_credits(user_id, cost)
+
+    if not has_credits:
         raise HTTPException(
             status_code=402,
-            detail=f"Insufficient balance. Required: {cost}, Available: {current_balance}"
+            detail=f"Insufficient user balance. Required: {cost}, Available: {current_balance}"
         )
         
     # 3. Call Provider
@@ -210,15 +354,62 @@ async def public_generate_video(
                 else:
                     raise HTTPException(400, "For Veo I2V, provide 'media_id' (preferred) or 'img_url'")
 
+            # Use synchronous Google Client (same as image gen, it handles recaptcha internall if configured, 
+            # or uses valid cookie).
+            # Note: We need to ensure google_veo_client is ready.
+            # However, for VIDEO, google_client.py uses `generate_video` which returns "operation|scene".
+            
+            # We need to solve recaptcha if not using just cookie?
+            # The current google_client.generate_video DOES require a recaptchaToken argument.
+            # But public_api.py is not passing it!
+            # FIX: We need to solve recaptcha here too, just like for image gen.
+            
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            from app.services.providers.playwright_solver import get_token_isolated
+            
+            loop = asyncio.get_event_loop()
+            recaptcha_token, user_agent = await loop.run_in_executor(
+                ThreadPoolExecutor(), 
+                get_token_isolated,
+                '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
+                'https://labs.google'
+            )
+            
+            if not recaptcha_token:
+                raise ValueError("Failed to retrieve reCAPTCHA token")
+
             result_str = google_veo_client.generate_video(
-                model=model,
                 prompt=prompt,
+                recaptchaToken=recaptcha_token,
+                model=model,
                 aspect_ratio=aspect_ratio,
-                input_image=veo_input_image
+                input_image=veo_input_image,
+                user_agent=user_agent
             )
             job_id = result_str
             result = {"job_id": job_id}
             
+        elif "sora" in model:
+             # Sora Logic
+             # Map aspect_ratio to orientation
+             orientation = "landscape"
+             if aspect_ratio == "9:16":
+                 orientation = "portrait"
+             elif aspect_ratio == "1:1":
+                 orientation = "square"
+             
+             # Sora Client is Async
+             sora_res = await sora_client.generate_video(
+                 prompt=prompt,
+                 model=model,
+                 orientation=orientation
+                 # TODO: map duration to n_frames if needed
+             )
+             
+             job_id = sora_res
+             result = {"job_id": job_id}
+
         elif "kling" in model:
              # Kling Logic
              kling_input_images = None
@@ -268,7 +459,12 @@ async def public_generate_video(
         jobs_repo.create(job_data)
         
         # 5. Deduct & Log
-        new_balance = api_keys_repo.deduct_balance(key_record["key_id"], cost)
+        new_balance = credits_service.deduct_credits(
+            user_id=user_id,
+            amount=cost,
+            job_id=job_id,
+            reason=f"API Video Gen: {model}"
+        )
         
         api_keys_repo.log_usage(
             key_id=key_record["key_id"],

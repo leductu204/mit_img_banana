@@ -150,6 +150,14 @@ def seed_default_costs() -> None:
         ("nano-banana-cheap", "is_enabled", 1),
         ("nano-banana-pro-cheap", "is_enabled", 1),
         ("image-4.0", "is_enabled", 1),
+
+        # Sora 2.0
+        ("sora-2.0", "10s-fast", 20),
+        ("sora-2.0", "10s-slow", 20),
+        ("sora-2.0", "15s-fast", 30),
+        ("sora-2.0", "15s-slow", 30),
+        ("sora-2.0", "is_enabled", 1),
+        ("sora-2.0", "is_slow_mode_enabled", 1),
     ]
     
     with get_db_context() as conn:

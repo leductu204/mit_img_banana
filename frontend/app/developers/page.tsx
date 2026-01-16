@@ -53,7 +53,7 @@ export default function DevelopersPage() {
               <Terminal className="w-6 h-6 text-purple-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-1">API Endpoint</h3>
-            <p className="font-mono text-sm text-gray-400">api.dtmanotool.io.vn/v1</p>
+            <p className="font-mono text-sm text-gray-400">api.tramsangtao.com/v1</p>
           </div>
 
           <div className="p-6 bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl">
@@ -62,7 +62,7 @@ export default function DevelopersPage() {
             </div>
             <h3 className="text-lg font-semibold text-white mb-1">Integration</h3>
             <div className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-white transition-colors">
-              Node.js SDK 
+              SDK 
               <ChevronRight className="w-3 h-3" />
             </div>
           </div>
@@ -75,7 +75,6 @@ export default function DevelopersPage() {
             </div>
             <h3 className="text-lg font-semibold text-white mb-1">Total Balance</h3>
              <p className="text-2xl font-bold text-white">{user?.credits || 0}</p>
-             <p className="text-xs text-gray-500">Available to transfer</p>
           </div>
         </div>
 

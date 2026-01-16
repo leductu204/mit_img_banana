@@ -28,6 +28,7 @@ from app.routers import (
     admin_costs,
     admin_settings,
     admin_accounts,
+    admin_sora_accounts,
     admin_stats,
     admin_api_keys,
     image,
@@ -205,6 +206,10 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 # Sora Downloader
 app.include_router(sora.router, prefix="/api/sora", tags=["sora"])
 
+# Models List
+from app.routers import models
+app.include_router(models.router, prefix="/v1", tags=["models"])
+
 # ============================================
 # Admin Panel Routes (prefixed with /api to avoid frontend collision)
 # Hidden from public docs for security
@@ -217,6 +222,7 @@ app.include_router(admin_logs.router, prefix="/api", include_in_schema=False)  #
 app.include_router(admin_api_keys.router, prefix="/api", include_in_schema=False)  # /api/admin/keys
 app.include_router(admin_settings.router, prefix="/api", include_in_schema=False)  # /api/admin/settings
 app.include_router(admin_accounts.router, prefix="/api/admin/higgsfield", tags=["admin-higgsfield"], include_in_schema=False)  # /api/admin/higgsfield/accounts
+app.include_router(admin_sora_accounts.router, prefix="/api", include_in_schema=False)  # /api/admin/sora/accounts
 
 app.include_router(public_settings.router, prefix="/api")  # /api/settings/public
 
@@ -244,3 +250,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Reload trigger V8

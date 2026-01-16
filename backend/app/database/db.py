@@ -128,6 +128,104 @@ def init_orders_table(conn=None) -> None:
         if should_close:
             conn.close()
 
+def init_sora_accounts_table(conn=None) -> None:
+    """
+    Initialize Sora Accounts table for managing OpenAI Sora tokens.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    
+    try:
+        # Create table with all fields if not exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sora_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                access_token TEXT NOT NULL,
+                session_token TEXT,
+                refresh_token TEXT,
+                name TEXT,
+                client_id TEXT,
+                proxy_url TEXT,
+                expiration_time INTEGER,
+                is_active BOOLEAN DEFAULT 1,
+                is_expired BOOLEAN DEFAULT 0,
+                priority INTEGER DEFAULT 100,
+                remark TEXT,
+                
+                -- Subscription Info
+                plan_type TEXT,
+                plan_title TEXT,
+                subscription_end TIMESTAMP,
+                
+                -- Sora2 Stats
+                sora2_supported BOOLEAN,
+                sora2_invite_code TEXT,
+                sora2_redeemed_count INTEGER DEFAULT 0,
+                sora2_total_count INTEGER DEFAULT 0,
+                sora2_remaining_count INTEGER DEFAULT 0,
+                sora2_cooldown_until TIMESTAMP,
+                
+                -- Configuration
+                image_enabled BOOLEAN DEFAULT 1,
+                video_enabled BOOLEAN DEFAULT 1,
+                image_concurrency INTEGER DEFAULT -1,
+                video_concurrency INTEGER DEFAULT -1,
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Index for active accounts
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sora_accounts_active 
+            ON sora_accounts(is_active, priority DESC);
+        """)
+        
+        # Migration: Add columns if they don't exist
+        cursor = conn.execute("PRAGMA table_info(sora_accounts)")
+        existing_columns = [row[1] for row in cursor.fetchall()]
+        
+        new_columns = {
+            "name": "TEXT",
+            "client_id": "TEXT",
+            "proxy_url": "TEXT",
+            "is_expired": "BOOLEAN DEFAULT 0",
+            "plan_type": "TEXT",
+            "plan_title": "TEXT",
+            "subscription_end": "TIMESTAMP",
+            "sora2_supported": "BOOLEAN",
+            "sora2_invite_code": "TEXT",
+            "sora2_redeemed_count": "INTEGER DEFAULT 0",
+            "sora2_total_count": "INTEGER DEFAULT 0",
+            "sora2_remaining_count": "INTEGER DEFAULT 0",
+            "sora2_cooldown_until": "TIMESTAMP",
+            "image_enabled": "BOOLEAN DEFAULT 1",
+            "video_enabled": "BOOLEAN DEFAULT 1",
+            "image_concurrency": "INTEGER DEFAULT -1",
+            "video_concurrency": "INTEGER DEFAULT -1"
+        }
+        
+        for col, dtype in new_columns.items():
+            if col not in existing_columns:
+                try:
+                    conn.execute(f"ALTER TABLE sora_accounts ADD COLUMN {col} {dtype}")
+                    print(f"Added column '{col}' to sora_accounts")
+                except Exception as e:
+                    print(f"Failed to add column '{col}': {e}")
+        
+        conn.commit()
+        print("Sora accounts table initialized successfully")
+        
+    except Exception as e:
+        print(f"Error initializing sora accounts table: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
 
 def init_higgsfield_accounts_table(conn=None) -> None:
     """
@@ -220,6 +318,9 @@ def init_database() -> None:
         
         # Initialize Higgsfield Accounts table
         init_higgsfield_accounts_table(conn)
+        
+        # Initialize Sora Accounts table
+        init_sora_accounts_table(conn)
         
         # Initialize Orders table
         init_orders_table(conn)

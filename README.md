@@ -131,7 +131,10 @@ MIT_Img_Video/
 - `POST /api/nano-banana/upload/reference` - Upload ảnh tham chiếu đầu tiên
 - `POST /api/nano-banana/upload/batch` - Upload ảnh tham chiếu tiếp theo
 - `POST /api/nano-banana/upload/check` - Xác nhận upload thành công
-- `POST /api/nano-banana/generate` - Tạo ảnh
+- `POST /api/nano-banana/generate` - Tạo ảnh (Standard)
+- `POST /api/nano-banana-cheap/generate` - Tạo ảnh (Fast/Google)
+- `POST /api/generate/video/sora-2_0/t2v` - Tạo video Sora (T2V)
+- `POST /api/generate/video/sora-2_0/i2v` - Tạo video Sora (I2V)
 - `GET /api/nano-banana/jobs/{job_id}` - Kiểm tra trạng thái job
 
 ## Troubleshooting
