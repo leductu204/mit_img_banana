@@ -5,7 +5,7 @@ from typing import Optional
 import re
 import requests
 import base64
-from app.services.providers.sorai_client import sorai_client
+
 from app.services.providers.sora_client import sora_client_instance
 from app.deps import get_current_user
 
@@ -37,7 +37,7 @@ async def download_sora_video(
                 raise ValueError("Invalid Sora URL format")
         
         # Call provider
-        download_link = await sorai_client.get_download_link(post_id)
+        download_link = await sora_client_instance.get_watermark_free_url_sorai(post_id)
         
         return {"download_url": download_link}
         

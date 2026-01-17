@@ -5,7 +5,7 @@ from app.middleware.api_key_auth import verify_api_key_dependency
 from app.repositories import api_keys_repo, jobs_repo, model_costs_repo, users_repo
 from app.schemas.jobs import JobCreate
 from app.services.credits_service import credits_service
-from app.services.providers.higgsfield_client import higgsfield_client
+from app.services.providers.higgsfield_client import get_best_client
 from app.services.providers.google_client import google_veo_client
 from app.services.providers.sora_client import sora_client_instance as sora_client
 
@@ -162,7 +162,9 @@ async def public_generate_image(
 
         else:
             # === HIGGSFIELD GENERATION LOGIC (Existing) ===
-            result = higgsfield_client.generate_image(
+            # Use dynamic client to favor DB accounts
+            client = get_best_client()
+            result = client.generate_image(
                 prompt=prompt,
                 model=model,
                 resolution=resolution,
@@ -184,7 +186,8 @@ async def public_generate_image(
                 type="t2i",
                 model=model,
                 prompt=prompt,
-                credits_cost=cost
+                credits_cost=cost,
+                provider_job_id=job_id
             )
             
             jobs_repo.create(job_data)
@@ -272,7 +275,8 @@ async def check_public_job(
         return google_veo_client.get_job_status(job_id)
     else:
         # Default to Higgsfield (Kling/Nano)
-        return higgsfield_client.get_job_status(job_id)
+        # Use dynamic client to check status using correct credentials
+        return get_best_client().get_job_status(job_id)
 
 @router.post("/video/generate")
 async def public_generate_video(
@@ -427,8 +431,9 @@ async def public_generate_video(
                      kling_input_images = [{"url": img_url}]
                  else:
                      raise HTTPException(400, "For Kling I2V, provide 'img_id' & 'img_url' (preferred) or 'img_url'")
-             
-             hf_res = higgsfield_client.generate_video(
+              
+             client = get_best_client()
+             hf_res = client.generate_video(
                  prompt=prompt,
                  model=model,
                  duration=duration,
@@ -453,7 +458,8 @@ async def public_generate_video(
             type=mode,
             model=model,
             prompt=prompt,
-            credits_cost=cost
+            credits_cost=cost,
+            provider_job_id=job_id
         )
         
         jobs_repo.create(job_data)
@@ -510,7 +516,10 @@ async def upload_file_kling(
         if not content:
             raise HTTPException(400, "Empty file")
             
-        result = higgsfield_client.upload_image_complete(content)
+        if not content:
+            raise HTTPException(400, "Empty file")
+            
+        result = get_best_client().upload_image_complete(content)
         return result
     except Exception as e:
         raise HTTPException(500, f"Upload failed: {str(e)}")

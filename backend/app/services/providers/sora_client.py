@@ -1,5 +1,6 @@
 
 import time
+import logging
 import random
 import string
 import json
@@ -169,46 +170,126 @@ class SoraClient:
 
         return self._build_sentinel_token(self.SENTINEL_FLOW, req_id, pow_token, resp, user_agent)
 
-    async def _make_request(self, method: str, endpoint: str, token: str, 
-                          json_data: Optional[Dict] = None, 
-                          multipart: Optional[Any] = None,
-                          add_sentinel_token: bool = False) -> Dict[str, Any]:
-        
+    async def _make_request(self, method: str, endpoint: str, token: str,
+                           json_data: Optional[Dict] = None,
+                           multipart: Optional[Dict] = None,
+                           add_sentinel_token: bool = False,
+                           token_id: Optional[int] = None) -> Dict[str, Any]:
+        """Make HTTP request with proxy support
+
+        Args:
+            method: HTTP method (GET/POST)
+            endpoint: API endpoint
+            token: Access token
+            json_data: JSON request body
+            multipart: Multipart form data (for file uploads)
+            add_sentinel_token: Whether to add openai-sentinel-token header (only for generation requests)
+            token_id: Token ID for getting token-specific proxy (optional)
+        """
+        proxy_url = await self.proxy_manager.get_proxy_url(token_id)
+
         headers = {
             "Authorization": f"Bearer {token}",
-            "User-Agent": "Sora/1.2026.007 (Android 15; 24122RKC7C; build 2600700)"
+            "User-Agent" : "Sora/1.2026.007 (Android 15; 24122RKC7C; build 2600700)"
         }
 
+        # 只在生成请求时添加 sentinel token
         if add_sentinel_token:
             headers["openai-sentinel-token"] = await self._generate_sentinel_token(token)
 
-        async with AsyncSession(impersonate="chrome") as session:
-            url = f"{self.BASE_URL}{endpoint}"
+        if not multipart:
+            headers["Content-Type"] = "application/json"
+
+        async with AsyncSession() as session:
+            url = f"{self.base_url}{endpoint}"
+
             kwargs = {
                 "headers": headers,
-                "timeout": 120
+                "timeout": self.timeout,
+                "impersonate": "chrome"  # 自动生成 User-Agent 和浏览器指纹
             }
+
+            if proxy_url:
+                kwargs["proxy"] = proxy_url
+
             if json_data:
                 kwargs["json"] = json_data
-            
+
             if multipart:
                 kwargs["multipart"] = multipart
 
-            if method == "POST":
+            # Log request
+            debug_logger.log_request(
+                method=method,
+                url=url,
+                headers=headers,
+                body=json_data,
+                files=multipart,
+                proxy=proxy_url
+            )
+
+            # Record start time
+            start_time = time.time()
+
+            # Make request
+            if method == "GET":
+                response = await session.get(url, **kwargs)
+            elif method == "POST":
                 response = await session.post(url, **kwargs)
             else:
-                response = await session.get(url, **kwargs)
+                raise ValueError(f"Unsupported method: {method}")
 
+            # Calculate duration
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Parse response
+            try:
+                response_json = response.json()
+            except:
+                response_json = None
+
+            # Log response
+            debug_logger.log_response(
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                body=response_json if response_json else response.text,
+                duration_ms=duration_ms
+            )
+
+            # Check status
             if response.status_code not in [200, 201]:
-                # Log error
-                print(f"Request failed: {response.status_code} - {response.text}")
+                # Parse error response
+                error_data = None
                 try:
-                    return response.json() # Sometimes error details are in JSON
+                    error_data = response.json()
                 except:
                     pass
-                raise Exception(f"API request failed: {response.status_code} - {response.text}")
 
-            return response.json()
+                # Check for unsupported_country_code error
+                if error_data and isinstance(error_data, dict):
+                    error_info = error_data.get("error", {})
+                    if error_info.get("code") == "unsupported_country_code":
+                        # Create structured error with full error data
+                        import json
+                        error_msg = json.dumps(error_data)
+                        debug_logger.log_error(
+                            error_message=f"Unsupported country: {error_msg}",
+                            status_code=response.status_code,
+                            response_text=error_msg
+                        )
+                        # Raise exception with structured error data
+                        raise Exception(error_msg)
+
+                # Generic error handling
+                error_msg = f"API request failed: {response.status_code} - {response.text}"
+                debug_logger.log_error(
+                    error_message=error_msg,
+                    status_code=response.status_code,
+                    response_text=response.text
+                )
+                raise Exception(error_msg)
+
+            return response_json if response_json else response.json()
 
     async def upload_image(self, image_data: bytes, token: str, filename: str = "image.png") -> str:
         """Upload image and return media_id"""
@@ -395,5 +476,74 @@ class SoraClient:
              url = f"{self.BASE_URL}/project_y/post/{post_id}"
              response = await session.delete(url, headers=headers, timeout=30)
              return response.status_code in [200, 204]
+
+    async def _get_proxy_url(self) -> Optional[str]:
+        """
+        Get global proxy URL if configured.
+        Currently returns None as global proxy config is not yet ported to production.
+        """
+        return None
+
+    async def get_watermark_free_url_sorai(self, post_id: str) -> str:
+        """Get watermark-free video URL from sorai.me"""
+        proxy_url = await self._get_proxy_url()
+
+        target_url = "https://sorai.me/get-sora-link"
+        share_url = f"https://sora.chatgpt.com/p/{post_id}"
+        
+        headers = {
+            'accept': '*/*',
+            'accept-language': 'vi,zh-CN;q=0.9,zh;q=0.8,fr-FR;q=0.7,fr;q=0.6,en-US;q=0.5,en;q=0.4,zh-TW;q=0.3',
+            'content-type': 'application/json',
+            'origin': 'https://sorai.me',
+            'priority': 'u=1, i',
+            'referer': 'https://sorai.me/',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin'
+        }
+        
+        json_data = {
+            "url": share_url,
+            "token": None
+        }
+
+        # Mimic the 'correct' client pattern: pass impersonate in kwargs to request
+        kwargs = {
+            "headers": headers,
+            "json": json_data,
+            "timeout": 30,
+            "impersonate": "chrome"
+        }
+        
+        if proxy_url:
+            kwargs["proxy"] = proxy_url
+
+        try:
+            async with AsyncSession() as session:
+                start_time = time.time()
+                response = await session.post(target_url, **kwargs)
+                duration_ms = (time.time() - start_time) * 1000
+                
+                if response.status_code != 200:
+                    logging.getLogger(__name__).error(f"Sorai.me returned {response.status_code}")
+                    logging.getLogger(__name__).error(f"Headers: {dict(response.headers)}")
+                    logging.getLogger(__name__).error(f"Body: {response.text}")
+                    raise Exception(f"Sorai.me parsed failed: {response.status_code} - {response.text}")
+                
+                result = response.json()
+                download_link = result.get("download_link")
+                
+                if not download_link:
+                    raise Exception("No download_link in sorai.me response")
+                
+                logging.getLogger(__name__).info(f"Sorai.me success ({duration_ms:.0f}ms): {download_link}")
+                return download_link
+                
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Sorai.me request failed: {str(e)}")
+            raise
 
 sora_client_instance = SoraClient()

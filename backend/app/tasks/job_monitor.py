@@ -126,6 +126,25 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                         else:
                             # Kling job - Use dynamic client
                             result = client.get_job_status(provider_job_id)
+                            
+                            # Fallback: If job not found on DB account, try Default (.env) account
+                            # This handles "Split-Brain" where job was created with .env creds but monitor uses DB creds
+                            if result.get("status") == "failed" and "not found" in str(result.get("error", "")).lower():
+                                # Only try if we have a distinctive default client
+                                try:
+                                    logger.info(f"Job {job_id} not found on active DB account. Trying fallback to default .env account...")
+                                    # We use the imported 'higgsfield_client' which is the .env instance
+                                    fallback_res = higgsfield_client.get_job_status(provider_job_id)
+                                    
+                                    # If fallback found something different (e.g. not "failed" -> "not found"), use it
+                                    # Or if it returns "failed" but with a different error (e.g. 401), use that so we know.
+                                    # Simplest strategy: Always use fallback result if the first one was definitely "Not Found"
+                                    result = fallback_res
+                                    
+                                    if result.get("status") != "failed":
+                                        logger.info(f"Fallback successful for Job {job_id}. Status: {result.get('status')}")
+                                except Exception as fallback_e:
+                                    logger.warning(f"Fallback check failed for Job {job_id}: {fallback_e}")
                         
                         # Debug (commented out)
                         # print(f"[JobMonitor] Job {job_id[:8]}... returned: {result}")
@@ -160,10 +179,8 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 if "sora" in job.get("model", "").lower():
                                     if output_url:
                                         try:
-                                            from app.services.providers.sorai_client import sorai_client
+                                            from app.services.providers.sora_client import sora_client_instance
                                             logger.info(f"Sora Job {job_id} Completed. output_url: {output_url}")
-                                            
-                                            import asyncio
                                             
                                             # 0. Check raw result for 'id' or 'share_url'
                                             raw_data = result.get("raw", {})
@@ -198,6 +215,12 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                                 logger.info(f"Could not extract s_ ID. Attempting to create temporary post for ID: {provider_job_id}")
                                                 try:
                                                     from app.services.providers.sora_client import sora_client_instance
+                                                    # sora_service might be needed for getting token if I use it here, but sora_client_instance uses it internally? No, post_video needs prompt and token.
+                                                    # Actually, the logic for 'create temp post' ALREADY imports sora_client_instance inside its own block or reuses?
+                                                    # Wait, I am replacing the TOP block import.
+                                                    # The inner block (line 200) imports it AGAIN "from app... import sora_client_instance". That's fine (python handles it), but redundant.
+                                                    # I will leave the inner block alone for now to minimize diff, or just let it exist.
+                                                    
                                                     from app.services.sora_service import sora_service
                                                     
                                                     # We need an active token
@@ -222,7 +245,7 @@ async def run_job_monitor(check_interval_seconds: int = 30):
 
                                             if post_id:
                                                 logger.info(f"Attempting watermark removal for job {job_id} (post_id: {post_id})...")
-                                                clean_url = await sorai_client.get_download_link(post_id)
+                                                clean_url = await sora_client_instance.get_watermark_free_url_sorai(post_id)
                                                 if clean_url:
                                                     logger.info(f"Watermark removed for job {job_id}. Old: {output_url} -> New: {clean_url}")
                                                     # Verify it's different and looks valid
@@ -231,7 +254,7 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                                     else:
                                                          logger.warning(f"Clean URL is same or invalid. clean: {clean_url}")
                                                 else:
-                                                    logger.warning("sorai_client returned None")
+                                                    logger.warning("sora_client returned None for safe watermark removal")
                                             else:
                                                 logger.warning(f"Could not extract Sora post_id for job {job_id}. URL: {output_url}, Raw keys: {list(raw_data.keys()) if raw_data else 'None'}")
                                                 

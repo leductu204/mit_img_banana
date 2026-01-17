@@ -344,6 +344,14 @@ class HiggsfieldClient:
         response = requests.get(url, headers=headers, impersonate="chrome")
         try:
             data = response.json()
+            
+            # Handle "Job set not found" or other high-level API errors
+            if "detail" in data:
+                 return {"status": "failed", "result": None, "error": str(data["detail"])}
+            
+            if "errors" in data:
+                 return {"status": "failed", "result": None, "error": str(data["errors"])}
+
             first_job = data['jobs'][0]
             status = first_job['status']
             result = None
@@ -797,6 +805,42 @@ class HiggsfieldClient:
         if 'job_sets' in data and len(data['job_sets']) > 0:
             return data['job_sets'][0]['id']
         return None
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def get_best_client() -> HiggsfieldClient:
+    """
+    Get the best available Higgsfield client.
+    Prioritizes active accounts from the database.
+    Falls back to the default .env client if no DB accounts are active.
+    """
+    try:
+        from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
+        accounts = higgsfield_accounts_repo.list_accounts(active_only=True)
+        if accounts:
+            # Accounts are sorted by priority DESC
+            return HiggsfieldClient.create_from_account(accounts[0]['account_id'])
+    except Exception as e:
+        # Log error in production context (print for now to avoid logger import issues if not set up)
+        print(f"Error fetching Higgsfield account from DB in get_best_client: {e}")
+    
+    # Fallback to default .env client instance (singleton)
+    # The singleton 'higgsfield_client' is instantiated at module level usually, 
+    # but we are INSIDE the module file here.
+    # We should instantiate a new default one OR use the one defined below if it exists.
+    # To be safe and avoid circular ref to the variable defined at bottom (if any), 
+    # we use create_default() which reads env vars fresh.
+    return HiggsfieldClient.create_default()
+
+# Initialize default client for backward compatibility
+try:
+    higgsfield_client = HiggsfieldClient.create_default()
+except ValueError:
+    # If env vars missing, expose None or mock
+    higgsfield_client = None
+
 
 # Singleton instance for backward compatibility (uses .env credentials)
 # For multi-account support, use Higgsfield Client.create_from_account(account_id)

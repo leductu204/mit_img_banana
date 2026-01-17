@@ -299,7 +299,7 @@ def get_active_jobs() -> List[dict]:
         """
         SELECT * FROM jobs 
         WHERE status IN ('pending', 'processing')
-        AND provider_job_id IS NOT NULL
+
         ORDER BY created_at ASC
         """
     )
