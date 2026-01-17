@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, ExternalLink, Image as ImageIcon, Film, FileText, Calendar, Activity, Sliders, AlertTriangle, Download } from 'lucide-react';
 import { Job } from '@/hooks/useJobs';
 import { cleanPrompt } from '@/lib/prompt-utils';
+import { useToast } from "@/hooks/useToast";
 
 interface JobDetailsModalProps {
     job: Job;
@@ -12,6 +13,7 @@ interface JobDetailsModalProps {
 }
 
 export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalProps) {
+    const toast = useToast();
     const [inputImages, setInputImages] = useState<any[]>([]);
     const [inputParams, setInputParams] = useState<any>({});
 
@@ -49,6 +51,28 @@ export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalP
     // Helper to format key names
     const formatKey = (key: string) => {
         return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    };
+
+    const handleDownload = async (url: string) => {
+        if (!url) return;
+        try {
+            toast.info("Đang tải xuống...");
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `job-result-${job.job_id}.${job.type === 't2v' || job.type === 'i2v' ? 'mp4' : 'png'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            toast.success("Tải xuống thành công!");
+        } catch (e) {
+            console.error(e);
+            toast.error("Lỗi khi tải xuống");
+            window.open(url, '_blank');
+        }
     };
 
     return (
@@ -224,16 +248,13 @@ export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalP
                                     />
                                 )}
                                 <div className="p-3 bg-muted/50 border-t border-border flex justify-end">
-                                    <a 
-                                        href={job.output_url} 
-                                        download
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                    <button 
+                                        onClick={() => handleDownload(job.output_url!)}
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium transition-colors"
                                     >
                                         <Download className="w-4 h-4" />
                                         Tải xuống
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>

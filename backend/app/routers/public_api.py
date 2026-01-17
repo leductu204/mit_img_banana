@@ -276,7 +276,16 @@ async def check_public_job(
     else:
         # Default to Higgsfield (Kling/Nano)
         # Use dynamic client to check status using correct credentials
-        return get_best_client().get_job_status(job_id)
+        try:
+            return get_best_client().get_job_status(job_id)
+        except Exception as e:
+            # If provider check fails (e.g. Job set not found, Token invalid)
+            # Return failed status instead of 500 Error
+            return {
+                "status": "failed",
+                "result": None,
+                "error": str(e)
+            }
 
 @router.post("/video/generate")
 async def public_generate_video(

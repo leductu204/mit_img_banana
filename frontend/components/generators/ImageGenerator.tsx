@@ -154,6 +154,7 @@ export function ImageGenerator() {
 
     const isImageToImage = referenceImages.length > 0
 
+
     const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
         return new Promise((resolve, reject) => {
             const img = new Image()
@@ -163,6 +164,30 @@ export function ImageGenerator() {
             img.src = url
         })
     }
+
+    const handleDownload = async (url: string | undefined, type: 'image' | 'video' = 'image') => {
+        if (!url) return;
+        try {
+            toast.info("Đang tải xuống...");
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `generated-${type}-${Date.now()}.${type === 'video' ? 'mp4' : 'png'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            toast.success("Tải xuống thành công!");
+        } catch (e) {
+            console.error(e);
+            toast.error("Lỗi khi tải xuống");
+            // Fallback
+            window.open(url, '_blank');
+        }
+    };
+
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return
@@ -518,16 +543,13 @@ export function ImageGenerator() {
                                         <VideoIcon className="h-4 w-4 mr-2" />
                                         Tạo video
                                     </Button>
-                                     <Button
-                                         onClick={async () => {
-                                             if (!result?.image_url) return
-                                             window.open(result.image_url, '_blank')
-                                         }}
-                                         className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
-                                     >
-                                         <DownloadIcon className="h-4 w-4 mr-2" />
-                                         Tải xuống
-                                     </Button>
+                                         <Button
+                                             onClick={() => handleDownload(result?.image_url, 'image')}
+                                             className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
+                                         >
+                                             <DownloadIcon className="h-4 w-4 mr-2" />
+                                             Tải xuống
+                                         </Button>
                                     <Button
                                         onClick={handleGenerate}
                                         className="h-10 px-6 rounded-full bg-[#00BCD4] hover:bg-[#22D3EE] text-white shadow-lg shadow-[#00BCD4]/20"

@@ -14,6 +14,26 @@ from curl_cffi.requests import AsyncSession
 from curl_cffi import CurlMime
 from app.services.sora_service import sora_service
 
+# Simple Debug Logger implementation to replace the missing core.logger
+class DebugLogger:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+    
+    def log_request(self, method, url, headers, body=None, files=None, proxy=None):
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(f"Req: {method} {url} | Proxy: {proxy}")
+    
+    def log_response(self, status_code, headers, body, duration_ms=None):
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(f"Res: {status_code} | Time: {duration_ms}ms")
+
+    def log_error(self, error_message, status_code=None, response_text=None):
+        self.logger.error(f"SoraAPI Error: {error_message} | Status: {status_code}")
+        if response_text:
+             self.logger.error(f"Response: {response_text[:500]}")
+
+debug_logger = DebugLogger()
+
 # PoW related constants
 POW_MAX_ITERATION = 500000
 POW_CORES = [8, 16, 24, 32]
@@ -48,6 +68,7 @@ class SoraClient:
     CHATGPT_BASE_URL = "https://chatgpt.com"
     BASE_URL = "https://sora.chatgpt.com/backend"
     SENTINEL_FLOW = "sora_2_create_task"
+    timeout = 30
 
     @staticmethod
     def _get_pow_parse_time() -> str:
@@ -186,7 +207,7 @@ class SoraClient:
             add_sentinel_token: Whether to add openai-sentinel-token header (only for generation requests)
             token_id: Token ID for getting token-specific proxy (optional)
         """
-        proxy_url = await self.proxy_manager.get_proxy_url(token_id)
+        proxy_url = await self._get_proxy_url()
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -201,7 +222,7 @@ class SoraClient:
             headers["Content-Type"] = "application/json"
 
         async with AsyncSession() as session:
-            url = f"{self.base_url}{endpoint}"
+            url = f"{self.BASE_URL}{endpoint}"
 
             kwargs = {
                 "headers": headers,
@@ -218,78 +239,89 @@ class SoraClient:
             if multipart:
                 kwargs["multipart"] = multipart
 
-            # Log request
-            debug_logger.log_request(
-                method=method,
-                url=url,
-                headers=headers,
-                body=json_data,
-                files=multipart,
-                proxy=proxy_url
-            )
-
-            # Record start time
-            start_time = time.time()
-
-            # Make request
-            if method == "GET":
-                response = await session.get(url, **kwargs)
-            elif method == "POST":
-                response = await session.post(url, **kwargs)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-
-            # Calculate duration
-            duration_ms = (time.time() - start_time) * 1000
-
-            # Parse response
-            try:
-                response_json = response.json()
-            except:
-                response_json = None
-
-            # Log response
-            debug_logger.log_response(
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                body=response_json if response_json else response.text,
-                duration_ms=duration_ms
-            )
-
-            # Check status
-            if response.status_code not in [200, 201]:
-                # Parse error response
-                error_data = None
-                try:
-                    error_data = response.json()
-                except:
-                    pass
-
-                # Check for unsupported_country_code error
-                if error_data and isinstance(error_data, dict):
-                    error_info = error_data.get("error", {})
-                    if error_info.get("code") == "unsupported_country_code":
-                        # Create structured error with full error data
-                        import json
-                        error_msg = json.dumps(error_data)
-                        debug_logger.log_error(
-                            error_message=f"Unsupported country: {error_msg}",
-                            status_code=response.status_code,
-                            response_text=error_msg
-                        )
-                        # Raise exception with structured error data
-                        raise Exception(error_msg)
-
-                # Generic error handling
-                error_msg = f"API request failed: {response.status_code} - {response.text}"
-                debug_logger.log_error(
-                    error_message=error_msg,
-                    status_code=response.status_code,
-                    response_text=response.text
+            # Retry loop for heavy load
+            max_retries = 3
+            for attempt in range(max_retries):
+                # Log request
+                debug_logger.log_request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    body=json_data,
+                    files=multipart,
+                    proxy=proxy_url
                 )
-                raise Exception(error_msg)
 
-            return response_json if response_json else response.json()
+                # Record start time
+                start_time = time.time()
+
+                # Make request
+                if method == "GET":
+                    response = await session.get(url, **kwargs)
+                elif method == "POST":
+                    response = await session.post(url, **kwargs)
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
+
+                # Calculate duration
+                duration_ms = (time.time() - start_time) * 1000
+
+                # Parse response
+                try:
+                    response_json = response.json()
+                except:
+                    response_json = None
+
+                # Log response
+                debug_logger.log_response(
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    body=response_json if response_json else response.text,
+                    duration_ms=duration_ms
+                )
+
+                # Check status
+                if response.status_code not in [200, 201]:
+                    # Parse error response
+                    error_data = None
+                    try:
+                        error_data = response.json()
+                    except:
+                        pass
+                    
+                    # Check for heavy_load
+                    if error_data and isinstance(error_data, dict):
+                        error_info = error_data.get("error", {})
+                        if error_info.get("code") == "heavy_load":
+                            if attempt < max_retries - 1:
+                                wait_time = 2 * (attempt + 1)
+                                logging.getLogger(__name__).warning(f"Sora Heavy Load. Retrying in {wait_time}s... ({attempt+1}/{max_retries})")
+                                await asyncio.sleep(wait_time)
+                                continue
+                        
+                        # Check for unsupported_country_code error
+                        if error_info.get("code") == "unsupported_country_code":
+                            # Create structured error with full error data
+                            import json
+                            error_msg = json.dumps(error_data)
+                            debug_logger.log_error(
+                                error_message=f"Unsupported country: {error_msg}",
+                                status_code=response.status_code,
+                                response_text=error_msg
+                            )
+                            # Raise exception with structured error data
+                            raise Exception(error_msg)
+
+                    # Generic error handling
+                    error_msg = f"API request failed: {response.status_code} - {response.text}"
+                    debug_logger.log_error(
+                        error_message=error_msg,
+                        status_code=response.status_code,
+                        response_text=response.text
+                    )
+                    raise Exception(error_msg)
+
+                return response_json if response_json else response.json()
 
     async def upload_image(self, image_data: bytes, token: str, filename: str = "image.png") -> str:
         """Upload image and return media_id"""

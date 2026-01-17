@@ -166,6 +166,29 @@ export function VideoGenerator() {
         })
     }
 
+    const handleDownload = async (url: string | undefined) => {
+        if (!url) return;
+        try {
+            toast.info("Đang tải xuống...");
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `generated-video-${Date.now()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            toast.success("Tải xuống thành công!");
+        } catch (e) {
+            console.error(e);
+            toast.error("Lỗi khi tải xuống");
+            // Fallback
+            window.open(url, '_blank');
+        }
+    };
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return
         if (!isAuthenticated) { login(); return }
@@ -568,7 +591,7 @@ export function VideoGenerator() {
                                 <video src={result.video_url} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
                                 
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
-                                    <Button onClick={() => window.open(result.video_url, '_blank')} className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm">
+                                    <Button onClick={() => handleDownload(result.video_url)} className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm">
                                         <DownloadIcon className="h-4 w-4 mr-2" />
                                         Tải xuống
                                     </Button>

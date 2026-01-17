@@ -174,20 +174,7 @@ export default function ToolsPage() {
                     </p>
                 </div>
 
-                {/* Search & Filter Bar (Optional visual) */}
-                <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/5">
-                    <div className="flex gap-4">
-                        <button className="px-6 py-2.5 rounded-xl bg-[#00BCD4] text-white text-sm font-bold shadow-lg shadow-[#00BCD4]/20 transition-all">
-                            Tất cả
-                        </button>
-                        <button className="px-6 py-2.5 rounded-xl bg-[#1F2937] text-[#9CA3AF] text-sm font-bold hover:text-white transition-all">
-                            Miễn phí
-                        </button>
-                        <button className="px-6 py-2.5 rounded-xl bg-[#1F2937] text-[#9CA3AF] text-sm font-bold hover:text-white transition-all">
-                            Trả phí
-                        </button>
-                    </div>
-                </div>
+
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {TOOLS.map((tool) => (

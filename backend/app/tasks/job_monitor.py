@@ -182,7 +182,10 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                             from app.services.providers.sora_client import sora_client_instance
                                             logger.info(f"Sora Job {job_id} Completed. output_url: {output_url}")
                                             
-                                            # 0. Check raw result for 'id' or 'share_url'
+                                            # 0. Initialize post_id
+                                            post_id = None
+                                            
+                                            # Check raw result for 'id' or 'share_url'
                                             raw_data = result.get("raw", {})
                                             if raw_data:
                                                 # Check commonly named fields (adjust based on actual API response)
@@ -228,8 +231,9 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                                     if account:
                                                         token = account['access_token']
                                                         # Create post
-                                                        # Note: provider_job_id should be the 'generation_id' (UUID) if it's not an s_ ID
-                                                        gen_id = provider_job_id
+                                                        # Note: provider_job_id is usually 'task_id', but we need 'generation_id' (gen_...)
+                                                        # The 'raw_data' from get_job_status contains the generation object
+                                                        gen_id = raw_data.get("id") if raw_data and raw_data.get("id") else provider_job_id
                                                         logger.info(f"Calling post_video_for_watermark_free for gen_id: {gen_id}")
                                                         
                                                         temp_post_id = await sora_client_instance.post_video_for_watermark_free(gen_id, "", token)

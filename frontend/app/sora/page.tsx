@@ -1,31 +1,25 @@
 "use client";
 
 import React, { useState } from "react";
-import { Download, Link as LinkIcon, AlertCircle, Lightbulb, Copy, Bell, Coins, Loader2, PlayCircle, Sparkles, Upload } from "lucide-react";
+import { Download, Link as LinkIcon, AlertCircle, Lightbulb, Bell, Coins } from "lucide-react";
 import { toast } from "sonner";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Link from "next/link";
 import Image from "next/image";
 import { useCredits } from "@/hooks/useCredits";
 import { getToken } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 export default function SoraPage() {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [downloadLink, setDownloadLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { balance } = useCredits();
 
-  // Generation state
-  const [prompt, setPrompt] = useState("");
-  const [duration, setDuration] = useState("15");
-  const [ratio, setRatio] = useState("landscape");
-  const [image, setImage] = useState<string | null>(null);
-  const [genLoading, setGenLoading] = useState(false);
-  const [genResult, setGenResult] = useState<{id: string, status: string} | null>(null);
+
 
   const handleDownloadLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,44 +91,7 @@ export default function SoraPage() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!prompt) return;
-    setGenLoading(true);
-    setGenResult(null);
-    setError(null);
 
-    try {
-        const token = getToken();
-        // Remove data:image... prefix if exists before sending? 
-        // No, backend expects to handle it or we can clean it here.
-        // Backend router splits by comma, so raw data url is fine.
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/sora/generate`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                prompt,
-                duration: parseInt(duration),
-                ratio,
-                image: image || undefined
-            })
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || "Generation failed");
-
-        setGenResult(data);
-        toast.success("Đã gửi yêu cầu tạo video!");
-    } catch (err: any) {
-        setError(err.message);
-        toast.error(err.message);
-    } finally {
-        setGenLoading(false);
-    }
-  };
 
   return (
     <ProtectedRoute>
@@ -186,7 +143,13 @@ export default function SoraPage() {
             <Tabs defaultValue="download" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 bg-[#1F2833]/50 mb-12 border border-white/10 p-1 rounded-xl h-14">
                     <TabsTrigger value="download" className="rounded-lg h-12 text-base data-[state=active]:bg-[#00BCD4] data-[state=active]:text-white">Download Video</TabsTrigger>
-                    <TabsTrigger value="create" className="rounded-lg h-12 text-base data-[state=active]:bg-[#00BCD4] data-[state=active]:text-white">Generate Video</TabsTrigger>
+                    <TabsTrigger 
+                        value="create" 
+                        onClick={() => router.push('/video')}
+                        className="rounded-lg h-12 text-base data-[state=active]:bg-[#00BCD4] data-[state=active]:text-white"
+                    >
+                        Generate Video
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* DOWNLOAD TAB */}
@@ -276,137 +239,7 @@ export default function SoraPage() {
                 </TabsContent>
 
                 {/* CREATE TAB */}
-                <TabsContent value="create" className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
-                     <div className="mb-8 text-center">
-                        <h1 className="text-white tracking-tight text-4xl font-black mb-2">
-                            Sora Video Generator
-                        </h1>
-                        <p className="text-[#9CA3AF]">
-                           Generate standard or pro videos using shared Sora accounts.
-                        </p>
-                    </div>
 
-                    <div className="bg-[#1F2833]/50 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-                        
-                        <div className="space-y-6">
-                            {/* Prompt Input */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300 ml-1">Prompt</label>
-                                <Textarea 
-                                    placeholder="Describe your video idea in detail..." 
-                                    className="bg-[#0A0E13] border-white/10 min-h-[120px] text-base resize-none focus:border-[#00BCD4] focus:ring-[#00BCD4]"
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                />
-                            </div>
-
-                            {/* Image Upload Input */}
-                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300 ml-1">Image (Optional - for I2V)</label>
-                                <div className="bg-[#0A0E13] border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center border-dashed hover:border-[#00BCD4]/50 transition-colors cursor-pointer group relative">
-                                    <input 
-                                        type="file" 
-                                        accept="image/*"
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onload = (e) => {
-                                                    const result = e.target?.result as string;
-                                                    // Store in state (need to add state)
-                                                    setImage(result); // Assuming setImage is added
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }
-                                        }}
-                                    />
-                                    {image ? (
-                                        <div className="relative w-full h-40">
-                                            <Image src={image} alt="Upload preview" fill className="object-contain" />
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault(); 
-                                                    setImage(null);
-                                                }}
-                                                className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-red-500/80 transition-colors z-20"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-[#00BCD4] transition-colors">
-                                            <Upload className="w-8 h-8" />
-                                            <span className="text-sm font-medium">Click or drag image here</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Duration Select */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300 ml-1">Duration</label>
-                                    <Select value={duration} onValueChange={setDuration}>
-                                        <SelectTrigger className="bg-[#0A0E13] border-white/10 h-11">
-                                            <SelectValue placeholder="Select duration" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-[#1F2833] border-white/10">
-                                            <SelectItem value="10">10 Seconds (Sora 2.0)</SelectItem>
-                                            <SelectItem value="15">15 Seconds (Standard)</SelectItem>
-                                            <SelectItem value="25">25 Seconds (Pro)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Ratio Select */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300 ml-1">Aspect Ratio</label>
-                                    <Select value={ratio} onValueChange={setRatio}>
-                                        <SelectTrigger className="bg-[#0A0E13] border-white/10 h-11">
-                                            <SelectValue placeholder="Select ratio" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-[#1F2833] border-white/10">
-                                            <SelectItem value="landscape">Landscape (16:9)</SelectItem>
-                                            <SelectItem value="portrait">Portrait (9:16)</SelectItem>
-                                            <SelectItem value="square">Square (1:1)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleGenerate}
-                                disabled={genLoading || !prompt}
-                                className="w-full bg-gradient-to-r from-[#00BCD4] to-teal-500 hover:from-[#22D3EE] hover:to-teal-400 text-white font-bold py-4 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(0,188,212,0.3)] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                            >
-                                {genLoading ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Processing Request...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-5 h-5" />
-                                        Generate Video {image ? '(I2V)' : ''}
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {genResult && (
-                        <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-3 text-green-400 animate-in fade-in">
-                            <PlayCircle className="w-6 h-6 shrink-0" />
-                            <div>
-                                <p className="font-bold">Task Created Successfully!</p>
-                                <p className="text-sm opacity-80">Task ID: {genResult.id}</p>
-                                <p className="text-xs mt-1 text-green-300/60">Check 'Pending Tasks' in Admin or wait for implementations of user history.</p>
-                            </div>
-                        </div>
-                    )}
-                </TabsContent>
             </Tabs>
           </div>
         </main>
