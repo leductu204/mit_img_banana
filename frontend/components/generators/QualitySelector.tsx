@@ -37,7 +37,6 @@ export default function QualitySelector({ value, onChange, options: propOptions 
 
     return (
         <div className="space-y-2" ref={containerRef}>
-            <label className="text-sm font-medium text-[#B0B8C4]">Chất lượng</label>
             <div className="relative">
                 <button
                     onClick={() => setIsOpen(!isOpen)}

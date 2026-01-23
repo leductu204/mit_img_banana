@@ -33,7 +33,9 @@ from app.routers import (
     admin_api_keys,
     image,
     video,
-    sora
+    video,
+    sora,
+    motion
 )
 from app.routers import settings as public_settings
 from .config import settings
@@ -209,6 +211,9 @@ app.include_router(sora.router, prefix="/api/sora", tags=["sora"])
 # Models List
 from app.routers import models
 app.include_router(models.router, prefix="/v1", tags=["models"])
+
+# Motion Control
+app.include_router(motion.router, prefix="/api", tags=["motion"])
 
 # ============================================
 # Admin Panel Routes (prefixed with /api to avoid frontend collision)

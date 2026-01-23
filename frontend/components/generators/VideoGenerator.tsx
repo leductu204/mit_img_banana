@@ -18,6 +18,7 @@ import Button from "../common/Button"
 import { 
     Settings2, 
     History as HistoryIcon, 
+    Image as LucideImage,
     Video as VideoIcon, 
     Sliders, 
     Clapperboard, 
@@ -34,6 +35,9 @@ import {
 } from "lucide-react"
 
 import ImageUpload from "./ImageUpload"
+import FileUpload from "./FileUpload"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AspectRatioSelector from "./AspectRatioSelector"
 import ModelSelector from "./ModelSelector"
 import DurationSelector from "./DurationSelector"

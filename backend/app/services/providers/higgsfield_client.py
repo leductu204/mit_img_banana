@@ -226,22 +226,11 @@ class HiggsfieldClient:
         Returns:
             dict with keys: id, url, width, height
         """
-        # Step 1: Create upload link
-        jwt_token = self.get_jwt_token_with_retry()
-        url = f"{self.base_url}/media?require_consent=true"
-        headers = self._get_headers(jwt_token)
-        headers['content-length'] = '0'
-        
-        response = requests.post(url, headers=headers, data={}, impersonate="chrome")
-        self._handle_response(response, "Get image dimensions")
-        
-        data = response.json()
-        img_id = data.get("id")
-        img_url = data.get("url")
-        upload_url = data.get("upload_url")
-        
-        if not img_id or not img_url or not upload_url:
-            raise ValueError(f"Missing required fields in response: {data}")
+        # Step 1: Create upload link using batch_media (base logic)
+        ref_data = self.batch_media()
+        img_id = ref_data["id"]
+        img_url = ref_data["url"]
+        upload_url = ref_data["upload_url"]
         
         # Step 2: Upload image to S3
         upload_headers = {
@@ -268,6 +257,147 @@ class HiggsfieldClient:
             "width": width,
             "height": height
         }
+
+    def upload_video_ref(self, max_retries: int = 3) -> dict:
+        """
+        Step 1 of Video Upload: Get upload URL
+        """
+        for attempt in range(max_retries):
+            try:
+                jwt_token = self.get_jwt_token_with_retry()
+                url = f"{self.base_url}/video"
+                headers = self._get_headers(jwt_token)
+                headers['content-type'] = 'application/json'
+                
+                payload = json.dumps({"mimetype": "video/mp4"})
+                
+                response = requests.post(url, headers=headers, data=payload, impersonate="chrome")
+                self._handle_response(response, "Get video upload URL")
+                
+                data = response.json()
+                if not data.get("id") or not data.get("upload_url"):
+                     raise ValueError(f"Missing required fields in response: {data}")
+                     
+                return data
+            except (Exception) as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                raise Exception(f"Failed to get video ref after {max_retries} attempts: {e}")
+
+    def check_video_status(self, video_id: str, max_retries: int = 5) -> dict:
+        """
+        Step 3 of Video Upload: Confirm upload and get dimensions
+        """
+        for attempt in range(max_retries):
+            try:
+                jwt_token = self.get_jwt_token_with_retry()
+                url = f"{self.base_url}/video/{video_id}/upload"
+                headers = self._get_headers(jwt_token)
+                headers['content-length'] = '0'
+                headers['content-type'] = 'application/json'
+
+                response = requests.post(url, headers=headers, data={}, impersonate="chrome")
+                self._handle_response(response, "Check video status")
+                
+                return response.json()
+            except (Exception) as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                raise Exception(f"Failed to check video status after {max_retries} attempts: {e}")
+
+    def upload_video_complete(self, video_data: bytes) -> dict:
+        """
+        Complete video upload workflow:
+        1. Get upload link
+        2. Upload binary to S3
+        3. Confirm and get details
+        """
+        # Step 1
+        ref_data = self.upload_video_ref()
+        vid_id = ref_data["id"]
+        upload_url = ref_data["upload_url"]
+        final_url = ref_data["url"]
+        
+        # Step 2: S3 Upload
+        upload_headers = {
+            'Accept': '*/*',
+            'Content-Type': 'video/mp4',
+            'Origin': 'https://higgsfield.ai'
+        }
+        
+        upload_response = requests.put(upload_url, headers=upload_headers, data=video_data, impersonate="chrome", timeout=300)
+        self._handle_response(upload_response, "Upload video to S3")
+        
+        # Step 3: Confirm
+        # Retry logic inside check_video_status might be needed if processing takes time, 
+        # but the API seems to return immediately after upload is done.
+        # We might need a small delay to ensure S3 consistency
+        time.sleep(2) 
+        
+        details = self.check_video_status(vid_id)
+        
+        return {
+            "id": vid_id,
+            "url": final_url,
+            "width": details.get("width"),
+            "height": details.get("height"),
+            "duration": details.get("duration")
+        }
+
+    def generate_motion_control(self, mode: str, background_source: str, video_info: dict, image_info: dict, use_unlim: bool = False) -> str:
+        """
+        Trigger Motion Control Generation
+        
+        Args:
+            mode: "std" (720p) or "pro" (1080p)
+            background_source: "input_image" or "input_video"
+            video_info: dict with keys: id, url, type="video_input"
+            image_info: dict with keys: id, url, type="media_input"
+            use_unlim: bool
+        """
+        jwt_token = self.get_jwt_token_with_retry()
+        url = f"{self.base_url}/chains/motion-control"
+        
+        payload = {
+            "params": {
+                "mode": mode,
+                "medias": [
+                    {
+                        "role": "video",
+                        "data": {
+                            "id": video_info["id"],
+                            "type": "video_input",
+                            "url": video_info["url"]
+                        }
+                    },
+                    {
+                        "role": "image",
+                        "data": {
+                            "id": image_info["id"],
+                            "url": image_info["url"],
+                            "type": "media_input"
+                        }
+                    }
+                ],
+                "height": video_info.get("height", 1024),
+                "width": video_info.get("width", 576),
+                "background_source": background_source
+            },
+            "use_unlim": use_unlim
+        }
+        
+        headers = self._get_headers(jwt_token)
+        headers['content-type'] = 'application/json'
+        
+        response = requests.post(url, headers=headers, data=json.dumps(payload), impersonate="chrome")
+        self._handle_response(response, "Generate Motion Control")
+        
+        data = response.json()
+        if 'job_sets' in data and len(data['job_sets']) > 0:
+            return data['job_sets'][0]['id']
+        return None
 
     def generate_image(self, prompt: str, input_images: list = [], aspect_ratio: str = "9:16", resolution: str = "1k", model: str = "nano-banana", use_unlim: bool = True) -> str:
         jwt_token = self.get_jwt_token_with_retry()

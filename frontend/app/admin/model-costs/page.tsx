@@ -122,6 +122,13 @@ export default function AdminModelCostsPage() {
           // Slow Mode Flag
           addExpectation(m.value, 'is_slow_mode_enabled', 1);
 
+          if (m.value === 'motion-control') {
+              // Motion Control - Per second cost
+              addExpectation(m.value, '720p-per-s', 1);
+              addExpectation(m.value, '1080p-per-s', 1);
+              return;
+          }
+
           if (m.qualities && m.qualities.length > 0) {
               m.qualities.forEach((q: string) => {
                   if (m.durations && m.durations.length > 0) {
@@ -546,6 +553,11 @@ export default function AdminModelCostsPage() {
                                   return false;
                               }
                           }
+
+                          // Motion Control: allow per-s keys
+                          if (model === 'motion-control') {
+                              if (!c.config_key.endsWith('-per-s')) return false;
+                          }
                           
                           return true;
                       })
@@ -573,6 +585,10 @@ export default function AdminModelCostsPage() {
                             if (params === '1k') displayKey = '1K' + speedLabel;
                             if (params === '2k') displayKey = '2K' + speedLabel;
                             if (params === '4k') displayKey = '4K' + speedLabel;
+                        }
+                        if (model === 'motion-control') {
+                             if (params === '720p') displayKey = '720p / sec';
+                             if (params === '1080p') displayKey = '1080p / sec';
                         }
 
                         return (

@@ -18,6 +18,7 @@ export default function Header() {
     { name: "Trang chủ", href: "/" },
     { name: "Ảnh", href: "/image" },
     { name: "Video", href: "/video" },
+    { name: "Motion Control", href: "/motion-control" },
     { name: "Studio", href: "/studio" },
     { name: "Tiện ích", href: "/tools" },
   ]

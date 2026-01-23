@@ -243,7 +243,7 @@ class GoogleVeoClient:
             # Fallback to a hardcoded one if specific dynamic failure occurs, or re-raise?
             # User wants Project Management logic, so we should rely on it.
             # But for robustness, maybe just raise.
-            raise ValueError(f"Failed to create project: {e}")
+            raise ValueError("Failed to create project: Upstream provider error")
 
 
     
@@ -567,6 +567,8 @@ class GoogleVeoClient:
         
         try:
             response = requests.post(url, json=payload, headers=headers, proxies=self._proxies)
+            if response.status_code != 200:
+                print(f"[GoogleVeoClient] Image Gen Error {response.status_code}: {response.text}")
             response.raise_for_status()
             data = response.json()
             
@@ -580,6 +582,9 @@ class GoogleVeoClient:
             print(f"DEBUG: Image Gen Response: {data}")
             raise ValueError(f"No media returned. Response: {data}")
 
+        except requests.exceptions.HTTPError as e:
+             # Already printed response.text above if status_code != 200
+             raise ValueError(f"Image Generation HTTP Error: {e}")
         except Exception as e:
             raise ValueError(f"Image Generation failed: {e}")
 

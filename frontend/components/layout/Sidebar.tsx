@@ -19,6 +19,7 @@ export default function Sidebar() {
         { href: '/tools', icon: Layout, label: 'Tiện ích' },
         // { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/video', icon: Video, label: 'Tạo Video' },
+        { href: '/motion-control', icon: BookOpenText, label: 'Motion Control' },
         { href: '/sora', icon: Download, label: 'Sora Downloader' },
         { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },

@@ -151,6 +151,11 @@ def seed_default_costs() -> None:
         ("nano-banana-pro-cheap", "is_enabled", 1),
         ("image-4.0", "is_enabled", 1),
 
+        # Motion Control
+        ("motion-control", "720p-per-s", 1),
+        ("motion-control", "1080p-per-s", 1),
+        ("motion-control", "is_enabled", 1),
+
         # Sora 2.0
         ("sora-2.0", "10s-fast", 20),
         ("sora-2.0", "10s-slow", 20),

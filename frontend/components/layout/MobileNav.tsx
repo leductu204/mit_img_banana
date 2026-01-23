@@ -17,6 +17,7 @@ export default function MobileNav() {
         { href: '/studio', icon: Palette, label: 'Studio' },
         { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/video', icon: Video, label: 'Tạo Video' },
+        { href: '/motion-control', icon: BookOpenText, label: 'Motion Control' },
         { href: '/pricing', icon: CreditCard, label: 'Bảng giá' },
         { href: '/account', icon: User, label: 'Tài khoản' },
     ];

@@ -176,7 +176,23 @@ def calculate_video_cost(
         # We ignore 'speed' param here for lookup as the model name IS the speed variant
         if "8s" in model_costs:
             return model_costs["8s"]
-        return 10 # Fallback
+    elif model == "motion-control":
+        # Motion Control - Per second cost based on resolution
+        # Keys: 720p-per-s, 1080p-per-s
+        try:
+            import math
+            # Ceiling to nearest second as per business logic
+            seconds = math.ceil(float(duration.replace("s", "")))
+        except ValueError:
+             seconds = 5 # Default fallback
+             
+        key = f"{resolution}-per-s"
+        
+        if key in model_costs:
+            return model_costs[key] * seconds
+            
+        # Fallback if key missing (backward compatibility)
+        return 1 * seconds # Default 1 credit per second
     
     else:
         raise CostCalculationError(f"Unknown video model: {model}")
@@ -217,7 +233,7 @@ def calculate_cost(
         Credit cost as integer
     """
     # Determine if this is a video model
-    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6", "veo3.1-low", "veo3.1-fast", "veo3.1-high", "sora-2.0"]
+    video_models = ["kling-2.5-turbo", "kling-o1-video", "kling-2.6", "veo3.1-low", "veo3.1-fast", "veo3.1-high", "sora-2.0", "motion-control"]
     
     if model in video_models:
         return calculate_video_cost(
