@@ -63,9 +63,13 @@ export default function ResultPreview({
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
         toast.success('Tải xuống thành công!');
+        setTimeout(() => {
+            toast.link("Bạn không thấy file được tải xuống?", resultUrl, 8000);
+        }, 1500);
     } catch (error) {
         console.error('Download failed:', error);
-        toast.error('Lỗi khi tải xuống');
+        toast.error('Lỗi khi tải xuống. Đang mở file trong tab mới...');
+        if (resultUrl) window.open(resultUrl, '_blank');
     }
   };
 
@@ -224,8 +228,23 @@ export default function ResultPreview({
                 )}
                 {type === 'image' && resultUrl && (
                     <Button
-                        onClick={() => {
-                            router.push(`/video?image_url=${encodeURIComponent(resultUrl)}`);
+                        onClick={async () => {
+                            try {
+                                toast.info("Đang chuẩn bị ảnh cho video...", 2000);
+                                const response = await fetch(resultUrl);
+                                const blob = await response.blob();
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64 = reader.result as string;
+                                    sessionStorage.setItem('image_for_video', base64);
+                                    sessionStorage.setItem('image_for_video_name', `studio-result-${Date.now()}.png`);
+                                    router.push('/video?from_image=true');
+                                };
+                                reader.readAsDataURL(blob);
+                            } catch (error) {
+                                console.error("Error preparing image:", error);
+                                toast.error("Không thể tải ảnh. Hãy tải xuống và upload lại.");
+                            }
                         }}
                         className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm shadow-sm transition-all duration-200 hover:scale-[1.02]"
                     >

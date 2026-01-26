@@ -7,6 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Transaction } from '@/hooks/useTransactions';
+import { useToast } from '@/hooks/useToast';
 
 interface ActivityTableProps {
     jobs: Job[];
@@ -93,6 +94,7 @@ export default function ActivityTable({
     totalJobs,
     totalTransactions,
 }: ActivityTableProps) {
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState<'jobs' | 'transactions'>('jobs');
     const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
     const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
@@ -147,6 +149,7 @@ export default function ActivityTable({
 
     const handleDownload = async (url: string, filename?: string) => {
         try {
+            toast.info("Đang tải xuống...");
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const blob = await response.blob();
@@ -158,9 +161,13 @@ export default function ActivityTable({
             a.click();
             window.URL.revokeObjectURL(urlBlob);
             document.body.removeChild(a);
+            toast.success("Tải xuống thành công!");
+            setTimeout(() => {
+                toast.link("Bạn không thấy file được tải xuống?", url, 8000);
+            }, 1500);
         } catch (error) {
             console.error('Download failed:', error);
-            // Fallback to opening in new tab if fetch fails (e.g. CORS)
+            toast.error("Lỗi khi tải xuống. Đang mở file trong tab mới...");
             window.open(url, '_blank');
         }
     };

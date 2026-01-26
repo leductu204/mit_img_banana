@@ -171,7 +171,7 @@ async def generate_video(
                 SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
                 SITE_URL = 'https://labs.google'
                 try:
-                    token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL)
+                    token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL, action='VIDEO_GENERATION')
                     if isinstance(token_data, tuple):
                         recaptcha_token, user_agent = token_data
                     else:
@@ -736,7 +736,8 @@ async def generate_veo31_low_t2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             # Generate via Google Veo client
@@ -789,7 +790,7 @@ async def generate_veo31_low_i2v(
     current_user: UserInDB = Depends(get_current_user),
     prompt: str = Form(...),
     aspect_ratio: str = Form("9:16"),
-    img_url: str = Form(...)
+    media_id: str = Form(...)
 ):
     """Veo 3.1 LOW Image-to-Video (form-based)."""
     try:
@@ -828,7 +829,8 @@ async def generate_veo31_low_i2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             # Generate via Google Veo client with image
@@ -836,7 +838,7 @@ async def generate_veo31_low_i2v(
                 prompt=prompt,
                 model="veo3.1-low",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url},
+                input_image={"media_id": media_id},
                 recaptchaToken=recaptcha_token,
                 user_agent=user_agent
             )
@@ -854,7 +856,7 @@ async def generate_veo31_low_i2v(
             model="veo3.1-low",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            input_images=json.dumps([{"url": img_url}]),
+            input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
             provider_job_id=provider_job_id
         )
@@ -918,7 +920,8 @@ async def generate_veo31_fast_t2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             job_id = google_veo_client.generate_video(
@@ -969,7 +972,7 @@ async def generate_veo31_fast_i2v(
     current_user: UserInDB = Depends(get_current_user),
     prompt: str = Form(...),
     aspect_ratio: str = Form("9:16"),
-    img_url: str = Form(...)
+    media_id: str = Form(...)
 ):
     """Veo 3.1 FAST Image-to-Video (form-based)."""
     try:
@@ -1006,14 +1009,15 @@ async def generate_veo31_fast_i2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-fast",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url},
+                input_image={"media_id": media_id},
                 recaptchaToken=recaptcha_token,
                 user_agent=user_agent
             )
@@ -1031,7 +1035,7 @@ async def generate_veo31_fast_i2v(
             model="veo3.1-fast",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            input_images=json.dumps([{"url": img_url}]),
+            input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
             provider_job_id=provider_job_id
         )
@@ -1094,7 +1098,8 @@ async def generate_veo31_high_t2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             job_id = google_veo_client.generate_video(
@@ -1145,7 +1150,7 @@ async def generate_veo31_high_i2v(
     current_user: UserInDB = Depends(get_current_user),
     prompt: str = Form(...),
     aspect_ratio: str = Form("9:16"),
-    img_url: str = Form(...)
+    media_id: str = Form(...)
 ):
     """Veo 3.1 HIGH Image-to-Video (form-based)."""
     try:
@@ -1182,14 +1187,15 @@ async def generate_veo31_high_i2v(
                 ProcessPoolExecutor(), 
                 solve_recaptcha_playwright, 
                 SITE_KEY, 
-                SITE_URL
+                SITE_URL,
+                'VIDEO_GENERATION'
             )
             
             job_id = google_veo_client.generate_video(
                 prompt=prompt,
                 model="veo3.1-high",
                 aspect_ratio=aspect_ratio,
-                input_image={"url": img_url},
+                input_image={"media_id": media_id},
                 recaptchaToken=recaptcha_token,
                 user_agent=user_agent
             )
@@ -1207,7 +1213,7 @@ async def generate_veo31_high_i2v(
             model="veo3.1-high",
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
-            input_images=json.dumps([{"url": img_url}]),
+            input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
             provider_job_id=provider_job_id
         )

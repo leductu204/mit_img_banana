@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/useToast"
 import { cn } from "@/lib/utils"
 import { getToken } from "@/lib/auth"
+import { NEXT_PUBLIC_API } from "@/lib/config"
 
 // UI Components
 import FileUpload from "./FileUpload"
@@ -74,7 +75,7 @@ export function MotionGenerator() {
                 const formData = new FormData()
                 formData.append("motion_video", file)
                 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/motion/estimate-cost`, {
+                const response = await fetch(`${NEXT_PUBLIC_API}/motion/estimate-cost`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
@@ -136,7 +137,7 @@ export function MotionGenerator() {
             formData.append("background_source", sceneControlMode === 'video' ? 'input_video' : 'input_image')
 
             // 1. Trigger Generation
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/motion/generate`, {
+            const response = await fetch(`${NEXT_PUBLIC_API}/motion/generate`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${getToken()}` 
@@ -156,7 +157,7 @@ export function MotionGenerator() {
             // 2. Poll for status
             const pollInterval = setInterval(async () => {
                 try {
-                    const statusRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/jobs/${jobId}`, {
+                    const statusRes = await fetch(`${NEXT_PUBLIC_API}/jobs/${jobId}`, {
                         headers: { 'Authorization': `Bearer ${getToken()}` }
                     })
                     const statusData = await statusRes.json()
@@ -206,10 +207,12 @@ export function MotionGenerator() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
             toast.success("Tải xuống thành công!");
+            setTimeout(() => {
+                toast.link("Bạn không thấy file được tải xuống?", url, 8000);
+            }, 1500);
         } catch (e) {
             console.error(e);
-            toast.error("Lỗi khi tải xuống");
-            // Fallback
+            toast.error("Lỗi khi tải xuống. Đang mở file trong tab mới...");
             window.open(url, '_blank');
         }
     };

@@ -180,10 +180,13 @@ export function ImageGenerator() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
             toast.success("Tải xuống thành công!");
+            // Show fallback link notification
+            setTimeout(() => {
+                toast.link("Bạn không thấy file được tải xuống?", url, 8000);
+            }, 1500);
         } catch (e) {
             console.error(e);
-            toast.error("Lỗi khi tải xuống");
-            // Fallback
+            toast.error("Lỗi khi tải xuống. Đang mở file trong tab mới...");
             window.open(url, '_blank');
         }
     };
@@ -201,14 +204,32 @@ export function ImageGenerator() {
             try {
                 const inputImages = []
                 if (referenceImages.length > 0) {
+                    // Determine if this is a Google model (needs different upload endpoint)
+                    const isGoogleModel = ['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(model);
+                    
                     for (let i = 0; i < referenceImages.length; i++) {
                          const file = referenceImages[i]
-                         const endpoint = i === 0 ? '/api/generate/image/upload' : '/api/generate/image/upload/batch'
-                         const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>(endpoint, { method: 'POST' })
-                         await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
-                         await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                         const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
-                         inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height })
+                         
+                         if (isGoogleModel) {
+                             // Google models use a different upload endpoint that returns mediaGenerationId (CAM format)
+                             const formData = new FormData();
+                             formData.append('image', file);
+                             const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
+                                 method: 'POST',
+                                 body: formData,
+                                 headers: {} // Let browser set Content-Type for FormData
+                             });
+                             // Google upload returns 'id' as mediaGenerationId (CAM...), no width/height
+                             inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url || '', width: 0, height: 0 });
+                         } else {
+                             // Higgsfield models use presigned URL upload
+                             const endpoint = i === 0 ? '/api/generate/image/upload' : '/api/generate/image/upload/batch'
+                             const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>(endpoint, { method: 'POST' })
+                             await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+                             await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                             const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
+                             inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height })
+                         }
                     }
                 }
 
@@ -534,9 +555,28 @@ export function ImageGenerator() {
                                 {/* Action Buttons */}
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
                                     <Button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (!result?.image_url) return;
-                                            router.push(`/video?image_url=${encodeURIComponent(result.image_url)}`);
+                                            try {
+                                                toast.info("Đang chuẩn bị ảnh cho video...");
+                                                // Fetch the image as blob
+                                                const response = await fetch(result.image_url);
+                                                const blob = await response.blob();
+                                                // Convert to base64
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => {
+                                                    const base64 = reader.result as string;
+                                                    // Store in sessionStorage
+                                                    sessionStorage.setItem('image_for_video', base64);
+                                                    sessionStorage.setItem('image_for_video_name', `generated-image-${Date.now()}.png`);
+                                                    // Navigate with flag
+                                                    router.push('/video?from_image=true');
+                                                };
+                                                reader.readAsDataURL(blob);
+                                            } catch (error) {
+                                                console.error("Error preparing image:", error);
+                                                toast.error("Không thể tải ảnh. Hãy tải xuống và upload lại.");
+                                            }
                                         }}
                                         className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
                                     >

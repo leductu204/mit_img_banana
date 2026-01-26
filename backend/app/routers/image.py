@@ -519,7 +519,8 @@ async def _generate_google_image(
                 ThreadPoolExecutor(), 
                 get_token_isolated,
                 '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
-                'https://labs.google'
+                'https://labs.google',
+                'IMAGE_GENERATION'
             )
             
             if not recaptcha_token:

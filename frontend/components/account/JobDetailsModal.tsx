@@ -68,9 +68,12 @@ export default function JobDetailsModal({ job, open, onClose }: JobDetailsModalP
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
             toast.success("Tải xuống thành công!");
+            setTimeout(() => {
+                toast.link("Bạn không thấy file được tải xuống?", url, 8000);
+            }, 1500);
         } catch (e) {
             console.error(e);
-            toast.error("Lỗi khi tải xuống");
+            toast.error("Lỗi khi tải xuống. Đang mở file trong tab mới...");
             window.open(url, '_blank');
         }
     };

@@ -66,8 +66,40 @@ export function VideoGenerator() {
     
     // Check for image_url from ImageGenerator
     useEffect(() => {
-        const imageUrl = searchParams.get('image_url')
-        if (imageUrl) {
+        const fromImage = searchParams.get('from_image');
+        const imageUrl = searchParams.get('image_url');
+        
+        if (fromImage === 'true') {
+            // Retrieve from sessionStorage (new approach for CORS-restricted URLs)
+            const base64 = sessionStorage.getItem('image_for_video');
+            const fileName = sessionStorage.getItem('image_for_video_name') || 'generated-image.png';
+            
+            if (base64) {
+                try {
+                    // Convert base64 back to File
+                    const arr = base64.split(',');
+                    const mimeMatch = arr[0].match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    const file = new File([u8arr], fileName, { type: mime });
+                    setReferenceImages([file]);
+                    toast.success("Đã tải ảnh từ kết quả tạo ảnh!");
+                    
+                    // Clean up sessionStorage
+                    sessionStorage.removeItem('image_for_video');
+                    sessionStorage.removeItem('image_for_video_name');
+                } catch (error) {
+                    console.error("Error loading image from storage:", error);
+                    toast.error("Không thể tải ảnh. Hãy tải xuống và upload thủ công.");
+                }
+            }
+        } else if (imageUrl) {
+            // Legacy approach - direct URL fetch (may fail on CORS-restricted URLs)
             const fetchImage = async () => {
                 try {
                     const response = await fetch(imageUrl);
@@ -185,10 +217,12 @@ export function VideoGenerator() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
             toast.success("Tải xuống thành công!");
+            setTimeout(() => {
+                toast.link("Bạn không thấy file được tải xuống?", url, 8000);
+            }, 1500);
         } catch (e) {
             console.error(e);
-            toast.error("Lỗi khi tải xuống");
-            // Fallback
+            toast.error("Lỗi khi tải xuống. Đang mở file trong tab mới...");
             window.open(url, '_blank');
         }
     };
@@ -210,15 +244,32 @@ export function VideoGenerator() {
         
         try {
             const durationInt = parseInt(duration.replace('s', ''))
-            let imgId = '', imgUrl = '', imgWidth = 0, imgHeight = 0
+            let imgId = '', imgUrl = '', imgWidth = 0, imgHeight = 0, googleMediaId = ''
+            
+            // Determine if this is a Google/Veo model
+            const isVeoModel = model.startsWith('veo3.1-')
             
             if (isImageToVideo && referenceImages.length > 0) {
                 const file = referenceImages[0]
-                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
-                await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
-                await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
-                imgId = uploadInfo.id; imgUrl = uploadInfo.url; imgWidth = width; imgHeight = height;
+                
+                if (isVeoModel) {
+                    // Google/Veo models: upload directly to Google endpoint, returns mediaGenerationId (CAM format)
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {} // Let browser set Content-Type for FormData
+                    });
+                    googleMediaId = uploadInfo.id; // This is the CAM format media ID
+                } else {
+                    // Higgsfield models: use presigned URL upload
+                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                    const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
+                    imgId = uploadInfo.id; imgUrl = uploadInfo.url; imgWidth = width; imgHeight = height;
+                }
             }
 
             const formData = new FormData()
@@ -229,7 +280,7 @@ export function VideoGenerator() {
             if (model.startsWith('veo3.1-')) {
                 formData.append('aspect_ratio', aspectRatio)
                 const mode = isImageToVideo ? 'i2v' : 't2v'
-                if (mode === 'i2v') formData.append('img_url', imgUrl)
+                if (mode === 'i2v') formData.append('media_id', googleMediaId)  // Send media_id instead of img_url
                 const modelPath = model.replace('.', '_')
                 const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
                 if (!response.ok) throw new Error(`Failed: ${response.status}`)

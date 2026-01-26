@@ -84,7 +84,8 @@ async def public_generate_image(
                 ThreadPoolExecutor(), 
                 get_token_isolated,
                 '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
-                'https://labs.google'
+                'https://labs.google',
+                'IMAGE_GENERATION'
             )
             
             if not recaptcha_token:
@@ -386,7 +387,8 @@ async def public_generate_video(
                 ThreadPoolExecutor(), 
                 get_token_isolated,
                 '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV',
-                'https://labs.google'
+                'https://labs.google',
+                'VIDEO_GENERATION'
             )
             
             if not recaptcha_token:

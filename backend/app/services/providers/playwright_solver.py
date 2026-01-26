@@ -111,6 +111,8 @@ class PlaywrightSolver:
         """
         Get reCAPTCHA token using the persistent browser context.
         """
+        print(f"[PlaywrightSolver] 🔍 Requesting Token for Action: '{action}'", flush=True)
+
         if not self._initialized or not self.context:
             await self.initialize()
 
@@ -246,12 +248,23 @@ def solve_recaptcha_playwright(
     """
     import asyncio
     
-    # Simple strategy: run the async logic in a new event loop
+    # If on Windows, force isolated execution to avoid Loop conflicts
+    import sys
+    if sys.platform == 'win32':
+        return get_token_isolated(site_key, site_url, action)
+
+    # Simple strategy for non-Windows or if not in loop
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+         # If we are already in a running loop (e.g. Linux Uvicorn worker), we can't use run_until_complete
+         # This is a generic problem. But let's assume this function is mainly for sync contexts.
+         # For Windows we already delegated.
+         pass
 
     return loop.run_until_complete(
         solve_recaptcha_playwright_async(site_key, site_url, action, headless)
@@ -277,7 +290,8 @@ def solve_recaptcha_v3_enterprise(
 
 def get_token_isolated(
     site_key: str = SITE_KEY,
-    site_url: str = SITE_URL
+    site_url: str = SITE_URL,
+    action: str = 'FLOW_GENERATION'
 ) -> Tuple[str, str]:
     """
     Stand-alone function to run Playwright in a completely new Event Loop.
@@ -305,7 +319,7 @@ def get_token_isolated(
         try:
             print("[Isolated] Initializing solver with headless=False...", flush=True)
             await solver.initialize(headless=False) # Visual debug
-            return await solver.get_token(site_key, site_url)
+            return await solver.get_token(site_key, site_url, action)
         except Exception as e:
             print(f"[Isolated] Solver error: {e}", flush=True)
             raise

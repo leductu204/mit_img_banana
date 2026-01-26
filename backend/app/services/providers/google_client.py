@@ -11,6 +11,7 @@ from typing import Optional, Tuple, List
 import io
 from PIL import Image
 from app.config import settings
+from .playwright_solver import solve_recaptcha_playwright
 
 
 class GoogleVeoClient:
@@ -312,15 +313,20 @@ class GoogleVeoClient:
         aspect_ratio: str,
         model_name: str,
         prompt: str,
-        recaptchaToken: str,
+        recaptchaToken: Optional[str] = None,
         start_media_id: str = None,
         end_media_id: str = None,
         user_agent: Optional[str] = None
     ) -> Tuple[str, str]:
         """
-        Generate I2V video using Start and/or End frames.
+        Generate I2V video using Start AND End frames.
         Endpoint: .../video:batchAsyncGenerateVideoStartAndEndImage
+        Use generate_video_start_image for start-image-only I2V.
         """
+        if not recaptchaToken:
+            print("[GoogleVeoClient] Auto-solving Captcha for VIDEO_GENERATION...")
+            recaptchaToken, _ = solve_recaptcha_playwright(action='VIDEO_GENERATION', headless=True)
+            
         token = self.get_jwt_token()
         url = "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoStartAndEndImage"
         
@@ -374,6 +380,73 @@ class GoogleVeoClient:
         except Exception as e:
              raise ValueError(f"I2V Generation failed: {e}")
 
+    def generate_video_start_image(
+        self,
+        project_id: str,
+        aspect_ratio: str,
+        model_name: str,
+        prompt: str,
+        recaptchaToken: Optional[str] = None,
+        start_media_id: str = None,
+        user_agent: Optional[str] = None
+    ) -> Tuple[str, str]:
+        """
+        Generate I2V video using Start frame only.
+        Endpoint: .../video:batchAsyncGenerateVideoStartImage
+        """
+        if not recaptchaToken:
+            print("[GoogleVeoClient] Auto-solving Captcha for VIDEO_GENERATION...")
+            recaptchaToken, _ = solve_recaptcha_playwright(action='VIDEO_GENERATION', headless=True)
+            
+        token = self.get_jwt_token()
+        url = "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoStartImage"
+        
+        mapped_ratio = self._get_valid_aspect_ratio(aspect_ratio, is_image=False)
+        scene_id = self._generate_random_string()
+
+        request_payload = {
+            "aspectRatio": mapped_ratio,
+            "seed": random.randint(1000, 15000),
+            "textInput": {
+                "prompt": prompt
+            },
+            "videoModelKey": model_name,
+            "startImage": {"mediaId": start_media_id},
+            "metadata": {
+                "sceneId": scene_id
+            }
+        }
+
+        requests_list = [request_payload]
+        
+        payload = {
+            "clientContext": {
+                "recaptchaToken": recaptchaToken,
+                "sessionId": f";{int(time.time() * 1000)}",
+                "projectId": project_id,
+                "tool": "PINHOLE",
+                "userPaygateTier": "PAYGATE_TIER_ONE"
+            },
+            "requests": requests_list
+        }
+        
+        headers = self._get_common_headers(token, user_agent=user_agent)
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, proxies=self._proxies)
+            response.raise_for_status()
+            data = response.json()
+            
+            if "operations" in data and len(data["operations"]) > 0:
+                op = data["operations"][0]
+                operation_name = op["operation"]["name"]
+                scene_id = op.get("sceneId", scene_id)
+                return operation_name, scene_id
+                
+            raise ValueError(f"No operation returned. Response: {data}")
+        except Exception as e:
+             raise ValueError(f"I2V Start Image Generation failed: {e}")
+
 
     def generate_t2v_video(
         self,
@@ -381,10 +454,14 @@ class GoogleVeoClient:
         aspect_ratio: str,
         model_name: str,
         prompt: str,
-        recaptchaToken: str,
+        recaptchaToken: Optional[str] = None,
         user_agent: Optional[str] = None
     ) -> Tuple[str, str]:
         """Start T2V video generation."""
+        if not recaptchaToken:
+            print("[GoogleVeoClient] Auto-solving Captcha for VIDEO_GENERATION...")
+            recaptchaToken, _ = solve_recaptcha_playwright(action='VIDEO_GENERATION', headless=True)
+
         token = self.get_jwt_token()
         url = "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText"
         
@@ -498,7 +575,7 @@ class GoogleVeoClient:
     def generate_image(
         self,
         prompt: str,
-        recaptchaToken: str,
+        recaptchaToken: Optional[str] = None,
         model: str = "nano-banana-cheap",
         aspect_ratio: str = "9:16",
         input_images: List[dict] = None,
@@ -508,6 +585,10 @@ class GoogleVeoClient:
         Generate static image (T2I).
         Returns the URL of the generated image.
         """
+        if not recaptchaToken:
+            print("[GoogleVeoClient] Auto-solving Captcha for IMAGE_GENERATION...")
+            recaptchaToken, _ = solve_recaptcha_playwright(action='IMAGE_GENERATION', headless=False)
+
         # 1. Project Management
         if not self._project_id:
             self._project_id = self.create_project(title="Image_Generation")
@@ -591,7 +672,7 @@ class GoogleVeoClient:
     def generate_video(
         self,
         prompt: str,
-        recaptchaToken: str,
+        recaptchaToken: Optional[str] = None,
         model: str = "veo3.1-high",
         aspect_ratio: str = "9:16",
         input_image: dict = None,
@@ -680,16 +761,30 @@ class GoogleVeoClient:
             # Select correct model key
             model_name = model_variants["i2v_portrait"] if is_portrait else model_variants["i2v"]
             
-            operation_name, scene_id = self.generate_video_start_end(
-                project_id=project_id,
-                aspect_ratio=aspect_ratio,
-                model_name=model_name,
-                prompt=prompt,
-                recaptchaToken=recaptchaToken,
-                start_media_id=start_media_id,
-                end_media_id=end_media_id,
-                user_agent=user_agent
-            )
+            # Use appropriate endpoint based on whether end frame is provided
+            if end_media_id:
+                # Both start and end frames - use StartAndEndImage endpoint
+                operation_name, scene_id = self.generate_video_start_end(
+                    project_id=project_id,
+                    aspect_ratio=aspect_ratio,
+                    model_name=model_name,
+                    prompt=prompt,
+                    recaptchaToken=recaptchaToken,
+                    start_media_id=start_media_id,
+                    end_media_id=end_media_id,
+                    user_agent=user_agent
+                )
+            else:
+                # Start frame only - use StartImage endpoint
+                operation_name, scene_id = self.generate_video_start_image(
+                    project_id=project_id,
+                    aspect_ratio=aspect_ratio,
+                    model_name=model_name,
+                    prompt=prompt,
+                    recaptchaToken=recaptchaToken,
+                    start_media_id=start_media_id,
+                    user_agent=user_agent
+                )
         else:
             # T2V
             # Try to find portrait specific model, fallback to standard t2v
