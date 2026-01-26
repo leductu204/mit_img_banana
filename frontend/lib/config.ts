@@ -8,7 +8,7 @@ export const NEXT_PUBLIC_API = (() => {
     const hostname = window.location.hostname;
     // If not localhost, use current domain + /api
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `${window.location.protocol}//${window.location.host}/api`;
+      return `${window.location.protocol}//${window.location.host}`;
     }
   }
   // Fallback to env variable or localhost for development

@@ -123,7 +123,7 @@ export function VideoGenerator() {
 
     // Fetch model configs
     useEffect(() => {
-        fetch(`${NEXT_PUBLIC_API}/costs`)
+        fetch(`${NEXT_PUBLIC_API}/api/costs`)
             .then(res => res.json())
             .then(data => setModelConfigs(data))
             .catch(err => console.error("Failed to fetch model configs:", err))
@@ -282,7 +282,7 @@ export function VideoGenerator() {
                 const mode = isImageToVideo ? 'i2v' : 't2v'
                 if (mode === 'i2v') formData.append('media_id', googleMediaId)  // Send media_id instead of img_url
                 const modelPath = model.replace('.', '_')
-                const response = await fetch(`${NEXT_PUBLIC_API}/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
                 if (!response.ok) throw new Error(`Failed: ${response.status}`)
                 const genRes = await response.json()
                 toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
