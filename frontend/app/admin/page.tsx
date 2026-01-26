@@ -56,7 +56,7 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       try {
         const token = getAdminToken();
-        const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/stats`, {
+        const res = await fetch(`${NEXT_PUBLIC_API}/admin/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

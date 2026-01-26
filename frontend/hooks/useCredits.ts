@@ -23,7 +23,7 @@ export function useCredits() {
             try {
                 // Add timestamp to prevent browser caching
                 const timestamp = new Date().getTime();
-                const response = await fetch(`${NEXT_PUBLIC_API}/api/costs?t=${timestamp}`, {
+                const response = await fetch(`${NEXT_PUBLIC_API}/costs?t=${timestamp}`, {
                     cache: 'no-store',
                     headers: {
                         'Cache-Control': 'no-cache'
@@ -202,7 +202,7 @@ export function useCredits() {
      */
     const refreshBalance = async (): Promise<number> => {
         try {
-            const response = await fetch(`${NEXT_PUBLIC_API}/api/users/me/credits`, {
+            const response = await fetch(`${NEXT_PUBLIC_API}/users/me/credits`, {
                 headers: {
                     ...getAuthHeader(),
                     'Content-Type': 'application/json',

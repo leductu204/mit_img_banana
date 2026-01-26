@@ -56,7 +56,7 @@ export function useJobs() {
             if (type) params.append('type', type);
 
             const response = await fetch(
-                `${NEXT_PUBLIC_API}/api/users/me/jobs?${params}`,
+                `${NEXT_PUBLIC_API}/users/me/jobs?${params}`,
                 {
                     headers: {
                         ...getAuthHeader(),
@@ -88,7 +88,7 @@ export function useJobs() {
     const cancelJob = useCallback(async (jobId: string): Promise<boolean> => {
         try {
             const response = await fetch(
-                `${NEXT_PUBLIC_API}/api/jobs/${jobId}/cancel`,
+                `${NEXT_PUBLIC_API}/jobs/${jobId}/cancel`,
                 {
                     method: 'POST',
                     headers: {
@@ -120,7 +120,7 @@ export function useJobs() {
     const deleteJob = useCallback(async (jobId: string): Promise<boolean> => {
         try {
             const response = await fetch(
-                `${NEXT_PUBLIC_API}/api/jobs/${jobId}`,
+                `${NEXT_PUBLIC_API}/jobs/${jobId}`,
                 {
                     method: 'DELETE',
                     headers: {
@@ -149,7 +149,7 @@ export function useJobs() {
     const batchDeleteJobs = useCallback(async (jobIds: string[]): Promise<boolean> => {
         try {
             const response = await fetch(
-                `${NEXT_PUBLIC_API}/api/jobs/batch-delete`,
+                `${NEXT_PUBLIC_API}/jobs/batch-delete`,
                 {
                     method: 'POST',
                     headers: {

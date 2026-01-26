@@ -43,7 +43,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/me`, {
+        const res = await fetch(`${NEXT_PUBLIC_API}/admin/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -72,7 +72,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${NEXT_PUBLIC_API}/api/admin/auth/login`, {
+      const res = await fetch(`${NEXT_PUBLIC_API}/admin/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

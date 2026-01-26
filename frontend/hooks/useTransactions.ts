@@ -48,7 +48,7 @@ export function useTransactions() {
             if (type) params.append('type', type);
 
             const response = await fetch(
-                `${NEXT_PUBLIC_API}/api/users/me/transactions?${params}`,
+                `${NEXT_PUBLIC_API}/users/me/transactions?${params}`,
                 {
                     headers: {
                         ...getAuthHeader(),
