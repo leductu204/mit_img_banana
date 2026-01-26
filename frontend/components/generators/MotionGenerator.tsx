@@ -75,7 +75,7 @@ export function MotionGenerator() {
                 const formData = new FormData()
                 formData.append("motion_video", file)
                 
-                const response = await fetch(`${NEXT_PUBLIC_API}/motion/estimate-cost`, {
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/estimate-cost`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
@@ -137,7 +137,7 @@ export function MotionGenerator() {
             formData.append("background_source", sceneControlMode === 'video' ? 'input_video' : 'input_image')
 
             // 1. Trigger Generation
-            const response = await fetch(`${NEXT_PUBLIC_API}/motion/generate`, {
+            const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/generate`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${getToken()}` 
@@ -157,7 +157,7 @@ export function MotionGenerator() {
             // 2. Poll for status
             const pollInterval = setInterval(async () => {
                 try {
-                    const statusRes = await fetch(`${NEXT_PUBLIC_API}/jobs/${jobId}`, {
+                    const statusRes = await fetch(`${NEXT_PUBLIC_API}/api/jobs/${jobId}`, {
                         headers: { 'Authorization': `Bearer ${getToken()}` }
                     })
                     const statusData = await statusRes.json()
