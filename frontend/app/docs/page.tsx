@@ -218,17 +218,12 @@ function InteractiveModelEndpoint({ title, method, path, description, models, de
   const getCode = () => {
     // Determine the base URL without /v1 suffix if it's already included (it shouldn't be per config.ts, but safety first)
     const baseUrl = NEXT_PUBLIC_API.endsWith('/') ? NEXT_PUBLIC_API.slice(0, -1) : NEXT_PUBLIC_API;
-    // Construct full URL. Example: http://localhost:8000/v1/image/generate
-    // Note: NEXT_PUBLIC_API usually includes /v1 if configured that way, but let's assume it's the host:port based on config.ts default.
-    // However, config.ts says "http://localhost:8000". The paths in this file are like "/image/generate".
-    // We need to ensure /v1 is present.
-    // Let's assume NEXT_PUBLIC_API is the ROOT URL.
-    
-    // In config.ts: export const NEXT_PUBLIC_API = process.env.NEXT_PUBLIC_API || "http://localhost:8000";
-    // We want: http://localhost:8000/v1/image/generate
+    // Construct API URL with runtime detection
     let apiUrl = baseUrl;
-    if (!apiUrl.includes('/v1')) {
-        apiUrl += '/v1';
+    if (typeof window !== 'undefined' && window.location.hostname === 'tramsangtao.com') {
+      apiUrl = 'https://api.tramsangtao.com/v1';
+    } else if (!apiUrl.includes('/v1')) {
+      apiUrl += '/v1';
     }
 
     let lines = [`curl -X ${method} ${apiUrl}${path} \\`,
@@ -308,6 +303,9 @@ function InteractiveModelEndpoint({ title, method, path, description, models, de
 // --- Main Page ---
 
 export default function ApiDocsPage() {
+  const isProd = typeof window !== 'undefined' && window.location.hostname === 'tramsangtao.com';
+  const displayApiBase = isProd ? 'https://api.tramsangtao.com' : NEXT_PUBLIC_API;
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <div className="max-w-6xl mx-auto px-6 py-16">
@@ -346,7 +344,7 @@ export default function ApiDocsPage() {
                 </p>
                 <CodeBlock 
                     title="Example Request" 
-                    code={`curl -X POST ${NEXT_PUBLIC_API}/v1/image/generate \\
+                    code={`curl -X POST ${displayApiBase}/v1/image/generate \\
   -H "Authorization: Bearer sk_live_your_key" \\
   -F "prompt=A futuristic city" \\
   -F "model=nano-banana"`} 
@@ -388,7 +386,7 @@ export default function ApiDocsPage() {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                     All API requests should be prefixed with the current version path.
                 </p>
-                <CodeBlock title="Current Version (v1)" code={`${NEXT_PUBLIC_API}/v1`} />
+                <CodeBlock title="Current Version (v1)" code={`${displayApiBase}/v1`} />
             </div>
         </section>
 
