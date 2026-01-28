@@ -587,8 +587,8 @@ export default function AdminModelCostsPage() {
                             if (params === '4k') displayKey = '4K' + speedLabel;
                         }
                         if (model === 'motion-control') {
-                             if (params === '720p') displayKey = '720p (Fixed)';
-                             if (params === '1080p') displayKey = '1080p (Fixed)';
+                             if (cost.config_key === '720p') displayKey = '720p (Fixed)';
+                             if (cost.config_key === '1080p') displayKey = '1080p (Fixed)';
                         }
 
                         return (
