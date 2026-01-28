@@ -511,7 +511,25 @@ class KlingClient:
                 # Download the first video to get CDN URL
                 result_url = None
                 if work_ids:
+                    # 1. Try explicit download first (best quality/cdn)
                     result_url = self.download_video(work_ids[0])
+                    
+                    # 2. Fallback: Check works array for legacy/direct URL if download failed
+                    if not result_url and works:
+                        try:
+                            work = works[0]
+                            resource = work.get("resource", {})
+                            # Try known keys
+                            fallback = resource.get("resourceUrl") or resource.get("url") or resource.get("motionUrl") or work.get("videoUrl")
+                            
+                            if fallback:
+                                logger.info(f"⚠️ 'Service busy' or download failed. Using fallback URL from works: {fallback}")
+                                result_url = fallback
+                            else:
+                                logger.warning(f"No fallback URL found in work resource. Keys: {list(resource.keys()) if resource else 'None'}")
+                                
+                        except Exception as e_fallback:
+                            logger.error(f"Error extracting fallback URL: {e_fallback}")
                 
                 return {
                     "status": "completed",

@@ -152,8 +152,9 @@ def seed_default_costs() -> None:
         ("image-4.0", "is_enabled", 1),
 
         # Motion Control
-        ("motion-control", "720p-per-s", 1),
-        ("motion-control", "1080p-per-s", 1),
+        # Motion Control (Fixed Cost)
+        ("motion-control", "720p", 500),
+        ("motion-control", "1080p", 800),
         ("motion-control", "is_enabled", 1),
 
         # Sora 2.0

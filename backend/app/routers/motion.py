@@ -2,16 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from typing import Optional, List
 from pydantic import BaseModel
 import logging
+import json
 
 from app.services.providers.kling_client import KlingClient
 from app.repositories.kling_accounts_repo import kling_accounts_repo
 from app.repositories import jobs_repo
+from app.repositories import model_costs_repo
 from app.services.account_scheduler import account_scheduler
 
 from app.deps import get_current_user
 from app.schemas.users import UserInDB
 from app.schemas.jobs import JobCreate
-import json
 
 router = APIRouter(prefix="/motion", tags=["Motion Control"])
 
@@ -23,8 +24,8 @@ async def estimate_motion_cost(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """
-    Upload video to provider and calculate estimated cost based on duration.
-    Returns video ID, URL, duration, and cost per resolution.
+    Upload video to provider and return fixed costs from configuration.
+    Returns video ID, URL, and configured cost per resolution.
     """
     try:
         # Select Kling account
@@ -44,13 +45,16 @@ async def estimate_motion_cost(
         
         video_url, video_cover_url = upload_result
         
-        # Fixed costs for Kling (not duration-based)
+        # Get configurable fixed costs
+        cost_720p = model_costs_repo.get_cost("motion-control", "720p") or 500
+        cost_1080p = model_costs_repo.get_cost("motion-control", "1080p") or 800
+
         return {
             "video_url": video_url,
             "video_cover_url": video_cover_url,
             "costs": {
-                "720p": 120,  # std mode
-                "1080p": 150   # pro mode
+                "720p": cost_720p,
+                "1080p": cost_1080p
             },
             "account_id": selected_account_id
         }
@@ -92,16 +96,16 @@ async def generate_motion(
             raise HTTPException(status_code=400, detail="motion_video_url is required (from estimate-cost)")
         
         video_url = motion_video_url
-        # Assume we also need cover URL - if not passed, we might need to handle this
-        # For now, let's assume the frontend passes it or we use the same URL
         video_cover_url = motion_video_url  # Placeholder - ideally frontend passes this
 
-        # 1b. If using ID, we need URL. Let's add motion_video_url to params if missing.
-        # But wait, I can't modify the function signature inside the function.
-        # I'll add motion_video_url to the signature below (re-writing the chunk).
-
-        # 3. Fixed Cost (not duration-based for Kling)
-        cost = 800 if mode == "pro" else 500
+        # 3. Get Configurable Fixed Cost
+        config_key = "1080p" if mode == "pro" else "720p"
+        cost = model_costs_repo.get_cost("motion-control", config_key)
+        
+        # Fallback if not configured
+        if cost is None:
+            cost = 800 if mode == "pro" else 500
+            
         logger.info(f"Motion Control Cost: {cost} credits (Mode: {mode})")
 
         # 4. Check Credits
