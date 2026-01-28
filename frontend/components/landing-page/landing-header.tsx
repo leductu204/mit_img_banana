@@ -12,6 +12,7 @@ const navLinks = [
   { label: "Trang chủ", href: "/" },
   { label: "Ảnh", href: "/image" },
   { label: "Video", href: "/video" },
+  { label: "Motion Control", href: "/motion-control" },
   { label: "Studio", href: "/studio" },
   { label: "Tiện ích", href: "/tools" },
 ]
