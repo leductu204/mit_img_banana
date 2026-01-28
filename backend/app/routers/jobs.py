@@ -10,7 +10,7 @@ from app.schemas.higgsfield import JobStatusResponse
 from app.schemas.users import UserInDB
 from app.deps import get_current_user, get_current_user_optional
 from app.services.credits_service import credits_service
-from app.repositories import jobs_repo
+from app.repositories import jobs_repo, users_repo
 
 
 router = APIRouter(tags=["jobs"])

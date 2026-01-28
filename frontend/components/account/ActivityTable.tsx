@@ -276,7 +276,9 @@ export default function ActivityTable({
                             ) : (
                                 jobs.map((job) => {
                                     const status = statusConfig[job.status as keyof typeof statusConfig] || statusConfig.pending;
-                                    const isVideo = job.type === 't2v' || job.type === 'i2v';
+                                    const isVideo = job.type === 't2v' || job.type === 'i2v' || job.type === 'motion';
+                                    const fileExtension = isVideo ? 'mp4' : 'png';
+                                    const fileName = `${job.job_id}.${fileExtension}`;
 
                                     return (
                                         <tr key={job.job_id} className="group hover:bg-[#22d3ee]/5 transition-colors duration-200">
@@ -332,7 +334,7 @@ export default function ActivityTable({
                                                 <div className="flex items-center justify-end gap-1">
                                                     {job.output_url && (
                                                         <button 
-                                                            onClick={() => handleDownload(job.output_url!)}
+                                                            onClick={() => handleDownload(job.output_url!, fileName)}
                                                             className="p-2 text-[#94A3B8] hover:text-white hover:bg-white/10 rounded-xl transition-all" 
                                                             title="Download"
                                                         >

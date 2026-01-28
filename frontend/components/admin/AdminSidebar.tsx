@@ -13,7 +13,8 @@ import {
   LogOut,
   Shield,
   Server,
-  Video
+  Video,
+  Clapperboard
 } from 'lucide-react';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/admin/model-costs', label: 'Model Costs', icon: CreditCard },
   { href: '/admin/higgsfield-accounts', label: 'Higgsfield', icon: Server },
   { href: '/admin/sora-accounts', label: 'Sora', icon: Video },
+  { href: '/admin/kling-accounts', label: 'Kling', icon: Clapperboard },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
   { href: '/admin/logs', label: 'Audit Logs', icon: History },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

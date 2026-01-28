@@ -227,6 +227,44 @@ def init_sora_accounts_table(conn=None) -> None:
         if should_close:
             conn.close()
 
+def init_kling_accounts_table(conn=None) -> None:
+    """
+    Initialize Kling Accounts table for managing Kling AI provider accounts.
+    """
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS kling_accounts (
+                account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                cookie TEXT NOT NULL,
+                priority INTEGER DEFAULT 100,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_kling_accounts_active_priority 
+            ON kling_accounts (is_active, priority DESC);
+        """)
+        
+        conn.commit()
+        print("Kling accounts table initialized successfully")
+        
+    except Exception as e:
+        print(f"Error initializing kling accounts table: {e}")
+        raise
+    finally:
+        if should_close:
+            conn.close()
+
+
 def init_higgsfield_accounts_table(conn=None) -> None:
     """
     Initialize Higgsfield Accounts table for managing multiple provider accounts.
@@ -307,6 +345,9 @@ def init_database() -> None:
         # Migration: Update jobs table CHECK constraint to include 'cancelled'
         migrate_jobs_table_for_cancelled_status(conn)
         
+        # Migration: Update jobs table CHECK constraint to include 'motion' type
+        migrate_jobs_table_for_motion_type(conn)
+        
         # Initialize admin tables
         init_admin_tables(conn)
         
@@ -321,6 +362,9 @@ def init_database() -> None:
         
         # Initialize Sora Accounts table
         init_sora_accounts_table(conn)
+        
+        # Initialize Kling Accounts table
+        init_kling_accounts_table(conn)
         
         # Initialize Orders table
         init_orders_table(conn)
@@ -541,6 +585,86 @@ def migrate_jobs_table_for_cancelled_status(conn) -> None:
     except Exception as e:
         print(f"Warning: Jobs table migration failed: {e}")
         # Don't raise - allow app to continue, cancel will just fail
+
+
+
+def migrate_jobs_table_for_motion_type(conn) -> None:
+    """
+    Migrate existing jobs table to support 'motion' type.
+    """
+    try:
+        # Check if jobs table exists
+        cursor = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
+        )
+        result = cursor.fetchone()
+        
+        if not result:
+            return  # Table doesn't exist
+        
+        table_sql = result[0] or ""
+        
+        # Check if 'motion' is already in the CHECK constraint
+        if "'motion'" in table_sql or '"motion"' in table_sql:
+            # print("Jobs table already supports 'motion' type")
+            return
+        
+        print("Migrating jobs table to support 'motion' type...")
+        
+        # Recreate the table with updated constraint
+        conn.executescript("""
+            -- Create new table with updated constraint
+            CREATE TABLE IF NOT EXISTS jobs_new (
+                job_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                type TEXT NOT NULL CHECK (type IN ('t2i', 'i2i', 't2v', 'i2v', 'motion')),
+                model TEXT NOT NULL,
+                status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+                prompt TEXT NOT NULL,
+                input_params TEXT,
+                input_images TEXT,
+                output_url TEXT,
+                credits_cost INTEGER NOT NULL CHECK (credits_cost >= 0),
+                credits_refunded BOOLEAN DEFAULT FALSE,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                -- columns from other migrations
+                account_id INTEGER REFERENCES higgsfield_accounts(account_id),
+                plan_id_snapshot INTEGER,
+                started_processing_at TIMESTAMP,
+                provider_job_id TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            
+            -- Copy data
+            INSERT INTO jobs_new (
+                job_id, user_id, type, model, status, prompt, input_params, input_images, 
+                output_url, credits_cost, credits_refunded, error_message, created_at, completed_at,
+                account_id, plan_id_snapshot, started_processing_at, provider_job_id
+            )
+            SELECT 
+                job_id, user_id, type, model, status, prompt, input_params, input_images, 
+                output_url, credits_cost, credits_refunded, error_message, created_at, completed_at,
+                account_id, plan_id_snapshot, started_processing_at, provider_job_id
+            FROM jobs;
+            
+            -- Drop old table and rename new
+            DROP TABLE IF EXISTS jobs;
+            ALTER TABLE jobs_new RENAME TO jobs;
+            
+            -- Recreate indexes
+            CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
+            CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+            CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_jobs_user_created ON jobs(user_id, created_at);
+        """)
+        conn.commit()
+        print("Jobs table migration for 'motion' type completed successfully")
+        
+    except Exception as e:
+        print(f"Warning: Jobs table 'motion' type migration failed: {e}") 
+        # Don't raise - allow app to continue
 
 
 def init_admin_tables(conn=None) -> None:

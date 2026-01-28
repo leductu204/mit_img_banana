@@ -34,17 +34,15 @@ export function MotionGenerator() {
     const [motionVideo, setMotionVideo] = useState<File | null>(null)
     const [characterImage, setCharacterImage] = useState<File | null>(null)
     const [quality, setQuality] = useState("720p")
-    const [sceneControlEnabled, setSceneControlEnabled] = useState(true)
-    const [sceneControlMode, setSceneControlMode] = useState<"video" | "image">("video")
+
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<string | null>(null)
 
     // Analysis State
     const [analyzing, setAnalyzing] = useState(false)
     const [videoData, setVideoData] = useState<{
-        id: string
-        url: string
-        duration: number
+        video_url: string
+        video_cover_url: string
         account_id?: number
         costs: {
             "720p": number
@@ -75,7 +73,7 @@ export function MotionGenerator() {
                 const formData = new FormData()
                 formData.append("motion_video", file)
                 
-                const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/estimate-cost`, {
+                const response = await fetch(`${NEXT_PUBLIC_API}/motion/estimate-cost`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
@@ -117,24 +115,22 @@ export function MotionGenerator() {
 
         try {
             const formData = new FormData()
-            if (videoData && videoData.id) {
-                // Use pre-uploaded video
-                formData.append("motion_video_id", videoData.id)
-                formData.append("motion_video_url", videoData.url)
-                formData.append("duration", videoData.duration.toString())
+           if (videoData && videoData.video_url) {
+                // Use pre-uploaded video from estimate-cost
+                formData.append("motion_video_url", videoData.video_url)
+                formData.append("video_cover_url", videoData.video_cover_url)
                 if (videoData.account_id) {
                     formData.append("account_id", videoData.account_id.toString())
                 }
             } else {
-                // Fallback (shouldn't happen if analysis works, but good for safety)
+                // Fallback (shouldn't happen if analysis works)
                 formData.append("motion_video", motionVideo)
             }
             
             formData.append("character_image", characterImage)
             // Quality mapping: 720p -> std, 1080p -> pro
             formData.append("mode", quality === '1080p' ? 'pro' : 'std')
-            // Scene Control: video -> input_video, image -> input_image
-            formData.append("background_source", sceneControlMode === 'video' ? 'input_video' : 'input_image')
+
 
             // 1. Trigger Generation
             const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/generate`, {
@@ -187,8 +183,6 @@ export function MotionGenerator() {
         setMotionVideo(null)
         setCharacterImage(null)
         setQuality("720p")
-        setSceneControlEnabled(true)
-        setSceneControlMode("video")
         setResult(null)
     }
 
@@ -269,36 +263,7 @@ export function MotionGenerator() {
                             <QualitySelector value={quality} onChange={setQuality} options={['720p', '1080p']} />
                     </div>
 
-                    {/* Scene Control */}
-                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
-                        <div className="flex flex-col gap-2 w-full">
-                            <span className="text-sm font-medium text-white">Scene control mode</span>
-                            <div className="flex gap-2 w-full">
-                                    <button 
-                                    onClick={() => setSceneControlMode('video')}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border",
-                                        sceneControlMode === 'video'
-                                            ? "bg-white text-black border-white shadow-md" 
-                                            : "bg-transparent text-[#B0B8C4] border-white/10 hover:border-white/30 hover:bg-white/5"
-                                    )}
-                                    >
-                                    <VideoIcon className="w-4 h-4" /> Video
-                                    </button>
-                                    <button 
-                                    onClick={() => setSceneControlMode('image')}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border",
-                                        sceneControlMode === 'image'
-                                            ? "bg-white text-black border-white shadow-md" 
-                                            : "bg-transparent text-[#B0B8C4] border-white/10 hover:border-white/30 hover:bg-white/5"
-                                    )}
-                                    >
-                                    <LucideImage className="w-4 h-4" /> Image
-                                    </button>
-                            </div>
-                        </div>
-                    </div>
+
 
                     {/* Generate Button */}
                     <button 

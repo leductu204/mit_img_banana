@@ -123,8 +123,12 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 # The main loop has try/except Exception as e logging "Error checking job {job_id}: {e}"
                                 # So raising here allows main loop to handle it consistently.
                                 raise e
+                        elif job.get("model") == "motion-control":
+                            # Kling Motion Control job
+                            from app.services.providers.kling_client import kling_client
+                            result = kling_client.check_task_status(provider_job_id)
                         else:
-                            # Kling job - Use dynamic client
+                            # Higgsfield job - Use dynamic client
                             result = client.get_job_status(provider_job_id)
                             
                             # Fallback: If job not found on DB account, try Default (.env) account

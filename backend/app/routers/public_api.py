@@ -8,6 +8,8 @@ from app.services.credits_service import credits_service
 from app.services.providers.higgsfield_client import get_best_client
 from app.services.providers.google_client import google_veo_client
 from app.services.providers.sora_client import sora_client_instance as sora_client
+from app.services.providers.kling_client import KlingClient
+from app.repositories.kling_accounts_repo import kling_accounts_repo
 
 router = APIRouter()
 
@@ -554,3 +556,166 @@ async def upload_file_veo(
         return {"media_id": media_id}
     except Exception as e:
         raise HTTPException(500, f"Upload failed: {str(e)}")
+
+@router.post("/motion/estimate-cost")
+async def public_estimate_motion_cost(
+    motion_video: UploadFile = File(...),
+    mode: str = Form("std"),
+    key_record: dict = Depends(verify_api_key_dependency)
+):
+    """
+    Public Estimate Cost for Motion Control.
+    Uploads the reference video and returns valid URL + cost info.
+    """
+    try:
+        # Get Kling client (System Account)
+        accounts = kling_accounts_repo.list_accounts(active_only=True)
+        if not accounts:
+             raise HTTPException(status_code=503, detail="No active Kling accounts available")
+        # Use first account directly
+        selected_account_id = accounts[0]['account_id']
+        client = KlingClient.create_from_account(selected_account_id)
+        
+        # Read video bytes
+        video_content = await motion_video.read()
+        if not video_content:
+             raise HTTPException(400, "Empty video file")
+             
+        # Upload
+        upload_result = client.upload_video_bytes(
+            video_content, 
+            file_name=motion_video.filename or "motion.mp4"
+        )
+        
+        if not upload_result:
+             raise HTTPException(500, "Failed to upload motion video to provider")
+             
+        video_url, video_cover_url = upload_result
+        
+        # Return same structure as internal API
+        return {
+            "video_url": video_url,
+            "video_cover_url": video_cover_url,
+            "costs": {
+                "720p": 120,
+                "1080p": 150
+            },
+            "account_id": selected_account_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/motion/generate")
+async def public_generate_motion(
+    character_image: UploadFile = File(...),
+    motion_video_url: str = Form(...),
+    video_cover_url: str = Form(...),
+    mode: str = Form("std"),
+    key_record: dict = Depends(verify_api_key_dependency)
+):
+    """
+    Public Generate Motion Control Video.
+    """
+    cost = 150 if mode == "pro" else 120
+    
+    # 1. Check Balance
+    user_id = key_record["user_id"]
+    has_credits, current_balance = credits_service.check_credits(user_id, cost)
+    
+    if not has_credits:
+         raise HTTPException(
+            status_code=402,
+            detail=f"Insufficient user balance. Required: {cost}, Available: {current_balance}"
+        )
+        
+    try:
+        # 2. Get Client
+        accounts = kling_accounts_repo.list_accounts(active_only=True)
+        if not accounts:
+             raise HTTPException(503, "No active Kling accounts available")
+        selected_account_id = accounts[0]['account_id']
+        client = KlingClient.create_from_account(selected_account_id)
+
+        # 3. Upload Character Image
+        img_content = await character_image.read()
+        if not img_content:
+             raise HTTPException(400, "Empty image file")
+             
+        # Note: we need just the URL, but internal method returns URL. 
+        # But wait, original code uses `upload_image_bytes`.
+        image_url = client.upload_image_bytes(img_content, character_image.filename or "char.png")
+        if not image_url:
+             raise HTTPException(500, "Failed to upload character image")
+
+        # 4. Generate
+        # Using self.DEFAULT_MODAL_ID internally in client now.
+        task = client.generate_motion_control(
+             image_url=image_url,
+             video_url=motion_video_url,
+             video_cover_url=video_cover_url,
+             mode=mode
+        )
+        
+        if not task:
+             raise HTTPException(500, "Failed to start motion generation task")
+             
+        # Unpack tuple (task_id, creative_id)
+        task_id, creative_id = task
+        
+        # Use task_id as the primary identifier
+        job_id = task_id
+        if not job_id:
+             raise HTTPException(500, "Provider returned no Job ID")
+             
+        # 5. Create Job Record
+        real_user_id = key_record.get("user_id")
+        user_id = real_user_id if real_user_id else "system_public_api"
+        
+        from app.schemas.jobs import JobCreate
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=user_id,
+            type="motion",
+            model="kling-motion",
+            prompt="motion control",
+            credits_cost=cost,
+            provider_job_id=job_id
+        )
+        
+        jobs_repo.create(job_data)
+        
+        # 6. Deduct Balance
+        new_balance = credits_service.deduct_credits(
+            user_id=user_id,
+            amount=cost,
+            job_id=job_id,
+            reason="API Motion Control"
+        )
+        
+        api_keys_repo.log_usage(
+            key_id=key_record["key_id"],
+            endpoint="/v1/motion/generate",
+            cost=cost,
+            balance_before=current_balance,
+            balance_after=new_balance,
+            status="success",
+            job_id=job_id
+        )
+        
+        return {
+            "job_id": job_id,
+            "status": "pending",
+            "cost": cost,
+            "balance_remaining": new_balance
+        }
+        
+    except Exception as e:
+         api_keys_repo.log_usage(
+            key_id=key_record["key_id"],
+            endpoint="/v1/motion/generate",
+            cost=0,
+            balance_before=current_balance,
+            balance_after=current_balance,
+            status=f"failed: {str(e)}"
+        )
+         raise HTTPException(status_code=500, detail=str(e))

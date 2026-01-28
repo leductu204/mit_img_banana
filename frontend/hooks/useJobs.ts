@@ -10,7 +10,7 @@ import { getAuthHeader } from '@/lib/auth';
 export interface Job {
     job_id: string;
     user_id: string;
-    type: 'i2i' | 't2i' | 'i2v' | 't2v';
+    type: 'i2i' | 't2i' | 'i2v' | 't2v' | 'motion';
     model: string;
     prompt: string;
     status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';

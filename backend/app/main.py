@@ -29,6 +29,7 @@ from app.routers import (
     admin_settings,
     admin_accounts,
     admin_sora_accounts,
+    admin_kling_accounts,
     admin_stats,
     admin_api_keys,
     image,
@@ -228,6 +229,7 @@ app.include_router(admin_api_keys.router, prefix="/api", include_in_schema=False
 app.include_router(admin_settings.router, prefix="/api", include_in_schema=False)  # /api/admin/settings
 app.include_router(admin_accounts.router, prefix="/api/admin/higgsfield", tags=["admin-higgsfield"], include_in_schema=False)  # /api/admin/higgsfield/accounts
 app.include_router(admin_sora_accounts.router, prefix="/api", include_in_schema=False)  # /api/admin/sora/accounts
+app.include_router(admin_kling_accounts.router, prefix="/api", include_in_schema=False)  # /api/admin/kling/accounts
 
 app.include_router(public_settings.router, prefix="/api")  # /api/settings/public
 

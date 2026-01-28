@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Copy, Check, ChevronDown, ChevronRight, Zap, Image, Video, Key, CreditCard, Box, FileText, AlertTriangle, Info, Sparkles, Clapperboard } from 'lucide-react'
 import { IMAGE_MODELS, VIDEO_MODELS, ModelConfig } from '@/lib/models-config'
-import { NEXT_PUBLIC_API } from '@/lib/config'
+
+const API_BASE_URL = "https://api.tramgsangtao.com"
 
 // --- Components ---
 
@@ -217,7 +218,7 @@ function InteractiveModelEndpoint({ title, method, path, description, models, de
   // Dynamic Code Example
   const getCode = () => {
     // Determine the base URL without /v1 suffix if it's already included (it shouldn't be per config.ts, but safety first)
-    const baseUrl = NEXT_PUBLIC_API.endsWith('/') ? NEXT_PUBLIC_API.slice(0, -1) : NEXT_PUBLIC_API;
+    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
     // Construct full URL. Example: http://localhost:8000/v1/image/generate
     // Note: NEXT_PUBLIC_API usually includes /v1 if configured that way, but let's assume it's the host:port based on config.ts default.
     // However, config.ts says "http://localhost:8000". The paths in this file are like "/image/generate".
@@ -346,7 +347,7 @@ export default function ApiDocsPage() {
                 </p>
                 <CodeBlock 
                     title="Example Request" 
-                    code={`curl -X POST ${NEXT_PUBLIC_API}/v1/image/generate \\
+                    code={`curl -X POST ${API_BASE_URL}/v1/image/generate \\
   -H "Authorization: Bearer sk_live_your_key" \\
   -F "prompt=A futuristic city" \\
   -F "model=nano-banana"`} 
@@ -388,7 +389,7 @@ export default function ApiDocsPage() {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                     All API requests should be prefixed with the current version path.
                 </p>
-                <CodeBlock title="Current Version (v1)" code={`${NEXT_PUBLIC_API}/v1`} />
+                <CodeBlock title="Current Version (v1)" code={`${API_BASE_URL}/v1`} />
             </div>
         </section>
 
@@ -490,6 +491,72 @@ export default function ApiDocsPage() {
                 type="video"
             />
 
+            {/* Motion Control */}
+            <div className="mb-12">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
+                    <Clapperboard className="w-4 h-4" /> Motion Control
+                </h3>
+                
+                <Endpoint method="POST" path="/motion/estimate-cost" description="Upload motion reference video">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        First step: Upload the source video that defines the motion. Returns video URL to be used in generation.
+                    </p>
+                    <ParameterTable 
+                        params={[
+                            { name: "motion_video", type: "file", required: true, description: "Reference video file (MP4/MOV)." }
+                        ]} 
+                    />
+                    <CodeBlock 
+                        title="Example Request" 
+                        code={`curl -X POST ${API_BASE_URL}/motion/estimate-cost \\
+  -H "Authorization: Bearer sk_live_your_key" \\
+  -F "motion_video=@dance.mp4"`} 
+                    />
+                    <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json" 
+                        code={`{
+  "video_url": "https://...",
+  "video_cover_url": "https://...",
+  "costs": { "720p": 120, "1080p": 150 },
+  "account_id": 123
+}`} 
+                    />
+                </Endpoint>
+
+                <Endpoint method="POST" path="/motion/generate" description="Generate video using character + motion">
+                     <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Second step: Combine a character image with the motion video.
+                    </p>
+                    <ParameterTable 
+                        params={[
+                             { name: "character_image", type: "file", required: true, description: "Image of the character to animate." },
+                             { name: "motion_video_url", type: "string", required: true, description: "URL returned from estimate-cost." },
+                             { name: "video_cover_url", type: "string", required: true, description: "Cover URL returned from estimate-cost." },
+                             { name: "mode", type: "string", required: false, description: "'std' (Standard) or 'pro' (Professional). Default: 'std'." }
+                        ]} 
+                    />
+                     <CodeBlock 
+                        title="Example Request" 
+                        code={`curl -X POST ${API_BASE_URL}/v1/motion/generate \\
+  -H "Authorization: Bearer sk_live_your_key" \\
+  -F "character_image=@hero.png" \\
+  -F "motion_video_url=https://..." \\
+  -F "video_cover_url=https://..." \\
+  -F "mode=std"`} 
+                    />
+                     <CodeBlock 
+                        title="Response 200 OK" 
+                        language="json" 
+                        code={`{
+  "job_id": "job_motion_123",
+  "status": "pending"
+  // Use GET /jobs/job_motion_123 to check status & get download URL
+}`} 
+                    />
+                </Endpoint>
+            </div>
+
             {/* File Uploads */}
             <div className="mb-12">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm">
@@ -500,6 +567,17 @@ export default function ApiDocsPage() {
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
                         Upload an image to be used with Kling models. Returns an ID and URL.
                     </p>
+                    <ParameterTable 
+                        params={[
+                            { name: "file", type: "file", required: true, description: "Image file to upload (JPEG/PNG)." }
+                        ]} 
+                    />
+                    <CodeBlock 
+                        title="Example Request" 
+                        code={`curl -X POST ${API_BASE_URL}/v1/files/upload/kling \\
+  -H "Authorization: Bearer sk_live_your_key" \\
+  -F "file=@image.png"`} 
+                    />
                     <CodeBlock 
                         title="Response 200 OK" 
                         language="json"
@@ -516,6 +594,18 @@ export default function ApiDocsPage() {
                      <p className="text-gray-600 dark:text-gray-400 mb-6">
                         Upload an image to be used with Google Veo models. Returns a media_id.
                     </p>
+                    <ParameterTable 
+                        params={[
+                            { name: "file", type: "file", required: true, description: "Image file to upload (JPEG/PNG)." },
+                            { name: "aspect_ratio", type: "string", required: false, description: "Desired aspect ratio (default 9:16)." }
+                        ]} 
+                    />
+                    <CodeBlock 
+                        title="Example Request" 
+                        code={`curl -X POST ${API_BASE_URL}/v1/files/upload/veo \\
+  -H "Authorization: Bearer sk_live_your_key" \\
+  -F "file=@image.png"`} 
+                    />
                     <CodeBlock 
                         title="Response 200 OK" 
                         language="json"
@@ -534,7 +624,9 @@ export default function ApiDocsPage() {
                 
                 <Endpoint method="GET" path="/jobs/{job_id}" description="Poll job status">
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Retrieve the status and result of a background job.
+                        Retrieve the status and result of any background job (Image, Video, or Motion Control).
+                        <br/>
+                        When <code>status</code> is "completed", the <code>result</code> field contains the direct download URL.
                     </p>
                     <CodeBlock title="Response (Processing)" language="json" code={`{ "status": "processing", "result": null }`} />
                      <CodeBlock title="Response (Completed)" language="json" code={`{ 

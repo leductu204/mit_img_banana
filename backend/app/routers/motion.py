@@ -3,8 +3,8 @@ from typing import Optional, List
 from pydantic import BaseModel
 import logging
 
-from app.services.providers.higgsfield_client import HiggsfieldClient
-from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
+from app.services.providers.kling_client import KlingClient
+from app.repositories.kling_accounts_repo import kling_accounts_repo
 from app.repositories import jobs_repo
 from app.services.account_scheduler import account_scheduler
 
@@ -27,32 +27,30 @@ async def estimate_motion_cost(
     Returns video ID, URL, duration, and cost per resolution.
     """
     try:
-        # Select account
-        selected_account_id = account_scheduler.select_account_for_job('t2v', 'motion-control')
-        if not selected_account_id:
-            raise HTTPException(status_code=503, detail="No active Higgsfield accounts available")
-        client = HiggsfieldClient.create_from_account(selected_account_id)
+        # Select Kling account
+        accounts = kling_accounts_repo.list_accounts(active_only=True)
+        if not accounts:
+            raise HTTPException(status_code=503, detail="No active Kling accounts available")
+        selected_account_id = accounts[0]['account_id']
+        client = KlingClient.create_from_account(selected_account_id)
 
-        # Upload
+        # Upload video using Kling
         video_bytes = await motion_video.read()
-        logger.info(f"Uploading video for estimation ({len(video_bytes)} bytes)...")
-        video_details = client.upload_video_complete(video_bytes)
+        logger.info(f"Uploading video to Kling ({len(video_bytes)} bytes)...")
+        upload_result = client.upload_video_bytes(video_bytes, "motion_video.mp4")
         
-        duration = video_details.get("duration", 0) or 0
-        from app.services.cost_calculator import calculate_cost
+        if not upload_result:
+            raise HTTPException(status_code=500, detail="Failed to upload video")
         
-        cost_720p = calculate_cost(model="motion-control", duration=f"{duration}s", resolution="720p")
-        cost_1080p = calculate_cost(model="motion-control", duration=f"{duration}s", resolution="1080p")
+        video_url, video_cover_url = upload_result
         
+        # Fixed costs for Kling (not duration-based)
         return {
-            "id": video_details["id"],
-            "url": video_details["url"],
-            "width": video_details["width"],
-            "height": video_details["height"],
-            "duration": duration,
+            "video_url": video_url,
+            "video_cover_url": video_cover_url,
             "costs": {
-                "720p": cost_720p,
-                "1080p": cost_1080p
+                "720p": 120,  # std mode
+                "1080p": 150   # pro mode
             },
             "account_id": selected_account_id
         }
@@ -66,6 +64,7 @@ async def generate_motion(
     motion_video: Optional[UploadFile] = File(None),
     motion_video_id: Optional[str] = Form(None),
     motion_video_url: Optional[str] = Form(None),
+    video_cover_url: Optional[str] = Form(None),
     duration: Optional[float] = Form(None),
     character_image: UploadFile = File(...),
     mode: str = Form("std"),
@@ -78,57 +77,32 @@ async def generate_motion(
     Supports either uploading a new video OR providing an existing video_id (from estimate-cost).
     """
     try:
-        # Get client
+        # Get Kling client
         if account_id:
-            client = HiggsfieldClient.create_from_account(account_id)
+            client = KlingClient.create_from_account(account_id)
         else:
-            selected_account_id = account_scheduler.select_account_for_job('t2v', 'motion-control')
-            if not selected_account_id:
-                raise HTTPException(status_code=503, detail="No active Higgsfield accounts available")
-            client = HiggsfieldClient.create_from_account(selected_account_id)
+            accounts = kling_accounts_repo.list_accounts(active_only=True)
+            if not accounts:
+                raise HTTPException(status_code=503, detail="No active Kling accounts available")
+            selected_account_id = accounts[0]['account_id']
+            client = KlingClient.create_from_account(selected_account_id)
 
-        video_details = {}
+        # Get video URL and cover from form parameters
+        if not motion_video_url:
+            raise HTTPException(status_code=400, detail="motion_video_url is required (from estimate-cost)")
         
-        if motion_video_id:
-            logger.info(f"Using existing video ID: {motion_video_id}")
-            # Skip check_video_status because it fails on 2nd call (404)
-            # Use duration passed from frontend (calculated during estimation)
-            
-            video_details = {
-                "id": motion_video_id,
-                "width": 576, # Default/Fallback - Ideally should also pass these or re-fetch if possible (but we can't)
-                "height": 1024,
-                "duration": duration if duration else 5,
-                "url": motion_video_url 
-            }
-            
-            if not video_details.get("url"):
-                raise HTTPException(status_code=400, detail="Could not determine video URL. Please re-upload.")
-
-        elif motion_video:
-            # Upload new
-            video_bytes = await motion_video.read()
-            logger.info(f"Uploading motion video ({len(video_bytes)} bytes)...")
-            video_details = client.upload_video_complete(video_bytes)
-            logger.info(f"Video uploaded: {video_details['id']}")
-        else:
-             raise HTTPException(status_code=400, detail="Either motion_video or motion_video_id must be provided")
+        video_url = motion_video_url
+        # Assume we also need cover URL - if not passed, we might need to handle this
+        # For now, let's assume the frontend passes it or we use the same URL
+        video_cover_url = motion_video_url  # Placeholder - ideally frontend passes this
 
         # 1b. If using ID, we need URL. Let's add motion_video_url to params if missing.
         # But wait, I can't modify the function signature inside the function.
         # I'll add motion_video_url to the signature below (re-writing the chunk).
 
-        # 3. Calculate Cost
-        duration = video_details.get("duration", 0) or 0
-        resolution = "1080p" if mode == "pro" else "720p"
-        
-        from app.services.cost_calculator import calculate_cost
-        cost = calculate_cost(
-            model="motion-control",
-            duration=f"{duration}s",
-            resolution=resolution
-        )
-        logger.info(f"Video duration: {duration}s -> Cost: {cost} credits (Model: motion-control, Res: {resolution})")
+        # 3. Fixed Cost (not duration-based for Kling)
+        cost = 800 if mode == "pro" else 500
+        logger.info(f"Motion Control Cost: {cost} credits (Mode: {mode})")
 
         # 4. Check Credits
         from app.services.credits_service import credits_service, InsufficientCreditsError
@@ -150,37 +124,31 @@ async def generate_motion(
                 }
             )
 
-        # 5. Upload Image
+        # 5. Upload Image (Kling)
         image_bytes = await character_image.read()
-        logger.info(f"Uploading character image ({len(image_bytes)} bytes)...")
-        image_details = client.upload_image_complete(image_bytes)
-        logger.info(f"Image uploaded: {image_details['id']}")
+        logger.info(f"Uploading character image to Kling ({len(image_bytes)} bytes)...")
+        image_url = client.upload_image_bytes(image_bytes, "character.png")
         
-        # 6. Trigger Generation
-        logger.info("Triggering motion control generation...")
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload image")
         
-        # Ensure we have a URL for the video
-        video_url = video_details.get("url")
-        # If we didn't get it from check_status or upload (impossible for upload), we might need it from form.
-        # I will hack: If URL is missing and we have ID, assume frontend passed it in a generic way?
-        # No, better: I will require motion_video_url in the form if motion_video_id is used.
+        logger.info(f"Image uploaded: {image_url}")
         
-        job_id = client.generate_motion_control(
-            mode=mode,
-            background_source=background_source,
-            video_info={
-                "id": video_details["id"],
-                "url": video_url, # Check NOTE below
-                "type": "video_input", 
-                "width": video_details.get("width", 576),
-                "height": video_details.get("height", 1024)
-            },
-            image_info={
-                "id": image_details["id"],
-                "url": image_details["url"], 
-                "type": "media_input"
-            }
+        # 6. Trigger Generation (Kling with default modal ID)
+        logger.info("Triggering Kling motion control generation...")
+        
+        result = client.generate_motion_control(
+            image_url=image_url,
+            video_url=video_url,
+            video_cover_url=video_cover_url,
+            mode=mode
         )
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to start generation")
+        
+        task_id, creative_id = result
+        job_id = task_id
         
         if not job_id:
             raise HTTPException(status_code=500, detail="Failed to start generation job")
@@ -196,11 +164,10 @@ async def generate_motion(
             prompt="Motion Control Generation",
             input_params=json.dumps({
                 "mode": mode,
-                "duration": duration,
                 "background_source": background_source,
-                "resolution": resolution,
-                "motion_video_id": video_details.get("id"),
-                "character_image_id": image_details.get("id")
+                "video_url": video_url,
+                "image_url": image_url,
+                "modal_id": KlingClient.DEFAULT_MODAL_ID
             }),
             credits_cost=cost,
             provider_job_id=job_id
@@ -208,7 +175,7 @@ async def generate_motion(
         jobs_repo.create(job_create, status="processing")
 
         # 8. Deduct Credits
-        reason = f"Motion Control: {mode} ({duration}s)"
+        reason = f"Motion Control: {mode} (Kling)"
         credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
