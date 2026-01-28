@@ -519,14 +519,15 @@ class KlingClient:
                         try:
                             work = works[0]
                             resource = work.get("resource", {})
-                            # Try known keys
-                            fallback = resource.get("resourceUrl") or resource.get("url") or resource.get("motionUrl") or work.get("videoUrl")
+                            # Try known keys - added 'resource' based on logs
+                            # Verify value is a string and looks like a URL
+                            potential_url = resource.get("resource") or resource.get("url") or resource.get("motionUrl") or resource.get("resource") or work.get("videoUrl")
                             
-                            if fallback:
-                                logger.info(f"⚠️ 'Service busy' or download failed. Using fallback URL from works: {fallback}")
-                                result_url = fallback
+                            if potential_url and isinstance(potential_url, str) and potential_url.startswith("http"):
+                                logger.info(f"⚠️ 'Service busy' or download failed. Using fallback URL: {potential_url}")
+                                result_url = potential_url
                             else:
-                                logger.warning(f"No fallback URL found in work resource. Keys: {list(resource.keys()) if resource else 'None'}")
+                                logger.warning(f"No fallback URL found. Resource content: {resource}")
                                 
                         except Exception as e_fallback:
                             logger.error(f"Error extracting fallback URL: {e_fallback}")
