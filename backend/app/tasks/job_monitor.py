@@ -68,6 +68,14 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                 logger.debug(f"Job monitor: checking {len(active_jobs)} active jobs")
                 
                 for job in active_jobs:
+                    # Wait between each job check to avoid rate limiting
+                    # Kling Motion Control checks need slower polling (20s)
+                    delay = 2
+                    if job.get("model") == "motion-control" or job.get("type") == "motion":
+                        delay = 20
+                    
+                    await asyncio.sleep(delay)
+                    
                     job_id = job["job_id"]
                     # Use provider_job_id for external API calls, fallback to job_id if None (migration)
                     provider_job_id = job.get("provider_job_id") or job_id
@@ -125,8 +133,13 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 raise e
                         elif job.get("model") == "motion-control":
                             # Kling Motion Control job
-                            from app.services.providers.kling_client import kling_client
-                            result = kling_client.check_task_status(provider_job_id)
+                            from app.services.providers.kling_client import get_kling_client
+                            k_client = get_kling_client()
+                            if k_client:
+                                result = k_client.check_task_status(provider_job_id)
+                            else:
+                                logger.error(f"Job {job_id}: No active Kling client found to check status")
+                                continue
                         else:
                             # Higgsfield job - Use dynamic client
                             result = client.get_job_status(provider_job_id)
@@ -316,9 +329,6 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 
                     except Exception as e:
                         logger.error(f"Error checking job {job_id}: {e}")
-                    
-                    # Wait between each job check to avoid rate limiting
-                    await asyncio.sleep(2)
                         
         except Exception as e:
             logger.error(f"Error in job monitor loop: {e}")

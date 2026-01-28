@@ -73,7 +73,7 @@ export function MotionGenerator() {
                 const formData = new FormData()
                 formData.append("motion_video", file)
                 
-                const response = await fetch(`${NEXT_PUBLIC_API}/motion/estimate-cost`, {
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/estimate-cost`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
