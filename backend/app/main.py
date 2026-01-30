@@ -131,6 +131,14 @@ if settings.CORS_ORIGINS:
     allowed_origins.extend(production_origins)
     print(f"CORS: Added production origins: {production_origins}")
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Create static directory if it doesn't exist
+static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -138,6 +146,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+# Access via: http://host:port/api/static/images/filename.jpg
+app.mount("/api/static", StaticFiles(directory=static_dir), name="static")
 
 
 # Cache Control Middleware

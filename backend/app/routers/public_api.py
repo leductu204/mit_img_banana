@@ -107,17 +107,39 @@ async def public_generate_image(
                  raise ValueError("Invalid response from Google provider")
                  
             # Extract URL (removes "image|" prefix)
-            job_id = result_str.split("|")[1] 
+            job_id_url = result_str.split("|")[1] 
             
             # Google generation is synchronous/immediate
             status_for_db = "completed"
             
-            # NOTE: job_id here is actually the URL for Google models in this implementation
-            # We should probably store a UUID as job_id and valid URL as output
-            # But to match existing flow, let's generate a UUID for the system job_id
-            # and use the URL as the result.
-            
-            final_image_url = job_id # The "job_id" from logic above is actually the URL
+            # PROXY LOGIC: Download image to backend/static/images to avoid CORS/Expiry issues
+            try:
+                import requests
+                import shutil
+                from pathlib import Path
+                
+                # Fetch image content
+                proxy_res = requests.get(job_id_url, stream=True)
+                if proxy_res.status_code == 200:
+                    file_uuid = str(uuid.uuid4())
+                    filename = f"google_{file_uuid}.jpg"
+                    # Save to static/images (relative to CWD 'backend')
+                    save_path = Path("static/images") / filename
+                    save_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    with open(save_path, 'wb') as f:
+                        proxy_res.raw.decode_content = True
+                        shutil.copyfileobj(proxy_res.raw, f)
+                    
+                    # Use local URL
+                    final_image_url = f"/api/static/images/{filename}"
+                    print(f"✅ Proxied Google Image: {final_image_url}")
+                else:
+                    print(f"⚠️ Failed to download Google image: {proxy_res.status_code}")
+                    final_image_url = job_id_url
+            except Exception as e:
+                print(f"⚠️ Proxy error: {e}")
+                final_image_url = job_id_url # Fallback
             system_job_id = str(uuid.uuid4())
             
             # 4. Create Job Record

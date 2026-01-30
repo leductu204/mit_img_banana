@@ -138,16 +138,6 @@ export const VIDEO_MODELS: ModelConfig[] = [
         durations: ['10s', '15s'],
         aspectRatios: ['16:9', '9:16'], 
         note: 'Hỗ trợ T2V và I2V. Chất lượng phù hợp làm Aff.'
-    },
-    {
-        value: 'motion-control',
-        label: 'Motion Control',
-        description: 'Điều khiển chuyển động nhân vật',
-        icon: Wind,
-        badge: 'NEW',
-        colors: 'blue',
-        resolutions: ['720p', '1080p'],
-        note: 'Tính phí theo độ phân giải và thời lượng (giây).'
     }
 ];
 

@@ -33,7 +33,7 @@ export function MotionGenerator() {
     // State
     const [motionVideo, setMotionVideo] = useState<File | null>(null)
     const [characterImage, setCharacterImage] = useState<File | null>(null)
-    const [quality, setQuality] = useState("720p")
+    const [quality, setQuality] = useState("1080p")
 
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<string | null>(null)
@@ -182,7 +182,7 @@ export function MotionGenerator() {
     const handleReset = () => {
         setMotionVideo(null)
         setCharacterImage(null)
-        setQuality("720p")
+        setQuality("1080p")
         setResult(null)
     }
 
@@ -212,9 +212,9 @@ export function MotionGenerator() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#0A0E13] text-white font-sans">
+        <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] md:overflow-hidden bg-[#0A0E13] text-white font-sans">
             {/* Left Sidebar - Settings Panel */}
-            <aside className="w-full md:w-[420px] lg:w-[460px] flex flex-col gap-4 p-4 md:p-6 overflow-y-auto border-r border-white/10 bg-[#1A1F2E] z-10 custom-scrollbar">
+            <aside className="w-full md:w-[420px] lg:w-[460px] flex flex-col gap-4 p-4 md:p-6 md:overflow-y-auto border-r border-white/10 bg-[#1A1F2E] z-10 custom-scrollbar shrink-0">
                 
                 {/* Main Configuration Card */}
                 <div className="bg-[#1F2833] rounded-2xl border border-white/10 shadow-xl p-5 flex flex-col gap-6">
@@ -297,8 +297,8 @@ export function MotionGenerator() {
             </aside>
 
             {/* Right Panel - Preview */}
-            <section className="flex-1 bg-[#0A0E13] relative flex flex-col">
-                <div className="absolute inset-0 p-6 md:p-10 flex items-center justify-center">
+            <section className="flex-1 bg-[#0A0E13] relative flex flex-col min-h-[500px] md:min-h-0">
+                <div className="relative md:absolute inset-0 p-4 md:p-10 flex items-center justify-center flex-1">
                     <div className="w-full h-full max-h-[800px] rounded-2xl border border-white/10 bg-[#1F2833] flex flex-col items-center justify-center relative overflow-hidden group">
                         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(#6B7280 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
                         

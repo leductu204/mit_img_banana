@@ -6,9 +6,9 @@ import Header from "@/components/layout/Header"
 
 export default function CreateVideoPage() {
     return (
-            <div className="flex flex-col h-screen bg-background-dark overflow-hidden font-sans">
+            <div className="flex flex-col min-h-screen bg-background-dark font-sans">
                 <Header />
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1">
                     <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading...</div>}>
                         <VideoGenerator />
                     </Suspense>

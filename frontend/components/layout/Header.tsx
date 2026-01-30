@@ -24,15 +24,15 @@ export default function Header() {
   ]
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/10 bg-[#0A0E13]/90 backdrop-blur-md px-6 py-3 h-[72px]">
+    <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between border-b border-white/10 bg-[#0A0E13]/90 backdrop-blur-md px-4 md:px-6 py-2 md:py-3 transition-all">
       <Link href="/" className="flex items-center gap-3 text-white">
-        <div className="relative size-9">
+        <div className="relative size-8 md:size-9">
           <Image src="/icon.png" alt="Logo" fill className="object-contain" />
         </div>
-        <h2 className="text-white text-2xl font-bold tracking-tight">Trạm Sáng Tạo</h2>
+        <h2 className="text-white text-xl md:text-2xl font-bold tracking-tight">Trạm Sáng Tạo</h2>
       </Link>
 
-      <nav className="hidden md:flex flex-1 justify-center gap-8">
+      <nav className="flex order-last w-full md:w-auto md:order-none md:flex-1 justify-start md:justify-center gap-4 md:gap-8 overflow-x-auto md:overflow-visible mt-3 md:mt-0 pb-1 md:pb-0 scrollbar-none">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
           return (
@@ -40,9 +40,9 @@ export default function Header() {
               key={item.href} 
               href={item.href}
               className={cn(
-                "text-sm font-medium transition-all relative py-1",
+                "text-sm font-medium transition-all relative py-1 whitespace-nowrap shrink-0",
                 isActive 
-                  ? "text-[#00BCD4] font-bold after:absolute after:bottom-[-24px] after:left-0 after:h-[2px] after:w-full after:bg-[#00BCD4]" 
+                  ? "text-[#00BCD4] font-bold after:absolute after:bottom-[-4px] md:after:bottom-[-24px] after:left-0 after:h-[2px] after:w-full after:bg-[#00BCD4]" 
                   : "text-[#B0B8C4] hover:text-white"
               )}
             >

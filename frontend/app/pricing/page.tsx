@@ -280,7 +280,7 @@ function PricingContent() {
                             </h3>
                             <p className="text-slate-400 text-sm mt-2 leading-relaxed max-w-xl">
                                 Nạp credit ngay hôm nay để nhận bonus tới <span className="text-[#00BCD4] font-semibold">75% Credits</span>. 
-                                Ưu đãi hấp dẫn này chỉ có hiệu lực đến hết ngày <span className="text-white font-medium">15/01/2026</span>.
+                                {/* Ưu đãi hấp dẫn này chỉ có hiệu lực đến hết ngày <span className="text-white font-medium">15/01/2026</span>. */}
                             </p>
                         </div>
                     </div>

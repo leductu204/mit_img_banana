@@ -42,7 +42,7 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="text-left">
+          <div className="text-center lg:text-left">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
             <span className="italic bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
               StudioAI cho
@@ -51,7 +51,7 @@ export function HeroSection() {
             <span className="italic gradient-text">Affiliate & Creator</span>
           </h1>
 
-            <div className="flex items-center gap-2 mb-8">
+            <div className="flex items-center justify-center lg:justify-start gap-2 mb-8">
               <Zap className="w-8 h-8 text-warning fill-warning" />
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gradient-gold pb-1">
                 {headline.substring(0, currentChar)}
@@ -59,14 +59,14 @@ export function HeroSection() {
               </h2>
             </div>
   
-            <div className="flex flex-col sm:flex-row items-start gap-4 mb-6">
-            <div className="feature-pill flex items-center gap-3 px-5 py-3 rounded-full hover:scale-105 transition-transform duration-300 hover:shadow-lg hover:border-primary/20 cursor-default">
+            <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 mb-6">
+            <div className="feature-pill flex items-center gap-3 px-5 py-3 rounded-full hover:scale-105 transition-transform duration-300 hover:shadow-lg hover:border-primary/20 cursor-default w-full sm:w-auto justify-center">
               <Check className="w-5 h-5 text-success" />
               <span className="text-foreground">1 ảnh</span>
               <ArrowRight className="w-4 h-4 text-muted-foreground" />
               <span className="text-foreground font-semibold">100 video review</span>
             </div>
-            <div className="feature-pill flex items-center gap-3 px-5 py-3 rounded-full hover:scale-105 transition-transform duration-300 hover:shadow-lg hover:border-primary/20 cursor-default">
+            <div className="feature-pill flex items-center gap-3 px-5 py-3 rounded-full hover:scale-105 transition-transform duration-300 hover:shadow-lg hover:border-primary/20 cursor-default w-full sm:w-auto justify-center">
               <Check className="w-5 h-5 text-success" />
               <span className="text-foreground">1 prompt</span>
               <ArrowRight className="w-4 h-4 text-muted-foreground" />
@@ -78,7 +78,7 @@ export function HeroSection() {
 
           <Button
             size="lg"
-            className="btn-coral gap-3 font-bold text-lg h-14 px-10 rounded-full text-foreground"
+            className="btn-coral gap-3 font-bold text-lg h-14 px-10 rounded-full text-foreground w-full sm:w-auto"
             asChild
           >
             <a href="/login">
@@ -89,8 +89,8 @@ export function HeroSection() {
           </div>
   
           {/* Workflow Mockup - Right Column */}
-          <div className="mt-12 lg:mt-0 relative">
-            <div className="relative rounded-2xl border border-border bg-card/80 p-4 backdrop-blur-xl overflow-hidden scale-90 sm:scale-100 origin-center lg:origin-top-right">
+          <div className="mt-12 lg:mt-0 relative px-2 sm:px-0">
+            <div className="relative rounded-2xl border border-border bg-card/80 p-4 backdrop-blur-xl overflow-hidden shadow-2xl scale-[0.85] xs:scale-95 sm:scale-100 origin-top lg:origin-top-right w-full">
             {/* Mockup header bar */}
             <div className="absolute top-0 left-0 right-0 h-10 bg-background-dark border-b border-border flex items-center px-4 gap-2">
               <div className="flex gap-1.5">

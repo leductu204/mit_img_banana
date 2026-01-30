@@ -218,7 +218,7 @@ class PlaywrightSolver:
 async def solve_recaptcha_playwright_async(
     site_key: str = SITE_KEY,
     site_url: str = SITE_URL,
-    action: str = 'FLOW_GENERATION',
+    action: str = 'IMAGE_GENERATION',
     headless: bool = False
 ) -> Tuple[str, str]:
     """

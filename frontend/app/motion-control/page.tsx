@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function MotionPage() {
     return (
-        <div className="flex flex-col h-screen bg-background-dark overflow-hidden">
+        <div className="flex flex-col min-h-screen bg-background-dark">
             <Header />
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1">
                 <MotionGenerator />
             </main>
         </div>
