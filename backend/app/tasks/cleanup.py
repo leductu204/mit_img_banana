@@ -7,10 +7,12 @@ logger = logging.getLogger(__name__)
 
 async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minutes: int = 30):
     """
-    Background task to cleanup stale pending jobs.
+    Background task to cleanup stale pending/processing jobs.
     
-    Checks for jobs that have been in 'pending' state for longer than 
+    Checks for jobs that have been in 'pending' OR 'processing' state for longer than 
     stale_minutes (default 30). Marks them as 'failed' and refunds credits.
+    
+    This applies to all job types including Motion Control.
     """
     logger.info(f"Starting pending jobs cleanup task (interval={check_interval_seconds}s, stale={stale_minutes}m)")
     
@@ -25,14 +27,17 @@ async def run_pending_jobs_cleanup(check_interval_seconds: int = 60, stale_minut
                 for job in stale_jobs:
                     job_id = job["job_id"]
                     user_id = job["user_id"]
+                    job_type = job.get("type", "unknown")
+                    job_model = job.get("model", "unknown")
+                    job_status = job.get("status", "unknown")
                     
                     try:
                         # 1. Update status to failed
-                        logger.info(f"Timing out stale job {job_id}")
+                        logger.info(f"Timing out stale job {job_id} (type={job_type}, model={job_model}, status={job_status})")
                         jobs_repo.update_status(
                             job_id, 
                             "failed", 
-                            error_message=f"Job timeout (pending > {stale_minutes}m)"
+                            error_message=f"Job timeout ({job_status} > {stale_minutes}m)"
                         )
                         
                         # 2. Refund credits

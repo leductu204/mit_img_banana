@@ -31,7 +31,7 @@ const personas = [
 
 export function PersonasSection() {
   return (
-    <section id="features" className="relative py-20 sm:py-28">
+    <section id="features" className="relative py-12 sm:py-28">
       <div className="absolute top-1/2 left-0 -translate-y-1/2 h-[500px] w-[300px] rounded-full bg-primary/5 blur-[120px]" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -17,6 +17,7 @@ import {
 
 interface Job {
   job_id: string;
+  provider_job_id?: string;
   user_id: string;
   user_email?: string;
   type: string;
@@ -234,9 +235,20 @@ export default function AdminJobsPage() {
           />
           <div className="relative bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
              <div className="flex items-start justify-between">
-                <div>
-                   <h3 className="text-xl font-bold text-white">Job Details</h3>
-                   <p className="text-gray-400 text-sm mt-1 font-mono">{selectedJob.job_id}</p>
+                <div className="flex-1">
+                   <h3 className="text-xl font-bold text-white mb-3">Job Details</h3>
+                   <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                         <span className="text-gray-500 text-xs font-medium min-w-[100px]">Internal ID:</span>
+                         <code className="text-gray-300 text-xs font-mono bg-gray-800 px-2 py-0.5 rounded">{selectedJob.job_id}</code>
+                      </div>
+                      {selectedJob.provider_job_id && (
+                         <div className="flex items-start gap-2">
+                            <span className="text-gray-500 text-xs font-medium min-w-[100px]">Provider ID:</span>
+                            <code className="text-teal-400 text-xs font-mono bg-gray-800 px-2 py-0.5 rounded">{selectedJob.provider_job_id}</code>
+                         </div>
+                      )}
+                   </div>
                 </div>
                 <button onClick={() => setSelectedJob(null)} className="p-1 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
                     <X className="w-5 h-5" />

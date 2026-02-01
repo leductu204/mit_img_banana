@@ -37,11 +37,11 @@ export function HeroSection() {
   }, [workflowStep, typedPrompt])
 
   return (
-    <section className="relative overflow-hidden pt-40 pb-20 sm:pt-48 sm:pb-28">
+    <section className="relative overflow-hidden pt-24 pb-12 sm:pt-48 sm:pb-28">
       <div className="absolute top-40 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-primary/5 blur-[120px]" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div className="text-center lg:text-left">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
             <span className="italic bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">

@@ -257,7 +257,11 @@ def get_recent_by_user(user_id: str, limit: int = 10) -> List[dict]:
 
 def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
     """
-    Get job IDs that have been pending for longer than the specified minutes.
+    Get jobs that have been pending OR processing for longer than the specified minutes.
+    
+    This catches both:
+    - Jobs stuck in 'pending' (never started)
+    - Jobs stuck in 'processing' (started but never completed)
     
     Args:
         minutes: Number of minutes to consider a job stale
@@ -280,7 +284,7 @@ def get_stale_pending_jobs(minutes: int = 30) -> List[dict]:
     return fetch_all(
         """
         SELECT * FROM jobs 
-        WHERE status = 'pending' 
+        WHERE status IN ('pending', 'processing')
         AND created_at < ?
         """,
         (cutoff,)
