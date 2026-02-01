@@ -496,6 +496,15 @@ class KlingClient:
             
             data = response.json()
             
+            # Check outer message for failure (handles both status!=200 and status=200 cases)
+            msg = data.get("message", "").lower()
+            if "failed" in msg or "sensitive" in msg:
+                return {
+                    "status": "failed",
+                    "completed": True,
+                    "error": "Vi phạm NSFW nội dung phản cảm, vui lòng thử lại. Nếu vẫn không được vui lòng dùng ảnh kín đáo hơn"
+                }
+
             if data.get("status") != 200:
                 return {"status": "processing", "completed": False}
             
@@ -545,6 +554,15 @@ class KlingClient:
                     "error": task_data.get("message", "Task failed")
                 }
             else:
+                # Check for inner message failure (e.g. status 50 but message says failed)
+                inner_msg = task_data.get("message", "").lower()
+                if "failed" in inner_msg or "sensitive" in inner_msg:
+                     return {
+                        "status": "failed",
+                        "completed": True,
+                        "error": "Vi phạm NSFW nội dung phản cảm, vui lòng thử lại. Nếu vẫn không được vui lòng dùng ảnh kín đáo hơn"
+                    }
+
                 return {
                     "status": "processing",
                     "completed": False

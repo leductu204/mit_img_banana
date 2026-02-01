@@ -32,7 +32,7 @@ const tools = [
 
 export function HowItWorksSection() {
   return (
-    <section className="relative py-20 sm:py-28">
+    <section className="relative py-12 sm:py-28">
       <div className="absolute top-0 right-0 h-[400px] w-[400px] rounded-full bg-primary/8 blur-[120px]" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

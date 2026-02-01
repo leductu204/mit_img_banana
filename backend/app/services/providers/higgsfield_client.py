@@ -490,7 +490,10 @@ class HiggsfieldClient:
                 result = first_job['results']['raw']['url']
             
             error_msg = None
-            if status in ('failed', 'error', 'cancelled'):
+            if status == 'nsfw':
+                status = 'failed'
+                error_msg = "Prompt hoặc ảnh vi phạm. nếu dùng ảnh quá nhạy cảm vui lòng đổi ảnh khác hoặc dùng prompt khác thử lại"
+            elif status in ('failed', 'error', 'cancelled'):
                 # Try to find error detail
                 if 'error' in first_job:
                     error_msg = str(first_job['error'])
