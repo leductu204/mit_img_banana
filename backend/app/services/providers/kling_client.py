@@ -653,3 +653,10 @@ def get_kling_client() -> Optional[KlingClient]:
 
 # Alias for backward compatibility
 kling_client = get_kling_client()
+
+
+def reset_client():
+    """Reset the global client instance (forces reload on next get)"""
+    global _kling_client
+    _kling_client = None
+    logger.info("Kling client reset. Will reload from DB on next request.")

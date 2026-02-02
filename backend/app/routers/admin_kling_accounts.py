@@ -4,6 +4,7 @@ from typing import Optional
 from app.repositories.kling_accounts_repo import kling_accounts_repo
 from app.deps import get_current_admin, AdminInDB
 from app.repositories.admin_audit_repo import log_action, AuditLogCreate
+from app.services.providers.kling_client import reset_client
 
 router = APIRouter(
     prefix="/admin/kling/accounts",
@@ -42,6 +43,9 @@ async def create_account(
             is_active=data.is_active
         )
         
+        # Reset client to pick up new account if higher priority
+        reset_client()
+        
         log_action(AuditLogCreate(
             admin_id=current_admin.admin_id,
             action="create_kling_account",
@@ -67,6 +71,9 @@ async def update_account(
         update_data = data.model_dump(exclude_unset=True)
         kling_accounts_repo.update_account(account_id, update_data)
         
+        # Reset client to reflect changes (e.g., active status or cookie)
+        reset_client()
+        
         log_action(AuditLogCreate(
             admin_id=current_admin.admin_id,
             action="update_kling_account",
@@ -89,6 +96,9 @@ async def delete_account(
     """Delete a Kling account"""
     try:
         kling_accounts_repo.delete_account(account_id)
+        
+        # Reset client to stop using deleted account
+        reset_client()
         
         log_action(AuditLogCreate(
             admin_id=current_admin.admin_id,
