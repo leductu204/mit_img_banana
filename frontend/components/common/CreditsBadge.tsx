@@ -70,7 +70,7 @@ export default function CreditsBadge({
             `}
         >
             <Coins className={iconSizes[size]} />
-            <span>{formattedAmount}</span>
+            <span className="tabular-nums">{formattedAmount}</span>
             {variant === 'balance' && <span className="opacity-80">credits</span>}
         </button>
     );

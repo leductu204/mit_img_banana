@@ -313,7 +313,7 @@ export default function ActivityTable({
                                                 {formatDate(job.created_at)}
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap text-right font-bold text-slate-300">
-                                                <span className={job.credits_refunded ? 'text-emerald-400' : ''}>
+                                                <span className={cn("tabular-nums", job.credits_refunded ? 'text-emerald-400' : '')}>
                                                     {job.credits_refunded ? '+' : '-'}{job.credits_cost} Credits
                                                 </span>
                                             </td>

@@ -39,7 +39,7 @@ export default function UsageStats({ imageThreads, videoThreads, totalThreads }:
                 <div>
                     <div className="flex justify-between items-end mb-3">
                         <span className="text-sm font-medium text-slate-300">Tạo Ảnh (Image Gen)</span>
-                        <span className="px-2 py-0.5 rounded-md bg-[#22d3ee]/10 text-xs font-bold text-[#22d3ee] border border-[#22d3ee]/20">
+                        <span className="px-2 py-0.5 rounded-md bg-[#22d3ee]/10 text-xs font-bold text-[#22d3ee] border border-[#22d3ee]/20 tabular-nums">
                             {imageThreads.active} / {imageThreads.total} Active
                         </span>
                     </div>
@@ -54,7 +54,7 @@ export default function UsageStats({ imageThreads, videoThreads, totalThreads }:
                 <div>
                     <div className="flex justify-between items-end mb-3">
                         <span className="text-sm font-medium text-slate-300">Tạo Video (Video Gen)</span>
-                        <span className="px-2 py-0.5 rounded-md bg-white/5 text-xs font-bold text-[#94A3B8] border border-white/5">
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 text-xs font-bold text-[#94A3B8] border border-white/5 tabular-nums">
                             {videoThreads.active} / {videoThreads.total} Active
                         </span>
                     </div>
@@ -70,7 +70,7 @@ export default function UsageStats({ imageThreads, videoThreads, totalThreads }:
             <div className="mt-8 pt-6 border-t border-white/5">
                 <div className="flex items-center justify-between text-sm text-[#94A3B8]">
                     <span>Giới hạn tổng luồng:</span>
-                    <span className="font-bold text-white bg-white/5 px-3 py-1 rounded-lg">{totalThreads} Threads</span>
+                    <span className="font-bold text-white bg-white/5 px-3 py-1 rounded-lg tabular-nums">{totalThreads} Threads</span>
                 </div>
             </div>
         </div>

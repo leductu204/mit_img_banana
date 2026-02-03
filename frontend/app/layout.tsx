@@ -18,11 +18,17 @@ export default function RootLayout({
     children: React.ReactNode
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="vi" suppressHydrationWarning>
             <body className={`${inter.variable} ${manrope.variable} font-sans antialiased bg-background-dark text-slate-200`} suppressHydrationWarning>
                 <Providers>
+                    {/* Accessibility: Skip to main content link */}
+                    <a href="#main-content" className="skip-link">
+                        Chuyển đến nội dung chính
+                    </a>
                     <NotificationDialog />
-                    {children}
+                    <main id="main-content">
+                        {children}
+                    </main>
                 </Providers>
             </body>
         </html>

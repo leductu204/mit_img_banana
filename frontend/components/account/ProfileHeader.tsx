@@ -67,7 +67,7 @@ export default function ProfileHeader({ user, planName, planDescription, planExp
                         <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-widest mb-1">Credits Available</p>
                         <div className="flex items-center justify-end gap-1.5">
                             <Coins className="text-[#22d3ee] w-6 h-6 fill-[#22d3ee]" />
-                            <span className="text-4xl font-bold text-white tracking-tight">{user.credits.toLocaleString()}</span>
+                            <span className="text-4xl font-bold text-white tracking-tight tabular-nums">{user.credits.toLocaleString()}</span>
                         </div>
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
