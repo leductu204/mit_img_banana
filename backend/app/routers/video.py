@@ -154,92 +154,9 @@ async def generate_video(
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # 4. Generate video via appropriate API
-            veo_models = ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]
-            
-            if request.model in veo_models:
-                # Route to Google Veo 3.1 API
-                input_image = None
-                if request.input_images and len(request.input_images) > 0:
-                    input_image = request.input_images[0]
-                
-                # Fetch recaptcha token for Google Veo
-                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-                SITE_URL = 'https://labs.google'
-                try:
-                    token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL, action='VIDEO_GENERATION')
-                    if isinstance(token_data, tuple):
-                        recaptcha_token, user_agent = token_data
-                    else:
-                        recaptcha_token = token_data
-                        user_agent = None
-                except ValueError as captcha_error:
-                    # CAPTCHA solving failed - create failed job without charging credits
-                    print(f"[CAPTCHA ERROR] Failed to get token: {captcha_error}")
-                    
-                    # Create failed job (no credits deducted)
-                    job_data = JobCreate(
-                        job_id=job_id,
-                        user_id=current_user.user_id,
-                        type=job_type,
-                        model=request.model,
-                        prompt=request.prompt,
-                        input_params=json.dumps({
-                            "aspect_ratio": request.aspect_ratio,
-                            "resolution": request.resolution,
-                            "duration": request.duration,
-                            "audio": request.audio
-                        }),
-                        input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
-                        credits_cost=0,  # No charge for failed CAPTCHA
-                        provider_job_id=None
-                    )
-                    jobs_repo.create(job_data, status="failed")
-                    jobs_repo.update_status(
-                        job_id=job_id,
-                        status="failed",
-                        error_message=f"CAPTCHA verification failed: {str(captcha_error)}"
-                    )
-                    
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to verify CAPTCHA. Please try again."
-                    )
-                
-                provider_job_id = google_veo_client.generate_video(
-                    prompt=request.prompt,
-                    model=request.model,
-                    aspect_ratio=request.aspect_ratio or "9:16",
-                    input_image=input_image,
-                    recaptchaToken=recaptcha_token,
-                    user_agent=user_agent
-                )
-            else:
-                # Route to Higgsfield (Kling models)
-                use_unlim = True if request.speed == "slow" else False
-                
-                client = get_higgsfield_client()
-                provider_job_id = client.generate_video(
-                    prompt=request.prompt,
-                    model=request.model,
-                    duration=request.duration,
-                    resolution=request.resolution or "720p",
-                    aspect_ratio=request.aspect_ratio or "16:9",
-                    audio=request.audio if request.audio is not None else True,
-                    input_images=request.input_images or [],
-                    use_unlim=use_unlim
-                )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
-        # 5. Create job in database
+        # 4. Create job in database (PENDING)
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -254,11 +171,76 @@ async def generate_video(
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # 6. Deduct credits (creates credit_transaction with FK to job)
+        
+        if can_start:
+            try:
+                # 5. Generate video via appropriate API
+                veo_models = ["veo3.1-low", "veo3.1-fast", "veo3.1-high"]
+                provider_job_id = None
+                
+                if request.model in veo_models:
+                    # Route to Google Veo 3.1 API
+                    input_image = None
+                    if request.input_images and len(request.input_images) > 0:
+                        input_image = request.input_images[0]
+                    
+                    # Fetch recaptcha token for Google Veo
+                    SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                    SITE_URL = 'https://labs.google'
+                    try:
+                        # Placeholder for actual recaptcha solve which might be async/external
+                        from app.services.providers.playwright_solver import solve_recaptcha_v3_enterprise
+                        token_data = solve_recaptcha_v3_enterprise(SITE_KEY, SITE_URL, action='VIDEO_GENERATION')
+                        if isinstance(token_data, tuple):
+                            recaptcha_token, user_agent = token_data
+                        else:
+                            recaptcha_token = token_data
+                            user_agent = None
+                    except ValueError as captcha_error:
+                        # CAPTCHA solving failed
+                        print(f"[CAPTCHA ERROR] Failed to get token: {captcha_error}")
+                        raise captcha_error
+                    
+                    provider_job_id = google_veo_client.generate_video(
+                        prompt=request.prompt,
+                        model=request.model,
+                        aspect_ratio=request.aspect_ratio or "9:16",
+                        input_image=input_image,
+                        recaptchaToken=recaptcha_token,
+                        user_agent=user_agent
+                    )
+                else:
+                    # Route to Higgsfield (Kling models)
+                    use_unlim = True if request.speed == "slow" else False
+                    client = get_higgsfield_client()
+                    provider_job_id = client.generate_video(
+                        prompt=request.prompt,
+                        model=request.model,
+                        duration=request.duration,
+                        resolution=request.resolution or "720p",
+                        aspect_ratio=request.aspect_ratio or "16:9",
+                        audio=request.audio if request.audio is not None else True,
+                        input_images=request.input_images or [],
+                        use_unlim=use_unlim
+                    )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                status = "processing"
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, status)
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Video generation error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        # 6. Deduct credits (only if successful)
         reason = f"Video generation: {request.model} {request.duration}"
         if request.resolution:
             reason += f" {request.resolution}"
@@ -294,7 +276,7 @@ async def generate_video(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
-        print(f"Video generation error: {str(e)}\n{traceback.format_exc()}")
+        print(f"Video generation error details: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to generate video: {str(e)}")
 
 
@@ -342,50 +324,14 @@ async def generate_kling_turbo_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
         input_images_data = [{"id": img_id, "url": img_url, "width": width, "height": height}]
-        
-        if can_start:
-            # Determine unlimited usage
-            use_unlim = True if speed == "slow" else False
-
-            # Determine mode and end frame
-            mode = "std"
-            input_image_end = None
-            
-            if resolution == "1080p":
-                mode = "pro"
-                if end_img_id and end_img_url:
-                    input_image_end = {
-                        "type": "media_input",
-                        "id": end_img_id,
-                        "url": end_img_url,
-                        "width": end_width if end_width else width,
-                        "height": end_height if end_height else height
-                    }
-                    input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
-
-            # Generate
-            client = get_higgsfield_client()
-            provider_job_id = client.send_job_kling_2_5_turbo_i2v(
-                prompt=prompt,
-                duration=duration,
-                resolution=resolution,
-                img_id=img_id,
-                img_url=img_url,
-                width=width,
-                height=height,
-                input_image_end=input_image_end,
-                mode=mode,
-                use_unlim=use_unlim
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
+        mode = "std"
+        if resolution == "1080p":
+            mode = "pro"
+            if end_img_id and end_img_url:
+                input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -397,11 +343,53 @@ async def generate_kling_turbo_i2v(
             input_params=json.dumps({"duration": duration, "resolution": resolution, "speed": speed, "mode": mode}),
             input_images=json.dumps(input_images_data),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                # Determine unlimited usage
+                use_unlim = True if speed == "slow" else False
+
+                # Prepare end frame
+                input_image_end = None
+                if mode == "pro" and end_img_id and end_img_url:
+                     input_image_end = {
+                        "type": "media_input",
+                        "id": end_img_id,
+                        "url": end_img_url,
+                        "width": end_width if end_width else width,
+                        "height": end_height if end_height else height
+                    }
+
+                # Generate
+                client = get_higgsfield_client()
+                provider_job_id = client.send_job_kling_2_5_turbo_i2v(
+                    prompt=prompt,
+                    duration=duration,
+                    resolution=resolution,
+                    img_id=img_id,
+                    img_url=img_url,
+                    width=width,
+                    height=height,
+                    input_image_end=input_image_end,
+                    mode=mode,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Kling 2.5 Turbo I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -455,45 +443,12 @@ async def generate_kling_o1_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
         input_images_data = [{"id": img_id, "url": img_url, "width": width, "height": height}]
-        
-        if can_start:
-            use_unlim = True if speed == "slow" else False
+        if end_img_id and end_img_url:
+             input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
 
-            # Prepare end frame
-            input_image_end = None
-            if end_img_id and end_img_url:
-                input_image_end = {
-                    "type": "media_input",
-                    "id": end_img_id,
-                    "url": end_img_url,
-                    # Fallback to start image dims if end image dims missing
-                    "width": end_width if end_width else width,
-                    "height": end_height if end_height else height
-                }
-                input_images_data.append({"id": end_img_id, "url": end_img_url, "width": end_width, "height": end_height})
-
-            client = get_higgsfield_client()
-            provider_job_id = client.send_job_kling_o1_i2v(
-                prompt=prompt,
-                duration=duration,
-                aspect_ratio=aspect_ratio,
-                img_id=img_id,
-                img_url=img_url,
-                width=width,
-                height=height,
-                input_image_end=input_image_end,
-                use_unlim=use_unlim
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
         # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
@@ -504,11 +459,50 @@ async def generate_kling_o1_i2v(
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
             input_images=json.dumps(input_images_data),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                use_unlim = True if speed == "slow" else False
+
+                input_image_end = None
+                if end_img_id and end_img_url:
+                    input_image_end = {
+                        "type": "media_input",
+                        "id": end_img_id,
+                        "url": end_img_url,
+                        "width": end_width if end_width else width,
+                        "height": end_height if end_height else height
+                    }
+
+                client = get_higgsfield_client()
+                provider_job_id = client.send_job_kling_o1_i2v(
+                    prompt=prompt,
+                    duration=duration,
+                    aspect_ratio=aspect_ratio,
+                    img_id=img_id,
+                    img_url=img_url,
+                    width=width,
+                    height=height,
+                    input_image_end=input_image_end,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Kling O1 I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -553,25 +547,7 @@ async def generate_kling_2_6_t2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
-        
-        if can_start:
-            use_unlim = True if speed == "slow" else False
-
-            client = get_higgsfield_client()
-            provider_job_id = client.send_job_kling_2_6_t2v(
-                prompt=prompt,
-                duration=duration,
-                aspect_ratio=aspect_ratio,
-                sound=sound,
-                use_unlim=use_unlim
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -583,11 +559,35 @@ async def generate_kling_2_6_t2v(
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "sound": sound, "speed": speed}),
             input_images=None,
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                use_unlim = True if speed == "slow" else False
+
+                client = get_higgsfield_client()
+                provider_job_id = client.send_job_kling_2_6_t2v(
+                    prompt=prompt,
+                    duration=duration,
+                    aspect_ratio=aspect_ratio,
+                    sound=sound,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Kling 2.6 T2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -635,28 +635,7 @@ async def generate_kling_2_6_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
-        
-        if can_start:
-            use_unlim = True if speed == "slow" else False
-
-            client = get_higgsfield_client()
-            provider_job_id = client.send_job_kling_2_6_i2v(
-                prompt=prompt,
-                duration=duration,
-                sound=sound,
-                img_id=img_id,
-                img_url=img_url,
-                width=width,
-                height=height,
-                use_unlim=use_unlim
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -668,11 +647,38 @@ async def generate_kling_2_6_i2v(
             input_params=json.dumps({"duration": duration, "sound": sound, "speed": speed}),
             input_images=json.dumps([{"id": img_id, "url": img_url, "width": width, "height": height}]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                use_unlim = True if speed == "slow" else False
+
+                client = get_higgsfield_client()
+                provider_job_id = client.send_job_kling_2_6_i2v(
+                    prompt=prompt,
+                    duration=duration,
+                    sound=sound,
+                    img_id=img_id,
+                    img_url=img_url,
+                    width=width,
+                    height=height,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Kling 2.6 I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -721,39 +727,7 @@ async def generate_veo31_low_t2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
-        
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            # Generate via Google Veo client
-            provider_job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-low",
-                aspect_ratio=aspect_ratio,
-                input_image=None,  # T2V mode
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -764,11 +738,49 @@ async def generate_veo31_low_t2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                # Generate via Google Veo client
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-low",
+                    aspect_ratio=aspect_ratio,
+                    input_image=None,  # T2V mode
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 LOW T2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to ensure video job: {str(e)}")
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -814,39 +826,7 @@ async def generate_veo31_low_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
-        
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            # Generate via Google Veo client with image
-            provider_job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-low",
-                aspect_ratio=aspect_ratio,
-                input_image={"media_id": media_id},
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
         
         # Create job record FIRST
         job_data = JobCreate(
@@ -858,11 +838,49 @@ async def generate_veo31_low_i2v(
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
         
-        # Deduct credits AFTER job exists
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                # Generate via Google Veo client with image
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-low",
+                    aspect_ratio=aspect_ratio,
+                    input_image={"media_id": media_id},
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 LOW I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
+        
+        # Deduct credits
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
             amount=cost,
@@ -905,40 +923,9 @@ async def generate_veo31_fast_t2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-fast",
-                aspect_ratio=aspect_ratio,
-                input_image=None,
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            provider_job_id = job_id
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -947,9 +934,46 @@ async def generate_veo31_fast_t2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-fast",
+                    aspect_ratio=aspect_ratio,
+                    input_image=None,
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 FAST T2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -994,40 +1018,9 @@ async def generate_veo31_fast_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-fast",
-                aspect_ratio=aspect_ratio,
-                input_image={"media_id": media_id},
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            provider_job_id = job_id
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -1037,9 +1030,46 @@ async def generate_veo31_fast_i2v(
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-fast",
+                    aspect_ratio=aspect_ratio,
+                    input_image={"media_id": media_id},
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 FAST I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail="Failed to create video job")
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -1083,40 +1113,9 @@ async def generate_veo31_high_t2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-high",
-                aspect_ratio=aspect_ratio,
-                input_image=None,
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            provider_job_id = job_id
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -1125,9 +1124,46 @@ async def generate_veo31_high_t2v(
             prompt=prompt,
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-high",
+                    aspect_ratio=aspect_ratio,
+                    input_image=None,
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 HIGH T2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail="Failed to create video job")
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -1172,40 +1208,9 @@ async def generate_veo31_high_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
-            SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
-            SITE_URL = 'https://labs.google'
-            import asyncio
-            from concurrent.futures import ProcessPoolExecutor
-            loop = asyncio.get_event_loop()
-            
-            recaptcha_token, user_agent = await loop.run_in_executor(
-                ProcessPoolExecutor(), 
-                solve_recaptcha_playwright, 
-                SITE_KEY, 
-                SITE_URL,
-                'VIDEO_GENERATION'
-            )
-            
-            job_id = google_veo_client.generate_video(
-                prompt=prompt,
-                model="veo3.1-high",
-                aspect_ratio=aspect_ratio,
-                input_image={"media_id": media_id},
-                recaptchaToken=recaptcha_token,
-                user_agent=user_agent
-            )
-            provider_job_id = job_id
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -1215,9 +1220,46 @@ async def generate_veo31_high_i2v(
             input_params=json.dumps({"aspect_ratio": aspect_ratio}),
             input_images=json.dumps([{"media_id": media_id}]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if can_start:
+            try:
+                # Fetch recaptcha token (Playwright via ProcessPoolExecutor)
+                SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV'
+                SITE_URL = 'https://labs.google'
+                import asyncio
+                from concurrent.futures import ProcessPoolExecutor
+                loop = asyncio.get_event_loop()
+                
+                recaptcha_token, user_agent = await loop.run_in_executor(
+                    ProcessPoolExecutor(), 
+                    solve_recaptcha_playwright, 
+                    SITE_KEY, 
+                    SITE_URL,
+                    'VIDEO_GENERATION'
+                )
+                
+                provider_job_id = google_veo_client.generate_video(
+                    prompt=prompt,
+                    model="veo3.1-high",
+                    aspect_ratio=aspect_ratio,
+                    input_image={"media_id": media_id},
+                    recaptchaToken=recaptcha_token,
+                    user_agent=user_agent
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Veo 3.1 HIGH I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail="Failed to create video job")
         
         new_balance = credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -1284,38 +1326,9 @@ async def generate_sora_2_0_t2v(
              
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if limit_check["can_start"]:
-            # Get Active Token
-            account = sora_service.get_active_token()
-            if not account:
-                raise HTTPException(status_code=503, detail="No active Sora accounts available")
-            token = account['access_token']
-            
-            # Map parameters
-            n_frames = 300 # Default 10s
-            if duration == 15: n_frames = 450
-            
-            orientation = map_sora_aspect_ratio(aspect_ratio)
-            
-            # Generate
-            provider_job_id = await sora_client_instance.generate_video(
-                prompt=prompt,
-                model="sy_8", # Sora 2.0 default
-                n_frames=n_frames,
-                orientation=orientation,
-                size="small",
-                token=token
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
-        # Create job record
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -1324,9 +1337,44 @@ async def generate_sora_2_0_t2v(
             prompt=prompt,
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if limit_check["can_start"]:
+            try:
+                # Get Active Token
+                account = sora_service.get_active_token()
+                if not account:
+                    raise Exception("No active Sora accounts available")
+                token = account['access_token']
+                
+                # Map parameters
+                n_frames = 300 # Default 10s
+                if duration == 15: n_frames = 450
+                
+                orientation = map_sora_aspect_ratio(aspect_ratio)
+                
+                # Generate
+                provider_job_id = await sora_client_instance.generate_video(
+                    prompt=prompt,
+                    model="sy_8", # Sora 2.0 default
+                    n_frames=n_frames,
+                    orientation=orientation,
+                    size="small",
+                    token=token
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Sora 2.0 T2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
         
         # Deduct credits
         new_balance = credits_service.deduct_credits(
@@ -1378,62 +1426,9 @@ async def generate_sora_2_0_i2v(
         
         # Prepare Job ID
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if limit_check["can_start"]:
-            # Get Active Token
-            account = sora_service.get_active_token()
-            if not account:
-                raise HTTPException(status_code=503, detail="No active Sora accounts available")
-            token = account['access_token']
-            
-            # Map parameters
-            n_frames = 300 # Default 10s
-            if duration == 15: n_frames = 450
-            elif duration == 25: n_frames = 750
-            
-            # Download and Upload Image to Sora
-            # 1. Download from our storage/proxy using requests (sync) or client
-            # Here img_url is likely internal or proxyable. 
-            import requests
-            try:
-                # We need raw bytes.
-                # Assuming img_url is accessible.
-                # If it's internal (localhost), might need special handling but usually it's public/proxied.
-                # sora_client needs bytes.
-                
-                # Use a simple get for now.
-                r = requests.get(img_url, timeout=30)
-                r.raise_for_status()
-                image_data = r.content
-                
-                filename = "input_image.png"
-                # specialized handling for filename if possible, but optional
-                
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to fetch input image: {str(e)}")
-
-            # 2. Upload to Sora
-            media_id = await sora_client_instance.upload_image(image_data, token, filename=filename)
-            
-            # 3. Generate
-            provider_job_id = await sora_client_instance.generate_video(
-                prompt=prompt,
-                model="sy_8", # Sora 2.0 default
-                n_frames=n_frames,
-                orientation=map_sora_aspect_ratio(aspect_ratio),
-                size="small",
-                media_id=media_id,
-                token=token
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create video job on provider")
-            
-            status = "processing"
-        
-        # Create job record
+        # Create job record FIRST
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -1443,9 +1438,56 @@ async def generate_sora_2_0_i2v(
             input_params=json.dumps({"duration": duration, "aspect_ratio": aspect_ratio, "speed": speed}),
             input_images=json.dumps([{"url": img_url}]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
         jobs_repo.create(job_data, status=status)
+        
+        if limit_check["can_start"]:
+            try:
+                # Get Active Token
+                account = sora_service.get_active_token()
+                if not account:
+                    raise Exception("No active Sora accounts available")
+                token = account['access_token']
+                
+                # Map parameters
+                n_frames = 300 # Default 10s
+                if duration == 15: n_frames = 450
+                elif duration == 25: n_frames = 750
+                
+                # Download and Upload Image to Sora
+                import requests
+                
+                # We need raw bytes.
+                r = requests.get(img_url, timeout=30)
+                r.raise_for_status()
+                image_data = r.content
+                filename = "input_image.png"
+
+                # 2. Upload to Sora
+                media_id = await sora_client_instance.upload_image(image_data, token, filename=filename)
+                
+                # 3. Generate
+                provider_job_id = await sora_client_instance.generate_video(
+                    prompt=prompt,
+                    model="sy_8", # Sora 2.0 default
+                    n_frames=n_frames,
+                    orientation=map_sora_aspect_ratio(aspect_ratio),
+                    size="small",
+                    media_id=media_id,
+                    token=token
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Sora 2.0 I2V error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create video job: {str(e)}")
         
         # Deduct credits
         new_balance = credits_service.deduct_credits(

@@ -3,12 +3,14 @@ from typing import Optional, List
 from pydantic import BaseModel
 import logging
 import json
+import uuid
 
 from app.services.providers.kling_client import KlingClient
 from app.repositories.kling_accounts_repo import kling_accounts_repo
 from app.repositories import jobs_repo
 from app.repositories import model_costs_repo
 from app.services.account_scheduler import account_scheduler
+from app.services.concurrency_service import ConcurrencyService
 
 from app.deps import get_current_user
 from app.schemas.users import UserInDB
@@ -128,57 +130,90 @@ async def generate_motion(
                 }
             )
 
-        # 5. Upload Image (Kling)
+        # 5. Check Concurrent Limits
+        job_type = "i2v" # Motion Control is treat as Image-to-Video
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        can_queue = limit_check.get("can_queue", True)
+        
+        if not can_start and not can_queue:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue full",
+                    "message": limit_check.get("reason", "Queue limit reached."),
+                    "current_usage": limit_check.get("current_usage")
+                }
+            )
+            
+        # 6. Upload Character Image to Kling (Required for queuing)
+        # We must do this BEFORE creating the job so we can store the URL
         image_bytes = await character_image.read()
         logger.info(f"Uploading character image to Kling ({len(image_bytes)} bytes)...")
         image_url = client.upload_image_bytes(image_bytes, "character.png")
         
         if not image_url:
-            raise HTTPException(status_code=500, detail="Failed to upload image")
-        
+            raise HTTPException(status_code=500, detail="Failed to upload character image")
+            
         logger.info(f"Image uploaded: {image_url}")
-        
-        # 6. Trigger Generation (Kling with default modal ID)
-        logger.info("Triggering Kling motion control generation...")
-        
-        result = client.generate_motion_control(
-            image_url=image_url,
-            video_url=video_url,
-            video_cover_url=video_cover_url,
-            mode=mode
-        )
-        
-        if not result:
-            raise HTTPException(status_code=500, detail="Failed to start generation")
-        
-        task_id, creative_id = result
-        job_id = task_id
-        
-        if not job_id:
-            raise HTTPException(status_code=500, detail="Failed to start generation job")
 
-        # 7. Create Job Record
-        # We must create the job first because credit transaction references it (Foreign Key)
+        # Prepare Job ID (Local UUID)
+        job_id = str(uuid.uuid4())
+        status = "pending"
+        
+        # 7. Create Job Record (PENDING)
         job_create = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
-            type="i2v",  # Motion Control is Image-to-Video
+            type=job_type,
             model="motion-control",
-            status="processing",
+            status="pending",
             prompt="Motion Control Generation",
             input_params=json.dumps({
                 "mode": mode,
                 "background_source": background_source,
                 "video_url": video_url,
-                "image_url": image_url,
+                "video_cover_url": video_cover_url or video_url, # Store cover url too
                 "modal_id": KlingClient.DEFAULT_MODAL_ID
             }),
+            input_images=json.dumps([{"url": image_url}]), # Store character image for Dispatcher
             credits_cost=cost,
-            provider_job_id=job_id
+            provider_job_id=None
         )
-        jobs_repo.create(job_create, status="processing")
+        jobs_repo.create(job_create, status="pending")
 
-        # 8. Deduct Credits
+        # 8. Trigger Generation (Only if allowed to start)
+        if can_start:
+            try:
+                logger.info("Triggering Kling motion control generation...")
+                
+                result = client.generate_motion_control(
+                    image_url=image_url,
+                    video_url=video_url,
+                    video_cover_url=video_cover_url,
+                    mode=mode
+                )
+                
+                if not result:
+                    raise Exception("Failed to start generation (provider returned None)")
+                
+                task_id, creative_id = result
+                provider_job_id = task_id
+                
+                if not provider_job_id:
+                    raise Exception("Failed to start generation job (no task_id)")
+                    
+                # Update to PROCESSING
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                # Update to FAILED
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                logger.error(f"Motion control processing failed for job {job_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to create motion job: {str(e)}")
+
+        # 9. Deduct Credits
         reason = f"Motion Control: {mode} (Kling)"
         credits_service.deduct_credits(
             user_id=current_user.user_id,
@@ -187,10 +222,12 @@ async def generate_motion(
             reason=reason
         )
             
-        return {"job_id": job_id, "status": "processing"}
+        return {"job_id": job_id, "status": "processing" if can_start else "pending"}
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Motion control processing failed: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

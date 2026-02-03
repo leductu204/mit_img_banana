@@ -11,6 +11,7 @@ from app.services.providers.higgsfield_client import higgsfield_client, Higgsfie
 from app.services.providers.google_client import google_veo_client
 from app.repositories import jobs_repo
 from app.repositories.higgsfield_accounts_repo import higgsfield_accounts_repo
+from app.services.providers.kling_client import get_kling_client
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +174,50 @@ class Dispatcher:
                         height=img.get("height"),
                         use_unlim=use_unlim
                     )
+            
+            # ============================================
+            # MOTION CONTROL - KLING (Direct)
+            # ============================================
+            elif model == "motion-control":
+                client = get_kling_client()
+                if not client:
+                    raise Exception("No active Kling client available for motion control")
+                
+                # Extract params
+                video_url = get_param("video_url")
+                video_cover_url = get_param("video_cover_url") or video_url
+                mode = get_param("mode", "std")
+                
+                # Extract character image from input_images
+                # In motion.py we stored it as [{"url": "..."}]
+                img_url = None
+                if input_images_data:
+                    if isinstance(input_images_data, list):
+                        first = input_images_data[0]
+                        if isinstance(first, dict):
+                            img_url = first.get("url")
+                        elif isinstance(first, str):
+                            img_url = first
+                            
+                if not img_url:
+                    raise Exception("Missing character image URL for motion control")
+                    
+                if not video_url:
+                    raise Exception("Missing video URL for motion control")
+                
+                logger.info(f"Dispatcher executing Motion Control: mode={mode}, video={video_url[:30]}...")
+                
+                result = client.generate_motion_control(
+                    image_url=img_url,
+                    video_url=video_url,
+                    video_cover_url=video_cover_url,
+                    mode=mode
+                )
+                
+                if result:
+                    provider_job_id, _ = result
+                else:
+                    raise Exception("Kling client returned None for motion generation")
             
             # ============================================
             # DEFAULT / FALLBACK

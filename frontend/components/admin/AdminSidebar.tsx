@@ -25,7 +25,6 @@ const navItems = [
   { href: '/admin/sora-accounts', label: 'Sora', icon: Video },
   { href: '/admin/kling-accounts', label: 'Kling', icon: Clapperboard },
   { href: '/admin/jobs', label: 'Jobs', icon: FileText },
-  { href: '/admin/logs', label: 'Audit Logs', icon: History },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -37,7 +36,7 @@ export default function AdminSidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
       {/* Header */}
       <div className="p-6 border-b border-gray-700">
-        <div className="flex items-center gap-3">
+        <Link href="/admin" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
             <Shield className="w-5 h-5 text-white" />
           </div>
@@ -45,7 +44,7 @@ export default function AdminSidebar() {
             <h1 className="font-bold text-white">MIT Img Admin</h1>
             <p className="text-xs text-gray-400">Management Panel</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}

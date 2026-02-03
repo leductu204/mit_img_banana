@@ -206,45 +206,9 @@ async def generate_nano_banana(
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # 4. Generate image via Higgsfield API (Only if allowed)
-            # fast -> use_unlim=False (standard queue)
-            # slow -> use_unlim=True (relaxed queue)
-            use_unlim = True if request.speed == "slow" else False
-            
-            # Debug (commented out)
-            # print(f"\n=== SENDING JOB TO HIGGSFIELD ===")
-            # print(f"Model: {model}")
-            # print(f"Prompt: {request.prompt}")
-            # print(f"Aspect Ratio: {request.aspect_ratio}")
-            # print(f"Speed: {request.speed} (use_unlim={use_unlim})")
-            # print(f"Input Images: {len(request.input_images or [])}")
-            
-            # print(f"Input Images: {len(request.input_images or [])}")
-            
-            client = get_higgsfield_client()
-            provider_job_id = client.generate_image(
-                prompt=request.prompt,
-                input_images=request.input_images or [],
-                aspect_ratio=request.aspect_ratio,
-                model=model,
-                use_unlim=use_unlim
-            )
-            
-            # Debug (commented out)
-            # print(f"Provider Job ID received: {provider_job_id}")
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create job on provider")
-            
-            status = "processing"
-            # Debug (commented out)
-            # print(f"Job status: {status}")
-        
-        # 5. Create job in database
+        # 4. Create job in database (PENDING)
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -257,14 +221,45 @@ async def generate_nano_banana(
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
-        # Pass explicit status ('processing' if started, 'pending' if queued)
         jobs_repo.create(job_data, status=status)
-        # Debug (commented out)
-        # print(f"Job created in DB: {job_id} with status={status}")
+        
+        provider_job_id = None
+        
+        if can_start:
+            try:
+                # 5. Generate image via Higgsfield API (Only if allowed)
+                # fast -> use_unlim=False (standard queue)
+                # slow -> use_unlim=True (relaxed queue)
+                use_unlim = True if request.speed == "slow" else False
+                
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_image(
+                    prompt=request.prompt,
+                    input_images=request.input_images or [],
+                    aspect_ratio=request.aspect_ratio,
+                    model=model,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+                
+                # Update job with provider ID and set to Processing
+                start_status = "processing"
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, start_status)
+                
+            except Exception as e:
+                # Update Logic: Mark as failed if provider call fails
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Provider call failed for job {job_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to create job on provider: {str(e)}")
+
         
         # 6. Deduct credits (creates credit_transaction with FK to job)
+        # Only deduct if we successfully reached here (meaning provider call didn't raise exception)
         reason = f"Image generation: {model} {request.aspect_ratio} ({request.speed})"
         
         new_balance = credits_service.deduct_credits(
@@ -273,10 +268,6 @@ async def generate_nano_banana(
             job_id=job_id,
             reason=reason
         )
-        
-        # Debug (commented out)
-        # print(f"Credits deducted: {cost}, new balance: {new_balance}")
-        # print(f"=== JOB CREATION COMPLETE ===\n")
         
         return GenerateResponse(
             job_id=job_id,
@@ -300,6 +291,10 @@ async def generate_nano_banana(
     except Exception as e:
         import traceback
         print(f"Generation error: {str(e)}\n{traceback.format_exc()}")
+        # Check if job was already created (by checking if we likely passed that stage)
+        # But difficult to know here without variable scope. 
+        # Ideally robust error handling is inside the specific block.
+        # Global catch-all
         raise HTTPException(status_code=500, detail="Failed to generate image")
 
 
@@ -363,32 +358,9 @@ async def generate_nano_banana_pro(
         
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
-        provider_job_id = None
         status = "pending"
         
-        if can_start:
-            # 4. Generate image via Higgsfield API
-            # fast -> use_unlim=False (standard)
-            # slow -> use_unlim=True (relaxed)
-            # slow -> use_unlim=True (relaxed)
-            use_unlim = True if request.speed == "slow" else False
-            
-            client = get_higgsfield_client()
-            provider_job_id = client.generate_image(
-                prompt=request.prompt,
-                input_images=request.input_images or [],
-                aspect_ratio=request.aspect_ratio,
-                resolution=request.resolution,
-                model=model,
-                use_unlim=use_unlim
-            )
-            
-            if not provider_job_id:
-                raise HTTPException(status_code=500, detail="Failed to create job on provider")
-            
-            status = "processing"
-        
-        # 5. Create job in database
+        # 4. Create job in database (PENDING)
         job_data = JobCreate(
             job_id=job_id,
             user_id=current_user.user_id,
@@ -401,10 +373,40 @@ async def generate_nano_banana_pro(
             }),
             input_images=json.dumps([img if isinstance(img, dict) else img for img in (request.input_images or [])]),
             credits_cost=cost,
-            provider_job_id=provider_job_id
+            provider_job_id=None
         )
-        
         jobs_repo.create(job_data, status=status)
+
+        provider_job_id = None
+        
+        if can_start:
+            try:
+                # 5. Generate image via Higgsfield API
+                use_unlim = True if request.speed == "slow" else False
+                
+                client = get_higgsfield_client()
+                provider_job_id = client.generate_image(
+                    prompt=request.prompt,
+                    input_images=request.input_images or [],
+                    aspect_ratio=request.aspect_ratio,
+                    resolution=request.resolution,
+                    model=model,
+                    use_unlim=use_unlim
+                )
+                
+                if not provider_job_id:
+                     raise Exception("No provider job ID returned")
+
+                # Update job
+                start_status = "processing"
+                jobs_repo.set_provider_id(job_id, provider_job_id)
+                jobs_repo.update_status(job_id, start_status)
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                print(f"Provider call failed for job {job_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to create job on provider: {str(e)}")
+        
         
         # 6. Deduct credits
         reason = f"Image generation: {model} {request.aspect_ratio} {request.resolution}"
@@ -461,14 +463,11 @@ async def _generate_google_image(
     job_type = "t2i" # Google models currently T2I only for this endpoints
     
     try:
-        # 1. Calculate cost (Fixed cost based on model for now, or use service)
-        # Assuming existing service handles these keys or fallback
-        # Valid keys in model_costs: nano-banana-cheap, nano-banana-pro-cheap, image-4.0
-        # Passing 'speed="fast"' as they are single-speed default models
+        # 1. Calculate cost
         cost = credits_service.calculate_generation_cost(
             model=model,
             aspect_ratio=request.aspect_ratio,
-            speed="default" # Google models use 'default' key in DB
+            speed="default" 
         )
         
         # 2. Check credits
@@ -489,8 +488,6 @@ async def _generate_google_image(
         # 3. Check Concurrent limits
         limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
         can_start = limit_check.get("can_start", limit_check["allowed"])
-        # For synchronous Google generation, we might want to fail if can't start immediately
-        # But standard behavior is to queue. However, since we process immediately below...
         
         if not can_start:
              raise HTTPException(
@@ -505,11 +502,25 @@ async def _generate_google_image(
         job_id = str(uuid.uuid4())
         status = "pending"
         
-        # 4. Generate immediately (Synchronous wrapper around async logic)
+        # 4. Create Job in DB (PENDING)
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=current_user.user_id,
+            type=job_type,
+            model=model,
+            prompt=request.prompt,
+            input_params=json.dumps({
+                "aspect_ratio": request.aspect_ratio
+            }),
+            input_images=json.dumps([]),
+            credits_cost=cost,
+            provider_job_id=None
+        )
+        jobs_repo.create(job_data, status=status)
         
+        # 5. Generate immediately
         try:
             # Use Isolated Solver in a separate thread
-            # This ensures it runs on its own ProactorEventLoop, avoiding Uvicorn's SelectorLoop on Windows
             from app.services.providers.playwright_solver import get_token_isolated
             from concurrent.futures import ThreadPoolExecutor
             
@@ -525,48 +536,30 @@ async def _generate_google_image(
             
             if not recaptcha_token:
                 raise ValueError("Failed to retrieve reCAPTCHA token")
-                
-        except Exception as e:
-            print(f"CAPTCHA Error: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to verify CAPTCHA: {str(e)}")
 
-        # Call Google Client
-        # generate_image returns "image|URL"
-        result_str = google_veo_client.generate_image(
-            prompt=request.prompt,
-            recaptchaToken=recaptcha_token,
-            model=model,
-            aspect_ratio=request.aspect_ratio,
-            input_images=request.input_images,
-            user_agent=user_agent
-        )
-        
-        if not result_str or not result_str.startswith("image|"):
-             raise HTTPException(status_code=500, detail="Invalid response from provider")
-             
-        image_url = result_str.split("|")[1]
-        
-        # 5. Create Job in DB (Mark as COMPLETED immediately)
-        status = "completed"
-        
-        job_data = JobCreate(
-            job_id=job_id,
-            user_id=current_user.user_id,
-            type=job_type,
-            model=model,
-            prompt=request.prompt,
-            input_params=json.dumps({
-                "aspect_ratio": request.aspect_ratio
-            }),
-            input_images=json.dumps([]),
-            credits_cost=cost,
-            provider_job_id="completed_via_sync" # No polling needed
-        )
-        
-        jobs_repo.create(job_data, status=status)
-        
-        # Update with result URL
-        jobs_repo.update_status(job_id, "completed", output_url=image_url)
+            # Call Google Client
+            result_str = google_veo_client.generate_image(
+                prompt=request.prompt,
+                recaptchaToken=recaptcha_token,
+                model=model,
+                aspect_ratio=request.aspect_ratio,
+                input_images=request.input_images,
+                user_agent=user_agent
+            )
+            
+            if not result_str or not result_str.startswith("image|"):
+                 raise ValueError("Invalid response from provider")
+                 
+            image_url = result_str.split("|")[1]
+            
+            # Update to COMPLETED
+            jobs_repo.update_status(job_id, "completed", output_url=image_url)
+            
+        except Exception as e:
+            # Update to FAILED
+            print(f"Google Generation Failed: {e}")
+            jobs_repo.update_status(job_id, "failed", error_message=str(e))
+            raise HTTPException(status_code=500, detail=f"Failed to generate image: {str(e)}")
         
         # 6. Deduct credits
         reason = f"Image generation: {model} {request.aspect_ratio}"
@@ -632,10 +625,6 @@ async def google_upload_image(
         
         # No Recaptcha needed for upload
         user_agent = None 
-
-        # Call Client
-        # upload_image_bytes(self, image_data: bytes, aspect_ratio: str = "9:16", user_agent: Optional[str] = None)
-        # It needs user_agent maybe.
         
         media_id = google_veo_client.upload_image_bytes(
             image_data, 
