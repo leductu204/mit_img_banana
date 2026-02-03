@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { CreditCard, ChevronDown, Coins, Menu, X, Sparkles, Video, Palette, Wrench, Home, User, LogOut } from "lucide-react"
+import { CreditCard, ChevronDown, Coins, Menu, X, Sparkles, Video, Palette, Wrench, Home, User, LogOut, Code } from "lucide-react"
 import { useCredits } from "@/hooks/useCredits"
 import { useAuth } from "@/hooks/useAuth"
 import { LoginModal } from "@/components/auth/LoginModal"
@@ -22,6 +22,7 @@ export default function Header() {
     { name: "Video", href: "/video", icon: Video },
     { name: "Motion Control", href: "/motion-control", icon: Video },
     { name: "Studio", href: "/studio", icon: Palette },
+    { name: "API", href: "/docs", icon: Code },
     { name: "Tiện ích", href: "/tools", icon: Wrench },
   ]
 
