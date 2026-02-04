@@ -17,6 +17,7 @@ export interface User {
     credits: number;
     is_banned: boolean;
     created_at: string;
+    plan?: 'free' | 'starter' | 'pro'; // Added plan field
 }
 
 interface AuthContextValue {

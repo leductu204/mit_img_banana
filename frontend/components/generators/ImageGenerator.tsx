@@ -13,6 +13,7 @@ import { getModelConfig, IMAGE_MODELS } from "@/lib/models-config"
 // UI Components
 import Button from "../common/Button"
 import RecentGenerations from "../studio/RecentGenerations"
+import QueueStatus from "../studio/QueueStatus"
 import { useGlobalJobs } from "@/contexts/JobsContext"
 import { 
     Settings2, 
@@ -426,6 +427,11 @@ export function ImageGenerator() {
                     </button>
                 </div>
 
+
+
+                {/* Queue Status */}
+                <QueueStatus />
+
                 {/* Recent Jobs Card - Unified */}
                 <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
@@ -495,41 +501,61 @@ export function ImageGenerator() {
                                         </div>
                                     </div>
                                 )}
-                                <img src={result.image_url} className="w-full h-full object-contain shadow-2xl z-10" alt="Generated" />
+                                {(() => {
+                                    const isVideo = selectedJob?.type?.includes('v') || selectedJob?.type === 'motion' || result?.image_url?.match(/\.(mp4|mov|webm)$/i);
+                                    
+                                    return isVideo ? (
+                                        <video 
+                                            src={result.image_url} 
+                                            controls 
+                                            autoPlay 
+                                            loop 
+                                            className="w-full h-full object-contain shadow-2xl z-10" 
+                                        />
+                                    ) : (
+                                        <img 
+                                            src={result.image_url} 
+                                            className="w-full h-full object-contain shadow-2xl z-10" 
+                                            alt="Generated" 
+                                        />
+                                    );
+                                })()}
                                 
                                 {/* Action Buttons */}
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
-                                    <Button
-                                        onClick={async () => {
-                                            if (!result?.image_url) return;
-                                            try {
-                                                toast.info("Đang chuẩn bị ảnh cho video...");
-                                                // Fetch the image as blob
-                                                const response = await fetch(result.image_url);
-                                                const blob = await response.blob();
-                                                // Convert to base64
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => {
-                                                    const base64 = reader.result as string;
-                                                    // Store in sessionStorage
-                                                    sessionStorage.setItem('image_for_video', base64);
-                                                    sessionStorage.setItem('image_for_video_name', `generated-image-${Date.now()}.png`);
-                                                    // Navigate with flag
-                                                    router.push('/video?from_image=true');
-                                                };
-                                                reader.readAsDataURL(blob);
-                                            } catch (error) {
-                                                console.error("Error preparing image:", error);
-                                                toast.error("Không thể tải ảnh. Hãy tải xuống và upload lại.");
-                                            }
-                                        }}
-                                        className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
-                                    >
-                                        <VideoIcon className="h-4 w-4 mr-2" />
-                                        Tạo video
-                                    </Button>
+                                    {!selectedJob?.type?.includes('v') && selectedJob?.type !== 'motion' && (
+                                        <Button
+                                            onClick={async () => {
+                                                if (!result?.image_url) return;
+                                                try {
+                                                    toast.info("Đang chuẩn bị ảnh cho video...");
+                                                    // Fetch the image as blob
+                                                    const response = await fetch(result.image_url);
+                                                    const blob = await response.blob();
+                                                    // Convert to base64
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        const base64 = reader.result as string;
+                                                        // Store in sessionStorage
+                                                        sessionStorage.setItem('image_for_video', base64);
+                                                        sessionStorage.setItem('image_for_video_name', `generated-image-${Date.now()}.png`);
+                                                        // Navigate with flag
+                                                        router.push('/video?from_image=true');
+                                                    };
+                                                    reader.readAsDataURL(blob);
+                                                } catch (error) {
+                                                    console.error("Error preparing image:", error);
+                                                    toast.error("Không thể tải ảnh. Hãy tải xuống và upload lại.");
+                                                }
+                                            }}
+                                            className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
+                                        >
+                                            <VideoIcon className="h-4 w-4 mr-2" />
+                                            Tạo video
+                                        </Button>
+                                    )}
                                          <Button
-                                             onClick={() => handleDownload(result?.image_url, 'image')}
+                                             onClick={() => handleDownload(result?.image_url, (selectedJob?.type?.includes('v') || selectedJob?.type === 'motion') ? 'video' : 'image')}
                                              className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
                                          >
                                              <DownloadIcon className="h-4 w-4 mr-2" />

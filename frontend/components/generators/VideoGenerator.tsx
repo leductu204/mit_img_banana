@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 
 // UI Components
 import RecentGenerations from "../studio/RecentGenerations"
+import QueueStatus from "../studio/QueueStatus"
 import { useGlobalJobs } from "@/contexts/JobsContext"
 import Button from "../common/Button"
 import { 
@@ -530,6 +531,11 @@ export function VideoGenerator() {
                     </button>
                 </div>
 
+
+
+                {/* Queue Status */}
+                <QueueStatus />
+
                 {/* Recent Jobs Card Unified */}
                 <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
@@ -587,7 +593,15 @@ export function VideoGenerator() {
                                     </div>
                                 )}
                                 
-                                <video src={result.video_url} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
+                                {(() => {
+                                    const isVideo = !selectedJob || selectedJob.type.includes('v') || selectedJob.type === 'motion' || result.video_url.match(/\.(mp4|mov|webm)$/i);
+                                    
+                                    return isVideo ? (
+                                        <video src={result.video_url} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
+                                    ) : (
+                                         <img src={result.video_url} className="w-full h-full object-contain shadow-2xl z-10" alt="Generated" />
+                                    );
+                                })()}
                                 
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
                                     <Button onClick={() => handleDownload(result.video_url)} className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm">

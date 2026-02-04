@@ -69,7 +69,7 @@ async def update_account(
     """Update an existing Kling account"""
     try:
         update_data = data.model_dump(exclude_unset=True)
-        kling_accounts_repo.update_account(account_id, update_data)
+        kling_accounts_repo.update_account(account_id, **update_data)
         
         # Reset client to reflect changes (e.g., active status or cookie)
         reset_client()

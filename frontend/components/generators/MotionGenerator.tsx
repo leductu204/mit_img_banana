@@ -12,6 +12,7 @@ import FileUpload from "./FileUpload"
 import { Switch } from "@/components/ui/switch"
 import QualitySelector from "./QualitySelector"
 import RecentGenerations from "../studio/RecentGenerations"
+import QueueStatus from "../studio/QueueStatus"
 import { useGlobalJobs } from "@/contexts/JobsContext"
 import { Job } from "@/hooks/useJobs"
 
@@ -26,9 +27,18 @@ import {
     RefreshCw as RefreshIcon,
     Plus,
     X,
-    Coins
+    Coins,
+    CircleHelp
 } from "lucide-react"
 import Button from "../common/Button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export function MotionGenerator() {
     const { isAuthenticated, login, user } = useAuth()
@@ -281,6 +291,39 @@ export function MotionGenerator() {
                         </button>
                     </div>
 
+                    {/* Guide / Reference - Collapsible or Link */}
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <button className="w-full py-3 px-4 bg-[#252D3D] hover:bg-[#2D3648] border border-white/5 rounded-xl flex items-center justify-between group transition-all">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-[#00BCD4]/10 text-[#00BCD4] flex items-center justify-center group-hover:bg-[#00BCD4] group-hover:text-white transition-colors">
+                                        <CircleHelp className="w-5 h-5" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="text-sm font-bold text-white">Lưu ý quan trọng!</h3>
+                                        <p className="text-[10px] text-[#B0B8C4]">Xem ví dụ & mẹo tối ưu</p>
+                                    </div>
+                                </div>
+                                <div className="text-[#6B7280] group-hover:text-white transition-colors">👉</div>
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl bg-[#1A1F2E] border-white/10 text-white p-0 overflow-hidden">
+                             <DialogHeader className="p-6 pb-2 border-b border-white/5 bg-[#1F2833]">
+                                <DialogTitle className="flex items-center gap-2 text-xl">
+                                    <Clapperboard className="w-5 h-5 text-[#00BCD4]" />
+                                    Hướng dẫn tạo Motion Control
+                                </DialogTitle>
+                             </DialogHeader>
+                             <div className="p-0 overflow-y-auto max-h-[80vh] custom-scrollbar bg-[#0A0E13]">
+                                <img 
+                                    src="/motion-guide.png" 
+                                    alt="Motion Control Guide" 
+                                    className="w-full h-auto object-contain"
+                                />
+                             </div>
+                        </DialogContent>
+                    </Dialog>
+
                     {/* Inputs - Side by Side Grid */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
@@ -346,6 +389,11 @@ export function MotionGenerator() {
                     </button>
                 </div>
 
+
+
+                {/* Queue Status */}
+                <QueueStatus />
+
                 {/* Recent Jobs Card Unified */}
                 <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
@@ -373,7 +421,15 @@ export function MotionGenerator() {
                         
                         {result ? (
                              <>
-                                <video src={result} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
+                            {(() => {
+                                const isVideo = !selectedJob || selectedJob.type.includes('v') || selectedJob.type === 'motion' || result.match(/\.(mp4|mov|webm)$/i);
+                                
+                                return isVideo ? (
+                                    <video src={result} controls autoPlay loop className="w-full h-full object-contain shadow-2xl z-10" />
+                                ) : (
+                                     <img src={result} className="w-full h-full object-contain shadow-2xl z-10" alt="Generated" />
+                                );
+                            })()}
                                 <div className="absolute bottom-10 right-10 flex gap-2 z-20">
                                     <Button onClick={() => handleDownload(result)} className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm">
                                         <DownloadIcon className="h-4 w-4 mr-2" />
