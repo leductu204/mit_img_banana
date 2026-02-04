@@ -502,7 +502,7 @@ class KlingClient:
                 return {
                     "status": "failed",
                     "completed": True,
-                    "error": "Vi phạm NSFW nội dung phản cảm, vui lòng thử lại. Nếu vẫn không được vui lòng dùng ảnh kín đáo hơn"
+                    "error": "Không detect được chuyển động trong video hoặc ảnh phản cảm, vui lòng thử lại hoặc sử dụng video khác."
                 }
 
             if data.get("status") != 200:
@@ -560,7 +560,7 @@ class KlingClient:
                      return {
                         "status": "failed",
                         "completed": True,
-                        "error": "Vi phạm NSFW nội dung phản cảm, vui lòng thử lại. Nếu vẫn không được vui lòng dùng ảnh kín đáo hơn"
+                        "error": "Không detect được chuyển động trong video hoặc ảnh phản cảm, vui lòng thử lại hoặc sử dụng video khác."
                     }
 
                 return {

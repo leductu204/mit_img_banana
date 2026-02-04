@@ -10,6 +10,7 @@ interface FileUploadProps {
     icon?: React.ElementType;
     maxSizeMB?: number;
     className?: string;
+    selectedFile?: File | null;
 }
 
 export default function FileUpload({ 
@@ -19,12 +20,25 @@ export default function FileUpload({
     subtext,
     icon: Icon = Upload,
     maxSizeMB = 50, // Default 50MB
-    className
+    className,
+    selectedFile
 }: FileUploadProps) {
     const [preview, setPreview] = useState<{ url: string; file: File; type: 'image' | 'video' } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Cleanup object URLs
+    // Sync with external selectedFile prop
+    useEffect(() => {
+        if (selectedFile === null) {
+            setPreview(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        } else if (selectedFile && selectedFile !== preview?.file) {
+             const type = selectedFile.type.startsWith('image/') ? 'image' : 'video';
+             const url = URL.createObjectURL(selectedFile);
+             setPreview({ url, file: selectedFile, type });
+        }
+    }, [selectedFile]); // Only re-run if selectedFile prop changes
+
+     // Cleanup object URLs (only when component unmounts or preview changes internally)
     useEffect(() => {
         return () => {
             if (preview) URL.revokeObjectURL(preview.url);

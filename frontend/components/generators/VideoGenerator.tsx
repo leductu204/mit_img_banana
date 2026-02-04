@@ -14,6 +14,8 @@ import { Job } from "@/hooks/useJobs"
 import { cn } from "@/lib/utils"
 
 // UI Components
+import RecentGenerations from "../studio/RecentGenerations"
+import { useGlobalJobs } from "@/contexts/JobsContext"
 import Button from "../common/Button"
 import { 
     Settings2, 
@@ -60,7 +62,10 @@ export function VideoGenerator() {
     const [modelConfigs, setModelConfigs] = useState<any>({})
     const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
-    const [recentJobs, setRecentJobs] = useState<Job[]>([])
+    
+    // Inject Global Jobs Context
+    const { addOptimisticJob, updateOptimisticJob } = useGlobalJobs();
+    // const [recentJobs, setRecentJobs] = useState<Job[]>([]) // Removed in favor of global context
 
     const searchParams = useSearchParams()
     
@@ -120,7 +125,7 @@ export function VideoGenerator() {
     const { generate, result, loading, error, setResult, setLoading, setError } = useGenerateVideo()
     const { balance, estimateVideoCost, hasEnoughCredits, updateCredits } = useCredits()
     const toast = useToast()
-
+    
     // Fetch model configs
     useEffect(() => {
         fetch(`${NEXT_PUBLIC_API}/api/costs`)
@@ -129,31 +134,9 @@ export function VideoGenerator() {
             .catch(err => console.error("Failed to fetch model configs:", err))
     }, [])
 
-    // Fetch recent jobs
-    const fetchRecentJobs = () => {
-        if (isAuthenticated) {
-            apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2v&limit=5').then(res => {
-                setRecentJobs(res.jobs || [])
-            }).catch(console.error)
-        }
-    }
+    // Deleted fetchRecentJobs and its useEffect
 
-    useEffect(() => {
-        fetchRecentJobs()
-    }, [isAuthenticated, currentJobStatus])
 
-    const handleDeleteJob = async (e: React.MouseEvent, jobId: string) => {
-        e.stopPropagation();
-        if (!confirm('Bạn có chắc chắn muốn xóa lịch sử này?')) return;
-        
-        try {
-            await apiRequest(`/api/jobs/${jobId}`, { method: 'DELETE' });
-            toast.success('Đã xóa thành công');
-            fetchRecentJobs();
-        } catch (err: any) {
-            toast.error(err.message || 'Xóa thất bại');
-        }
-    };
     
     // Filter active models
     const activeVideoModels = useMemo(() => {
@@ -228,7 +211,7 @@ export function VideoGenerator() {
     };
 
     const handleGenerate = async () => {
-        if (!prompt.trim()) return
+        if (!prompt.trim() && !isImageToVideo) return
         if (!isAuthenticated) { login(); return }
         if (!hasEnoughCredits(estimatedCost)) { setShowCreditsModal(true); return }
         
@@ -238,170 +221,166 @@ export function VideoGenerator() {
             return
         }
 
+        // 1. Capture State
+        const currentPrompt = prompt || (isImageToVideo ? "Image to Video" : "Video Generation");
+        const currentModel = model;
+        const currentDuration = duration;
+        const currentQuality = quality;
+        const currentSpeed = speed;
+        const currentAspectRatio = aspectRatio;
+        const currentAudio = audio;
+        const currentReferenceImages = [...referenceImages];
+        const currentEndFrameImages = [...endFrameImages];
+
+        // 2. Optimistic Update
+        const tempId = addOptimisticJob({
+            model: currentModel,
+            prompt: currentPrompt,
+            type: isImageToVideo ? 'i2v' : 't2v',
+            status: 'pending',
+        });
+
+        // 3. Instant UI Reset
+        setPrompt("");
+        // setReferenceImages([]); 
+        // setEndFrameImages([]);
+        // Decide whether to clear files. User said "clear input". Let's clear files too for queue experience.
+        setReferenceImages([]);
+        setEndFrameImages([]);
+
         setResult(null)
-        setLoading(true)
-        setError(null)
+        setLoading(false) // Fire and forget!
+        setError(null);
         
-        try {
-            const durationInt = parseInt(duration.replace('s', ''))
-            let imgId = '', imgUrl = '', imgWidth = 0, imgHeight = 0, googleMediaId = ''
-            
-            // Determine if this is a Google/Veo model
-            const isVeoModel = model.startsWith('veo3.1-')
-            
-            if (isImageToVideo && referenceImages.length > 0) {
-                const file = referenceImages[0]
+        // 4. Background Task
+        (async () => {
+            try {
+                const durationInt = parseInt(currentDuration.replace('s', ''))
+                let imgId = '', imgUrl = '', imgWidth = 0, imgHeight = 0, googleMediaId = ''
                 
-                if (isVeoModel) {
-                    // Google/Veo models: upload directly to Google endpoint, returns mediaGenerationId (CAM format)
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {} // Let browser set Content-Type for FormData
-                    });
-                    googleMediaId = uploadInfo.id; // This is the CAM format media ID
-                } else {
-                    // Higgsfield models: use presigned URL upload
-                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
-                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
-                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                    const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
-                    imgId = uploadInfo.id; imgUrl = uploadInfo.url; imgWidth = width; imgHeight = height;
-                }
-            }
-
-            const formData = new FormData()
-            formData.append('prompt', prompt)
-            formData.append('duration', durationInt.toString())
-            let endpoint = ''
-
-            if (model.startsWith('veo3.1-')) {
-                formData.append('aspect_ratio', aspectRatio)
-                const mode = isImageToVideo ? 'i2v' : 't2v'
-                if (mode === 'i2v') formData.append('media_id', googleMediaId)  // Send media_id instead of img_url
-                const modelPath = model.replace('.', '_')
-                const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
-                if (!response.ok) throw new Error(`Failed: ${response.status}`)
-                const genRes = await response.json()
-                toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
-                if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
+                // Determine if this is a Google/Veo model
+                const isVeoModel = currentModel.startsWith('veo3.1-')
                 
-                const checkStatus = async () => {
-                    try {
-                        const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
-                        setCurrentJobStatus(statusRes.status)
-                        if (statusRes.status === 'completed' && statusRes.result) {
-                            setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
-                            setSelectedJob({ job_id: genRes.job_id, output_url: statusRes.result, prompt, model } as any)
-                            setLoading(false)
-                            toast.success('✅ Tạo video thành công!')
-                            apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2v&limit=5').then(res => setRecentJobs(res.jobs || []))
-                        } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                            setError(statusRes.error_message || "Failed")
-                            setLoading(false)
-                            toast.error(statusRes.error_message || "Failed")
-                        } else { setTimeout(checkStatus, 15000) }
-                    } catch (e) { setLoading(false) }
+                if (isImageToVideo && currentReferenceImages.length > 0) {
+                    const file = currentReferenceImages[0]
+                    
+                    if (isVeoModel) {
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {} 
+                        });
+                        googleMediaId = uploadInfo.id; 
+                    } else {
+                        const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                        await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+                        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                        const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
+                        imgId = uploadInfo.id; imgUrl = uploadInfo.url; imgWidth = width; imgHeight = height;
+                    }
                 }
-                checkStatus()
-                return
-            }
 
-            if (model === 'kling-2.5-turbo') {
-                endpoint = '/api/generate/video/kling-2.5-turbo/i2v'
-                formData.append('resolution', quality)
-                formData.append('img_id', imgId)
-                formData.append('img_url', imgUrl)
-                formData.append('width', imgWidth.toString())
-                formData.append('height', imgHeight.toString())
-                formData.append('speed', speed)
-                if (quality === '1080p' && endFrameImages.length > 0) {
-                    const endFile = endFrameImages[0]
-                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
-                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
-                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                    const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
-                    formData.append('end_img_id', uploadInfo.id)
-                    formData.append('end_img_url', uploadInfo.url)
-                    formData.append('end_width', endWidth.toString())
-                    formData.append('end_height', endHeight.toString())
+                const formData = new FormData()
+                formData.append('prompt', currentPrompt)
+                formData.append('duration', durationInt.toString())
+                let endpoint = ''
+
+                if (currentModel.startsWith('veo3.1-')) {
+                    formData.append('aspect_ratio', currentAspectRatio)
+                    const mode = isImageToVideo ? 'i2v' : 't2v'
+                    if (mode === 'i2v') formData.append('media_id', googleMediaId) 
+                    const modelPath = currentModel.replace('.', '_')
+                    const response = await fetch(`${NEXT_PUBLIC_API}/api/generate/video/${modelPath}/${mode}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
+                    if (!response.ok) throw new Error(`Failed: ${response.status}`)
+                    const genRes = await response.json()
+                    
+                    toast.info(`Task submitted! (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                    if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
+                    
+                    updateOptimisticJob(tempId, genRes.job_id);
+                    // Global context polling handles the rest
+                    return
                 }
-            } else if (model === 'kling-o1-video') {
-                endpoint = '/api/generate/video/kling-o1/i2v'
-                formData.append('aspect_ratio', aspectRatio)
-                formData.append('img_id', imgId)
-                formData.append('img_url', imgUrl)
-                formData.append('width', imgWidth.toString())
-                formData.append('height', imgHeight.toString())
-                formData.append('speed', speed)
-                if (endFrameImages.length > 0) {
-                    const endFile = endFrameImages[0]
-                    const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
-                    await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
-                    await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                    const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
-                    formData.append('end_img_id', uploadInfo.id)
-                    formData.append('end_img_url', uploadInfo.url)
-                    formData.append('end_width', endWidth.toString())
-                    formData.append('end_height', endHeight.toString())
-                }
-            } else if (model === 'kling-2.6') {
-                formData.append('sound', audio.toString())
-                formData.append('speed', speed)
-                formData.append('resolution', quality)
-                if (isImageToVideo) {
-                    endpoint = '/api/generate/video/kling-2.6/i2v'
+
+                if (currentModel === 'kling-2.5-turbo') {
+                    endpoint = '/api/generate/video/kling-2.5-turbo/i2v'
+                    formData.append('resolution', currentQuality)
                     formData.append('img_id', imgId)
                     formData.append('img_url', imgUrl)
                     formData.append('width', imgWidth.toString())
                     formData.append('height', imgHeight.toString())
-                } else {
-                    endpoint = '/api/generate/video/kling-2.6/t2v'
-                    formData.append('aspect_ratio', aspectRatio)
-                }
-            } else if (model === 'sora-2.0') {
-                 formData.append('aspect_ratio', aspectRatio)
-                 formData.append('speed', speed)
-                 if (isImageToVideo) {
-                     endpoint = '/api/generate/video/sora-2_0/i2v'
-                     formData.append('img_url', imgUrl)
-                 } else {
-                     endpoint = '/api/generate/video/sora-2_0/t2v'
-                 }
-            } else { throw new Error(`Unknown model: ${model}`) }
+                    formData.append('speed', currentSpeed)
+                    if (currentQuality === '1080p' && currentEndFrameImages.length > 0) {
+                        const endFile = currentEndFrameImages[0]
+                        const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                        await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
+                        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                        const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
+                        formData.append('end_img_id', uploadInfo.id)
+                        formData.append('end_img_url', uploadInfo.url)
+                        formData.append('end_width', endWidth.toString())
+                        formData.append('end_height', endHeight.toString())
+                    }
+                } else if (currentModel === 'kling-o1-video') {
+                    endpoint = '/api/generate/video/kling-o1/i2v'
+                    formData.append('aspect_ratio', currentAspectRatio)
+                    formData.append('img_id', imgId)
+                    formData.append('img_url', imgUrl)
+                    formData.append('width', imgWidth.toString())
+                    formData.append('height', imgHeight.toString())
+                    formData.append('speed', currentSpeed)
+                    if (currentEndFrameImages.length > 0) {
+                        const endFile = currentEndFrameImages[0]
+                        const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>('/api/generate/image/upload', { method: 'POST' })
+                        await fetch(uploadInfo.upload_url, { method: 'PUT', body: endFile, headers: { 'Content-Type': 'image/jpeg' } })
+                        await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                        const { width: endWidth, height: endHeight } = await getImageDimensionsFromUrl(uploadInfo.url)
+                        formData.append('end_img_id', uploadInfo.id)
+                        formData.append('end_img_url', uploadInfo.url)
+                        formData.append('end_width', endWidth.toString())
+                        formData.append('end_height', endHeight.toString())
+                    }
+                } else if (currentModel === 'kling-2.6') {
+                    formData.append('sound', currentAudio.toString())
+                    formData.append('speed', currentSpeed)
+                    formData.append('resolution', currentQuality)
+                    if (isImageToVideo) {
+                        endpoint = '/api/generate/video/kling-2.6/i2v'
+                        formData.append('img_id', imgId)
+                        formData.append('img_url', imgUrl)
+                        formData.append('width', imgWidth.toString())
+                        formData.append('height', imgHeight.toString())
+                    } else {
+                        endpoint = '/api/generate/video/kling-2.6/t2v'
+                        formData.append('aspect_ratio', currentAspectRatio)
+                    }
+                } else if (currentModel === 'sora-2.0') {
+                     formData.append('aspect_ratio', currentAspectRatio)
+                     formData.append('speed', currentSpeed)
+                     if (isImageToVideo) {
+                         endpoint = '/api/generate/video/sora-2_0/i2v'
+                         formData.append('img_url', imgUrl)
+                     } else {
+                         endpoint = '/api/generate/video/sora-2_0/t2v'
+                     }
+                } else { throw new Error(`Unknown model: ${currentModel}`) }
 
-            const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
-            if (!response.ok) throw new Error(`Failed: ${response.status}`)
-            const genRes = await response.json()
-            toast.info(`Đang tạo video... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
-            if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
-            
-            const checkStatus = async () => {
-                try {
-                    const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${encodeURIComponent(genRes.job_id)}`)
-                    setCurrentJobStatus(statusRes.status)
-                    if (statusRes.status === 'completed' && statusRes.result) {
-                        setResult({ video_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
-                        setSelectedJob({ job_id: genRes.job_id, output_url: statusRes.result, prompt, model } as any)
-                        setLoading(false)
-                        toast.success('✅ Tạo video thành công!')
-                        fetchRecentJobs()
-                    } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                        setError(statusRes.error_message || "Failed")
-                        setLoading(false)
-                        toast.error(statusRes.error_message || "Failed")
-                    } else { setTimeout(checkStatus, 15000) }
-                } catch (e) { setLoading(false) }
+                const response = await fetch(`${NEXT_PUBLIC_API}${endpoint}`, { method: 'POST', body: formData, headers: { ...getAuthHeader() } })
+                if (!response.ok) throw new Error(`Failed: ${response.status}`)
+                const genRes = await response.json()
+                
+                toast.info(`Task submitted! (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
+                
+                updateOptimisticJob(tempId, genRes.job_id);
+
+            } catch (e: any) {
+                console.error("Background generation error:", e)
+                toast.error(`Generation failed: ${e.message}`)
             }
-            setTimeout(checkStatus, 35000)
-        } catch (e: any) {
-            console.error(e)
-            setError(e.message)
-            setLoading(false)
-            toast.error(e.message)
-        }
+        })();
     }
 
     return (
@@ -551,55 +530,20 @@ export function VideoGenerator() {
                     </button>
                 </div>
 
-                {/* Recent Jobs Card */}
+                {/* Recent Jobs Card Unified */}
                 <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
                         <VideoIcon className="text-[#B0B8C4] w-4 h-4" />
                         Thư viện gần đây
                     </h3>
-                    <div className="flex flex-col gap-3">
-                        {recentJobs.length === 0 ? (
-                            <p className="text-xs text-[#6B7280] italic">Chưa có lịch sử</p>
-                        ) : (
-                            recentJobs.map(job => (
-                                <div 
-                                    key={job.job_id} 
-                                    onClick={() => {
-                                        if (job.status === 'completed' && job.output_url) {
-                                            setResult({ video_url: job.output_url, job_id: job.job_id, status: 'completed' })
-                                            setSelectedJob(job)
-                                        }
-                                    }}
-                                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
-                                >
-                                    <div className="size-10 rounded-lg bg-black/50 flex items-center justify-center border border-white/10 text-[#6B7280]">
-                                        <Play className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-white truncate group-hover:text-[#00BCD4]">{job.prompt}</p>
-                                        <p className="text-[10px] text-[#6B7280]">
-                                            {new Date(job.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <div className={cn(
-                                            "size-6 rounded-full flex items-center justify-center border",
-                                            job.status === 'completed' ? "border-green-500/30 bg-green-500/10" : "border-yellow-500/30 bg-yellow-500/10"
-                                        )}>
-                                            {job.status === 'completed' ? <CheckIcon className="text-green-500 w-3 h-3" /> : <Loader2 className="text-yellow-500 w-3 h-3 animate-spin" />}
-                                        </div>
-                                        <button
-                                            onClick={(e) => handleDeleteJob(e, job.job_id)}
-                                            className="size-8 rounded-lg flex items-center justify-center text-[#6B7280] hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
-                                            title="Xóa"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    <RecentGenerations 
+                        onSelectJob={(job) => {
+                             if (job.status === 'completed' && job.output_url) {
+                                 setResult({ video_url: job.output_url, job_id: job.job_id, status: 'completed' })
+                                 setSelectedJob(job)
+                             }
+                        }}
+                    />
                 </div>
             </aside>
 

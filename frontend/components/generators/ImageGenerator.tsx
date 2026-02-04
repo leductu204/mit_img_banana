@@ -12,6 +12,8 @@ import { getModelConfig, IMAGE_MODELS } from "@/lib/models-config"
 
 // UI Components
 import Button from "../common/Button"
+import RecentGenerations from "../studio/RecentGenerations"
+import { useGlobalJobs } from "@/contexts/JobsContext"
 import { 
     Settings2, 
     History as HistoryIcon, 
@@ -49,12 +51,11 @@ export function ImageGenerator() {
     const [keepStyle, setKeepStyle] = useState(true)
     const [showCreditsModal, setShowCreditsModal] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
-    const [currentJobStatus, setCurrentJobStatus] = useState<string>("")
     const [selectedJob, setSelectedJob] = useState<Job | null>(null)
     const [showMetadata, setShowMetadata] = useState(false)
     
-    // History state for the left sidebar
-    const [recentJobs, setRecentJobs] = useState<Job[]>([])
+    // Inject Global Jobs Context
+    const { addOptimisticJob, updateOptimisticJob } = useGlobalJobs();
 
     const { isAuthenticated, login } = useAuth()
     const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -73,30 +74,8 @@ export function ImageGenerator() {
     const toast = useToast()
     const router = useRouter()
 
-    // Load recent jobs
-    const fetchRecentJobs = () => {
-        if (isAuthenticated) {
-            apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2i&limit=5').then(res => {
-                setRecentJobs(res.jobs || [])
-            }).catch(console.error)
-        }
-    }
-
-    useEffect(() => {
-        fetchRecentJobs()
-    }, [isAuthenticated, currentJobStatus])
-
     const handleDeleteJob = async (e: React.MouseEvent, jobId: string) => {
-        e.stopPropagation();
-        if (!confirm('Bạn có chắc chắn muốn xóa lịch sử này?')) return;
-        
-        try {
-            await apiRequest(`/api/jobs/${jobId}`, { method: 'DELETE' });
-            toast.success('Đã xóa thành công');
-            fetchRecentJobs();
-        } catch (err: any) {
-            toast.error(err.message || 'Xóa thất bại');
-        }
+        // Handled globally in RecentGenerations now, but kept safe if needed
     };
 
     // Filter active models
@@ -197,98 +176,108 @@ export function ImageGenerator() {
         if (!isAuthenticated) { login(); return }
         if (!hasEnoughCredits(estimatedCost)) { setShowCreditsModal(true); return }
 
-        setResult(null)
-        if (model.toLowerCase().includes("nano banana") || model.toLowerCase().includes("nano-banana")) {
-            setLoading(true)
-            setError(null)
+        // 1. Capture current state for the background task
+        const currentPrompt = prompt;
+        const currentModel = model;
+        const currentReferenceImages = [...referenceImages]; // copy array
+        const currentAspectRatio = aspectRatio;
+        const currentQuality = quality;
+        const currentSpeed = speed;
+
+        // 2. Optimistic Update - Show in UI immediately
+        const tempId = addOptimisticJob({
+            model: currentModel,
+            prompt: currentPrompt,
+            type: isImageToImage ? 'i2i' : 't2i',
+            status: 'pending'
+        });
+
+        // 3. Reset Form & UI state Immediately (Fire & Forget UI)
+        setPrompt("");
+        setReferenceImages([]);
+        // Do NOT set loading to true effectively for the user, or set it false immediately
+        // We actually don't want the big spinner to block the generic view if we want "queue" style.
+        // But the user might want to see *some* indication it was received.
+        // Toast handles "Task started".
+        // Let's set loading(false) strictly to ensure inputs are unlocked.
+        setLoading(false); 
+        setResult(null);
+        setError(null);
+
+        // 4. Background Process
+        (async () => {
             try {
                 const inputImages = []
-                if (referenceImages.length > 0) {
+                if (currentReferenceImages.length > 0) {
                     // Determine if this is a Google model (needs different upload endpoint)
-                    const isGoogleModel = ['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(model);
+                    const isGoogleModel = ['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(currentModel);
                     
-                    for (let i = 0; i < referenceImages.length; i++) {
-                         const file = referenceImages[i]
-                         
-                         if (isGoogleModel) {
-                             // Google models use a different upload endpoint that returns mediaGenerationId (CAM format)
-                             const formData = new FormData();
-                             formData.append('image', file);
-                             const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
-                                 method: 'POST',
-                                 body: formData,
-                                 headers: {} // Let browser set Content-Type for FormData
-                             });
-                             // Google upload returns 'id' as mediaGenerationId (CAM...), no width/height
-                             inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url || '', width: 0, height: 0 });
-                         } else {
-                             // Higgsfield models use presigned URL upload
-                             const endpoint = i === 0 ? '/api/generate/image/upload' : '/api/generate/image/upload/batch'
-                             const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>(endpoint, { method: 'POST' })
-                             await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
-                             await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
-                             const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
-                             inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height })
-                         }
+                    for (let i = 0; i < currentReferenceImages.length; i++) {
+                            const file = currentReferenceImages[i]
+                            
+                            if (isGoogleModel) {
+                                // Google models use a different upload endpoint
+                                const formData = new FormData();
+                                formData.append('image', file);
+                                const uploadInfo = await apiRequest<{ id: string, url: string }>('/api/generate/image/google/upload', {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: {} 
+                                });
+                                inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url || '', width: 0, height: 0 });
+                            } else {
+                                // Higgsfield models use presigned URL upload
+                                const endpoint = i === 0 ? '/api/generate/image/upload' : '/api/generate/image/upload/batch'
+                                const uploadInfo = await apiRequest<{ id: string, url: string, upload_url: string }>(endpoint, { method: 'POST' })
+                                await fetch(uploadInfo.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+                                await apiRequest('/api/generate/image/upload/check', { method: 'POST', body: JSON.stringify({ img_id: uploadInfo.id }) })
+                                const { width, height } = await getImageDimensionsFromUrl(uploadInfo.url)
+                                inputImages.push({ type: "media_input", id: uploadInfo.id, url: uploadInfo.url, width, height })
+                            }
                     }
                 }
 
                 // Determine endpoint based on model
                 let endpoint = '';
-                if (model === 'nano-banana-cheap') endpoint = '/api/generate/image/nano-banana-cheap/generate';
-                else if (model === 'nano-banana-pro-cheap') endpoint = '/api/generate/image/nano-banana-pro-cheap/generate';
-                else if (model === 'image-4.0') endpoint = '/api/generate/image/image-4.0/generate';
-                else if (model === 'nano-banana-pro') endpoint = '/api/generate/image/nano-banana-pro/generate';
+                if (currentModel === 'nano-banana-cheap') endpoint = '/api/generate/image/nano-banana-cheap/generate';
+                else if (currentModel === 'nano-banana-pro-cheap') endpoint = '/api/generate/image/nano-banana-pro-cheap/generate';
+                else if (currentModel === 'image-4.0') endpoint = '/api/generate/image/image-4.0/generate';
+                else if (currentModel === 'nano-banana-pro') endpoint = '/api/generate/image/nano-banana-pro/generate';
                 else endpoint = '/api/generate/image/nano-banana/generate';
 
-                const modelConfig = getModelConfig(model, 'image');
+                const modelConfig = getModelConfig(currentModel, 'image');
                 const isPro = modelConfig?.resolutions && modelConfig.resolutions.length > 0;
-                // const endpoint = isPro ? '/api/generate/image/nano-banana-pro/generate' : '/api/generate/image/nano-banana/generate';
                 
-                const payload: any = { prompt, input_images: inputImages, aspect_ratio: aspectRatio };
+                const payload: any = { prompt: currentPrompt, input_images: inputImages, aspect_ratio: currentAspectRatio };
                 
                 // Only include speed for Higgsfield models
-                if (!['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(model)) {
-                    payload.speed = speed;
+                if (!['nano-banana-cheap', 'nano-banana-pro-cheap', 'image-4.0'].includes(currentModel)) {
+                    payload.speed = currentSpeed;
                 }
 
-                if (isPro) payload.resolution = quality;
+                if (isPro) payload.resolution = currentQuality;
 
                 const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, { method: 'POST', body: JSON.stringify(payload) })
-                toast.info(`Đang tạo ảnh... (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                
+                toast.info(`Task submitted successfully!`, 2000)
                 if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
 
-                const checkStatus = async () => {
-                    try {
-                        const statusRes = await apiRequest<{ status: string, result?: string, error_message?: string }>(`/api/jobs/${genRes.job_id}`)
-                        setCurrentJobStatus(statusRes.status)
-                        if (statusRes.status === 'completed' && statusRes.result) {
-                            setResult({ image_url: statusRes.result, job_id: genRes.job_id, status: 'completed' })
-                            setSelectedJob({ job_id: genRes.job_id, output_url: statusRes.result, prompt, model } as any)
-                            setLoading(false)
-                            toast.success('✅ Tạo ảnh thành công!')
-                             apiRequest<{ jobs: Job[] }>('/api/users/me/jobs?type=t2i&limit=5').then(res => setRecentJobs(res.jobs || []))
-                        } else if (statusRes.status === 'failed' || statusRes.status === 'error') {
-                            setError(statusRes.error_message || "Failed")
-                            setLoading(false)
-                            toast.error(statusRes.error_message || "Failed")
-                        } else {
-                            setTimeout(checkStatus, 3000)
-                        }
-                    } catch (e) { setLoading(false) }
-                }
-                setTimeout(checkStatus, 2000)
-                return
+                // Update Optimistic Job with Real ID
+                updateOptimisticJob(tempId, genRes.job_id);
+                // No local polling needed, global context handles it.
+
             } catch (e: any) {
-                console.error(e)
-                setError(e.message)
-                setLoading(false)
-                toast.error(e.message)
-                return
+                console.error("Background generation error:", e)
+                // We should update the optimistic job to failed if possible, 
+                // but we only have tempId. 
+                // Ideally updateOptimisticJob supports marking as error without job_id?
+                // For now, we unfortunately can't update the specific card status without a real Job ID if the initial request failed entirely.
+                // We can at least toast.
+                toast.error(`Generation failed: ${e.message}`)
+                // In a perfect world, we'd have a 'failOptimisticJob(tempId)' function.
             }
-        }
-        setResult(null)
-        await generate({ prompt, model, aspect_ratio: aspectRatio, resolution: quality, image_url: referenceImages.length > 0 ? URL.createObjectURL(referenceImages[0]) : undefined, keep_style: isImageToImage ? keepStyle : undefined })
+        })();
+        
     }
 
     return (
@@ -415,7 +404,7 @@ export function ImageGenerator() {
                     {/* Generate Button - Primary CTA */}
                     <button 
                         onClick={handleGenerate}
-                        disabled={loading || !prompt.trim() || (isAuthenticated && balance < estimatedCost)}
+                        disabled={!prompt.trim() || (isAuthenticated && balance < estimatedCost)}
                         className={cn(
                             "w-full h-12 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98]",
                             loading 
@@ -437,65 +426,21 @@ export function ImageGenerator() {
                     </button>
                 </div>
 
-                {/* Recent Jobs Card */}
+                {/* Recent Jobs Card - Unified */}
                 <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
                         <Images className="text-[#B0B8C4] w-4 h-4" />
                         Thư viện gần đây
                     </h3>
-                    <div className="flex flex-col gap-3">
-                        {recentJobs.length === 0 ? (
-                            <p className="text-xs text-[#6B7280] italic">Chưa có lịch sử</p>
-                        ) : (
-                            recentJobs.map(job => (
-                                <div 
-                                    key={job.job_id} 
-                                    onClick={() => {
-                                        if (job.status === 'completed' && job.output_url) {
-                                            setResult({ image_url: job.output_url, job_id: job.job_id, status: 'completed' })
-                                            setSelectedJob(job)
-                                        }
-                                    }}
-                                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
-                                >
-                                    <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10 bg-[#0A0E13]">
-                                        {job.output_url ? (
-                                            <img src={job.output_url} alt="Thumbnail" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <LucideImage className="w-4 h-4 text-[#6B7280]" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-white truncate group-hover:text-[#00BCD4]">{job.prompt}</p>
-                                        <p className="text-[10px] text-[#6B7280]">
-                                            {new Date(job.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <div className={cn(
-                                            "size-6 rounded-full flex items-center justify-center border",
-                                            job.status === 'completed' ? "border-green-500/30 bg-green-500/10" : "border-yellow-500/30 bg-yellow-500/10"
-                                        )}>
-                                            {job.status === 'completed' ? (
-                                                <CheckIcon className="text-green-500 w-3 h-3" />
-                                            ) : (
-                                                <Loader2 className="text-yellow-500 w-3 h-3 animate-spin" />
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={(e) => handleDeleteJob(e, job.job_id)}
-                                            className="size-8 rounded-lg flex items-center justify-center text-[#6B7280] hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
-                                            title="Xóa"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    <RecentGenerations 
+                        onSelectJob={(job) => {
+                             if (job.status === 'completed' && job.output_url) {
+                                 setResult({ image_url: job.output_url, job_id: job.job_id, status: 'completed' })
+                                 setSelectedJob(job)
+                                 // Optionally switch view to this job
+                             }
+                        }}
+                    />
                 </div>
             </aside>
 
@@ -605,7 +550,7 @@ export function ImageGenerator() {
                                     <div className="w-16 h-16 rounded-full border-4 border-[#252D3D] border-t-[#00BCD4] animate-spin" />
                                 </div>
                                 <p className="text-sm font-medium">
-                                    {currentJobStatus === 'pending' ? 'Đang hàng đợi... Vui lòng đợi' : 'Đang xử lý...'}
+                                    Đang xử lý...
                                 </p>
                             </div>
                         ) : (

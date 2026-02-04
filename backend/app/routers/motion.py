@@ -65,6 +65,46 @@ async def estimate_motion_cost(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/upload-image")
+async def upload_character_image(
+    character_image: UploadFile = File(...),
+    account_id: Optional[int] = Form(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Upload character image directly to Kling.
+    Returns the Kling URL for the image.
+    """
+    try:
+        # Select Kling account
+        if account_id:
+            client = KlingClient.create_from_account(account_id)
+            selected_account_id = account_id
+        else:
+            accounts = kling_accounts_repo.list_accounts(active_only=True)
+            if not accounts:
+                raise HTTPException(status_code=503, detail="No active Kling accounts available")
+            selected_account_id = accounts[0]['account_id']
+            client = KlingClient.create_from_account(selected_account_id)
+
+        # Upload image to Kling
+        image_bytes = await character_image.read()
+        logger.info(f"Uploading character image to Kling ({len(image_bytes)} bytes)...")
+        image_url = client.upload_image_bytes(image_bytes, "character.png")
+        
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload character image")
+
+        return {
+            "image_url": image_url,
+            "account_id": selected_account_id
+        }
+
+    except Exception as e:
+        logger.error(f"Image upload failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/generate")
 async def generate_motion(
     motion_video: Optional[UploadFile] = File(None),
@@ -72,7 +112,8 @@ async def generate_motion(
     motion_video_url: Optional[str] = Form(None),
     video_cover_url: Optional[str] = Form(None),
     duration: Optional[float] = Form(None),
-    character_image: UploadFile = File(...),
+    character_image: Optional[UploadFile] = File(None),
+    character_image_url: Optional[str] = Form(None),
     mode: str = Form("std"),
     background_source: str = Form("input_image"),
     account_id: Optional[int] = Form(None),
@@ -80,7 +121,9 @@ async def generate_motion(
 ):
     """
     Generate motion control video.
-    Supports either uploading a new video OR providing an existing video_id (from estimate-cost).
+    Supports:
+    1. Pre-uploaded video URL (from estimate-cost)
+    2. Pre-uploaded image URL (from upload-image) OR File upload
     """
     try:
         # Get Kling client
@@ -98,7 +141,7 @@ async def generate_motion(
             raise HTTPException(status_code=400, detail="motion_video_url is required (from estimate-cost)")
         
         video_url = motion_video_url
-        video_cover_url = motion_video_url  # Placeholder - ideally frontend passes this
+        video_cover_url = video_cover_url or motion_video_url 
 
         # 3. Get Configurable Fixed Cost
         config_key = "1080p" if mode == "pro" else "720p"
@@ -146,16 +189,17 @@ async def generate_motion(
                 }
             )
             
-        # 6. Upload Character Image to Kling (Required for queuing)
-        # We must do this BEFORE creating the job so we can store the URL
-        image_bytes = await character_image.read()
-        logger.info(f"Uploading character image to Kling ({len(image_bytes)} bytes)...")
-        image_url = client.upload_image_bytes(image_bytes, "character.png")
-        
-        if not image_url:
-            raise HTTPException(status_code=500, detail="Failed to upload character image")
-            
-        logger.info(f"Image uploaded: {image_url}")
+        # 6. Resolve Character Image URL
+        image_url = character_image_url
+        if not image_url and character_image:
+            image_bytes = await character_image.read()
+            logger.info(f"Uploading character image to Kling ({len(image_bytes)} bytes)...")
+            image_url = client.upload_image_bytes(image_bytes, "character.png")
+            if not image_url:
+                raise HTTPException(status_code=500, detail="Failed to upload character image")
+            logger.info(f"Image uploaded: {image_url}")
+        elif not image_url and not character_image:
+            raise HTTPException(status_code=400, detail="Either character_image (file) or character_image_url is required")
 
         # Prepare Job ID (Local UUID)
         job_id = str(uuid.uuid4())
@@ -173,7 +217,7 @@ async def generate_motion(
                 "mode": mode,
                 "background_source": background_source,
                 "video_url": video_url,
-                "video_cover_url": video_cover_url or video_url, # Store cover url too
+                "video_cover_url": video_cover_url,
                 "modal_id": KlingClient.DEFAULT_MODAL_ID
             }),
             input_images=json.dumps([{"url": image_url}]), # Store character image for Dispatcher

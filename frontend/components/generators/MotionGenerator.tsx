@@ -11,6 +11,10 @@ import { NEXT_PUBLIC_API } from "@/lib/config"
 import FileUpload from "./FileUpload"
 import { Switch } from "@/components/ui/switch"
 import QualitySelector from "./QualitySelector"
+import RecentGenerations from "../studio/RecentGenerations"
+import { useGlobalJobs } from "@/contexts/JobsContext"
+import { Job } from "@/hooks/useJobs"
+
 import { 
     Video as VideoIcon, 
     Image as LucideImage, 
@@ -29,11 +33,12 @@ import Button from "../common/Button"
 export function MotionGenerator() {
     const { isAuthenticated, login, user } = useAuth()
     const toast = useToast()
-    
+    const { addOptimisticJob, updateOptimisticJob } = useGlobalJobs();
     // State
     const [motionVideo, setMotionVideo] = useState<File | null>(null)
     const [characterImage, setCharacterImage] = useState<File | null>(null)
     const [quality, setQuality] = useState("1080p")
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<string | null>(null)
@@ -49,6 +54,9 @@ export function MotionGenerator() {
             "1080p": number
         }
     } | null>(null)
+
+    const [characterImageUrl, setCharacterImageUrl] = useState<string | null>(null)
+    const [analyzingImage, setAnalyzingImage] = useState(false)
 
     // Analyze video when uploaded
     const handleVideoSelect = async (file: File | null) => {
@@ -90,11 +98,53 @@ export function MotionGenerator() {
                 
                 const data = await response.json()
                 setVideoData(data)
+                toast.success("Video đã phân tích thành công!")
             } catch (error) {
                 console.error("Video analysis failed", error)
                 toast.error("Không thể phân tích video. Vui lòng thử lại.")
             } finally {
                 setAnalyzing(false)
+            }
+        }
+    }
+
+    // Upload Image when selected
+    const handleImageSelect = async (file: File | null) => {
+        setCharacterImage(file)
+        setCharacterImageUrl(null)
+
+        if (file) {
+             if (!isAuthenticated) {
+                toast.error("Vui lòng đăng nhập.")
+                return
+            }
+            
+            setAnalyzingImage(true)
+            try {
+                const formData = new FormData()
+                formData.append("character_image", file)
+                // Use account_id from video if available to keep it consistent, though not strictly required
+                if (videoData && videoData.account_id) {
+                    formData.append("account_id", videoData.account_id.toString())
+                }
+
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/upload-image`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${getToken()}` },
+                    body: formData
+                })
+
+                if (!response.ok) throw new Error("Upload failed")
+
+                const data = await response.json()
+                setCharacterImageUrl(data.image_url)
+                toast.success("Ảnh đã được tải lên!")
+
+            } catch (error) {
+                console.error("Image upload failed", error)
+                toast.error("Không thể tải lên ảnh.")
+            } finally {
+                setAnalyzingImage(false)
             }
         }
     }
@@ -105,83 +155,82 @@ export function MotionGenerator() {
             login()
             return
         }
-        if (!motionVideo || !characterImage) {
-            toast.error("Vui lòng tải lên cả Video chuyển động và Ảnh nhân vật.")
+        if (!videoData || !characterImageUrl) {
+            toast.error("Vui lòng đợi Video và Ảnh được tải lên hoàn tất.")
             return
         }
         
-        setLoading(true)
+        // 1. Capture State
+        const currentQuality = quality;
+        const currentVideoData = videoData;
+        const currentCharacterImageUrl = characterImageUrl;
+
+        // 2. Optimistic Update
+        const tempId = addOptimisticJob({
+            model: "Motion Force",
+            prompt: "Motion Transfer",
+            type: "motion",
+            status: "pending"
+        });
+
+        // 3. Instant UI Reset
+        setLoading(false)
         setResult(null)
+        
+        // Reset Inputs
+        setMotionVideo(null);
+        setCharacterImage(null);
+        setVideoData(null);
+        setCharacterImageUrl(null);
 
-        try {
-            const formData = new FormData()
-           if (videoData && videoData.video_url) {
-                // Use pre-uploaded video from estimate-cost
-                formData.append("motion_video_url", videoData.video_url)
-                formData.append("video_cover_url", videoData.video_cover_url)
-                if (videoData.account_id) {
-                    formData.append("account_id", videoData.account_id.toString())
+        // 4. Background Task
+        (async () => {
+            try {
+                const formData = new FormData()
+                // Send URLs
+                formData.append("motion_video_url", currentVideoData.video_url)
+                formData.append("video_cover_url", currentVideoData.video_cover_url)
+                formData.append("character_image_url", currentCharacterImageUrl)
+                
+                if (currentVideoData.account_id) {
+                    formData.append("account_id", currentVideoData.account_id.toString())
                 }
-            } else {
-                // Fallback (shouldn't happen if analysis works)
-                formData.append("motion_video", motionVideo)
-            }
-            
-            formData.append("character_image", characterImage)
-            // Quality mapping: 720p -> std, 1080p -> pro
-            formData.append("mode", quality === '1080p' ? 'pro' : 'std')
+                
+                // Quality mapping: 720p -> std, 1080p -> pro
+                formData.append("mode", currentQuality === '1080p' ? 'pro' : 'std')
 
+                // 1. Trigger Generation
+                const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}` 
+                    },
+                    body: formData
+                })
 
-            // 1. Trigger Generation
-            const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/generate`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${getToken()}` 
-                },
-                body: formData
-            })
-
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.detail || "Generation failed")
-            }
-
-            const data = await response.json()
-            const jobId = data.job_id
-            toast.success("Đang xử lý Motion Control...")
-
-            // 2. Poll for status
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusRes = await fetch(`${NEXT_PUBLIC_API}/api/jobs/${jobId}`, {
-                        headers: { 'Authorization': `Bearer ${getToken()}` }
-                    })
-                    const statusData = await statusRes.json()
-
-                    if (statusData.status === 'completed') {
-                        clearInterval(pollInterval)
-                        setLoading(false)
-                        setResult(statusData.result.url || statusData.result) // Adapt to actual response structure
-                        toast.success("Motion Video đã hoàn thành!")
-                    } else if (statusData.status === 'failed' || statusData.status === 'error') {
-                        clearInterval(pollInterval)
-                        setLoading(false)
-                        toast.error(`Lỗi: ${statusData.error || "Unknown error"}`)
-                    }
-                } catch (e) {
-                    console.error("Polling error", e)
+                if (!response.ok) {
+                    const error = await response.json()
+                    throw new Error(error.detail || "Generation failed")
                 }
-            }, 3000)
 
-        } catch (error: any) {
-            setLoading(false)
-            toast.error(error.message)
-        }
+                const data = await response.json()
+                const jobId = data.job_id
+                toast.success("Task submitted!")
+                
+                updateOptimisticJob(tempId, jobId);
+
+            } catch (error: any) {
+                console.error("Motion generation error", error)
+                toast.error(error.message)
+            }
+        })();
     }
 
     const handleReset = () => {
         setMotionVideo(null)
         setCharacterImage(null)
+        setVideoData(null)
+        setCharacterImageUrl(null)
         setQuality("1080p")
         setResult(null)
     }
@@ -236,10 +285,11 @@ export function MotionGenerator() {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
                             <FileUpload
+                                selectedFile={motionVideo}
                                 onFileSelected={handleVideoSelect}
                                 accept="video/*"
-                                label="Add motion to copy"
-                                subtext="Video duration: 3-30 seconds"
+                                label="Tải lên video gốc cần copy"
+                                subtext="Thời lượng video: 3-30 giây"
                                 icon={VideoIcon}
                                 maxSizeMB={100}
                                 className="aspect-[3/4] p-4 border-dashed border-2 border-white/20 hover:border-white/40 bg-transparent rounded-2xl"
@@ -248,10 +298,11 @@ export function MotionGenerator() {
 
                         <div className="space-y-2">
                              <FileUpload
-                                onFileSelected={setCharacterImage}
+                                selectedFile={characterImage}
+                                onFileSelected={handleImageSelect}
                                 accept="image/*"
-                                label="Add your character"
-                                subtext="Image with visible face and body"
+                                label="Tải lên ảnh nhân vật của bạn"
+                                subtext="Ảnh có khuôn mặt và cơ thể rõ ràng"
                                 icon={Plus}
                                 className="aspect-[3/4] p-4 border-dashed border-2 border-white/20 hover:border-white/40 bg-transparent rounded-2xl"
                             />
@@ -272,20 +323,20 @@ export function MotionGenerator() {
                             loading || 
                             !isAuthenticated || 
                             analyzing || 
-                            !motionVideo || 
-                            !characterImage || 
-                            !videoData ||
+                            analyzingImage ||
+                            !videoData || 
+                            !characterImageUrl || 
                             (!!user && !!videoData && user.credits < (quality === '1080p' ? videoData.costs["1080p"] : videoData.costs["720p"]))
                         }
                         className={cn(
                             "w-full h-12 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98]",
-                            (loading || analyzing || !motionVideo || !characterImage || (!!user && !!videoData && user.credits < (quality === '1080p' ? videoData.costs["1080p"] : videoData.costs["720p"]))) 
+                            (loading || analyzing || analyzingImage || !videoData || !characterImageUrl || (!!user && !!videoData && user.credits < (quality === '1080p' ? videoData.costs["1080p"] : videoData.costs["720p"]))) 
                                 ? "bg-[#00BCD4]/50 cursor-not-allowed" 
                                 : "bg-[#00BCD4] hover:bg-[#22D3EE] shadow-[0_0_15px_rgba(0,188,212,0.3)]"
                         )}
                     >
-                        {loading || analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Clapperboard className="w-5 h-5" />}
-                        {loading ? "Đang xử lý..." : analyzing ? "Đang tính phí..." : "Tạo Motion Video"}
+                        {loading || analyzing || analyzingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Clapperboard className="w-5 h-5" />}
+                        {loading ? "Đang xử lý..." : analyzing ? "Đang phân tích video..." : analyzingImage ? "Đang tải ảnh..." : "Tạo video"}
                         
                         {!loading && videoData && (
                             <span className="ml-2 px-2.5 py-1 rounded-full bg-black/20 border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-colors group-hover:bg-black/30">
@@ -294,6 +345,24 @@ export function MotionGenerator() {
                         )}
                     </button>
                 </div>
+
+                {/* Recent Jobs Card Unified */}
+                <div className="bg-[#252D3D] rounded-2xl border border-white/10 shadow-lg p-5 flex flex-col gap-4">
+                    <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                        <HistoryIcon className="text-[#B0B8C4] w-4 h-4" />
+                        Thư viện gần đây
+                    </h3>
+                    <RecentGenerations 
+                        onSelectJob={(job) => {
+                             if (job.status === 'completed' && job.output_url) {
+                                 setResult(job.output_url)
+                                 setSelectedJob(job)
+                             }
+                        }}
+                    />
+                </div>
+
+
             </aside>
 
             {/* Right Panel - Preview */}
@@ -333,7 +402,7 @@ export function MotionGenerator() {
                                 <div>
                                     <h3 className="text-xl font-bold text-white mb-2">Chưa có video nào được tạo</h3>
                                     <p className="text-[#B0B8C4] text-sm leading-relaxed">
-                                        Nhập mô tả ở bảng bên trái và nhấn "Tạo Motion Video" để bắt đầu quá trình sáng tạo của bạn.
+                                        Nhập mô tả ở bảng bên trái và nhấn "Tạo video" để bắt đầu quá trình sáng tạo của bạn.
                                     </p>
                                 </div>
                             </div>

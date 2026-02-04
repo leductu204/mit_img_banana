@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useJobs, Job } from "@/hooks/useJobs"
+import { useGlobalJobs } from "@/contexts/JobsContext"
 import { cleanPrompt } from "@/lib/prompt-utils"
 import { getAuthHeader } from "@/lib/auth"
 import { Loader2, Image as ImageIcon, Video as VideoIcon, Play, Trash2, Eye, EyeOff } from "lucide-react"
@@ -15,23 +16,13 @@ interface HistorySidebarProps {
 }
 
 export default function HistorySidebar({ type, onSelect, selectedJobId }: HistorySidebarProps) {
-    const { jobs, getMyJobs, loading } = useJobs();
+    const { jobs, loading, removeJob } = useGlobalJobs();
     const { isAuthenticated } = useAuth();
     const { preferences, toggleHistorySidebar } = useUserPreferences();
-    const [hasMore, setHasMore] = useState(true);
-    const [page, setPage] = useState(1);
-
-    // Initial fetch - get ALL jobs to show pending, processing, and completed
-    useEffect(() => {
-        if (isAuthenticated) {
-            // Fetch all jobs without status filter to show queue status
-            getMyJobs(1, 20); // No status filter = all jobs
-        }
-    }, [isAuthenticated, getMyJobs]);
 
     const filteredJobs = (jobs || []).filter(job => {
         if (type === 'image') return job.type === 't2i' || job.type === 'i2i';
-        if (type === 'video') return job.type === 't2v' || job.type === 'i2v';
+        if (type === 'video') return job.type === 't2v' || job.type === 'i2v' || job.type === 'motion';
         return true;
     });
 
@@ -43,32 +34,12 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
         }
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API}/api/jobs/${jobId}`, {
-                method: 'DELETE',
-                headers: {
-                    ...getAuthHeader()
-                },
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-                    window.location.href = '/login';
-                    return;
-                }
-                throw new Error('Failed to delete');
-            }
-
-            // Refresh the job list
-            getMyJobs(1, 20); // Fetch all jobs
+            await removeJob(jobId);
         } catch (error) {
             console.error('Delete failed:', error);
             alert('Không thể xóa công việc. Vui lòng thử lại.');
         }
     };
-
-    // cleanPrompt is now imported from @/lib/prompt-utils
 
     if (!isAuthenticated) return null;
 
@@ -127,7 +98,7 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
 
                             {/* Content */}
                             {job.output_url ? (
-                                type === 'image' ? (
+                                type === 'image' && !job.type.includes('v') && job.type !== 'motion' ? (
                                     <img 
                                         src={job.output_url} 
                                         alt={job.prompt} 
@@ -136,12 +107,20 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
                                     />
                                 ) : (
                                     <div className="w-full h-full relative">
-                                         <video 
-                                            src={job.output_url} 
-                                            className="w-full h-full object-cover"
-                                            preload="metadata"
-                                            muted
-                                        />
+                                         {job.type.includes('v') || job.type === 'motion' ? (
+                                            <video 
+                                                src={job.output_url} 
+                                                className="w-full h-full object-cover"
+                                                preload="metadata"
+                                                muted
+                                            />
+                                         ) : (
+                                              <img 
+                                                src={job.output_url} 
+                                                alt={job.prompt} 
+                                                className="w-full h-full object-cover"
+                                            />
+                                         )}
                                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                             <Play className="w-8 h-8 text-white/80 fill-white/20" />
                                         </div>
@@ -152,7 +131,10 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
                                     {job.status === 'pending' || job.status === 'processing' ? (
                                         <Loader2 className="w-8 h-8 animate-spin" />
                                     ) : (
-                                        <span className="text-xs">Error</span>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className="text-xs">Error</span>
+                                             {job.status === 'failed' && <span className="text-[10px] text-center px-1">Failed</span>}
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -175,7 +157,7 @@ export default function HistorySidebar({ type, onSelect, selectedJobId }: Histor
                         </div>
                     ))}
                     
-                    {loading && (
+                    {loading && filteredJobs.length === 0 && (
                         <div className="col-span-full flex justify-center py-4">
                             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                         </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from "react";
 import { StudioProvider, useStudio } from "./StudioContext";
+
 import CategoryTabs from "./CategoryTabs";
 import FeatureSidebar from "./FeatureSidebar";
 import Header from "@/components/layout/Header";
