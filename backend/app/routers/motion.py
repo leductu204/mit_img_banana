@@ -12,7 +12,7 @@ from app.repositories import model_costs_repo
 from app.services.account_scheduler import account_scheduler
 from app.services.concurrency_service import ConcurrencyService
 
-from app.deps import get_current_user
+from app.deps import get_current_user, get_current_user_optional
 from app.schemas.users import UserInDB
 from app.schemas.jobs import JobCreate
 
@@ -57,8 +57,7 @@ async def estimate_motion_cost(
             "costs": {
                 "720p": cost_720p,
                 "1080p": cost_1080p
-            },
-            "account_id": selected_account_id
+            }
         }
     except Exception as e:
         logger.error(f"Estimation failed: {e}")
@@ -96,8 +95,7 @@ async def upload_character_image(
             raise HTTPException(status_code=500, detail="Failed to upload character image")
 
         return {
-            "image_url": image_url,
-            "account_id": selected_account_id
+            "image_url": image_url
         }
 
     except Exception as e:
@@ -116,7 +114,6 @@ async def generate_motion(
     character_image_url: Optional[str] = Form(None),
     mode: str = Form("std"),
     background_source: str = Form("input_image"),
-    account_id: Optional[int] = Form(None),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """
@@ -126,15 +123,12 @@ async def generate_motion(
     2. Pre-uploaded image URL (from upload-image) OR File upload
     """
     try:
-        # Get Kling client
-        if account_id:
-            client = KlingClient.create_from_account(account_id)
-        else:
-            accounts = kling_accounts_repo.list_accounts(active_only=True)
-            if not accounts:
-                raise HTTPException(status_code=503, detail="No active Kling accounts available")
-            selected_account_id = accounts[0]['account_id']
-            client = KlingClient.create_from_account(selected_account_id)
+        # Get Kling client (Automatic Selection)
+        accounts = kling_accounts_repo.list_accounts(active_only=True)
+        if not accounts:
+            raise HTTPException(status_code=503, detail="No active Kling accounts available")
+        selected_account_id = accounts[0]['account_id']
+        client = KlingClient.create_from_account(selected_account_id)
 
         # Get video URL and cover from form parameters
         if not motion_video_url:
@@ -206,9 +200,10 @@ async def generate_motion(
         status = "pending"
         
         # 7. Create Job Record (PENDING)
+        user_id = str(current_user.user_id)
         job_create = JobCreate(
             job_id=job_id,
-            user_id=current_user.user_id,
+            user_id=user_id,
             type=job_type,
             model="motion-control",
             status="pending",
@@ -218,7 +213,8 @@ async def generate_motion(
                 "background_source": background_source,
                 "video_url": video_url,
                 "video_cover_url": video_cover_url,
-                "modal_id": KlingClient.DEFAULT_MODAL_ID
+                "modal_id": KlingClient.DEFAULT_MODAL_ID,
+                "account_id": selected_account_id  # Store account for status checking
             }),
             input_images=json.dumps([{"url": image_url}]), # Store character image for Dispatcher
             credits_cost=cost,

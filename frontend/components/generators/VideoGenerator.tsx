@@ -297,7 +297,7 @@ export function VideoGenerator() {
                     if (!response.ok) throw new Error(`Failed: ${response.status}`)
                     const genRes = await response.json()
                     
-                    toast.info(`Task submitted! (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                    toast.success("Bạn vẫn đang còn có thể tạo tiếp ảnh/video mới. Tạo ngay", 5000)
                     if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
                     
                     updateOptimisticJob(tempId, genRes.job_id);
@@ -372,7 +372,7 @@ export function VideoGenerator() {
                 if (!response.ok) throw new Error(`Failed: ${response.status}`)
                 const genRes = await response.json()
                 
-                toast.info(`Task submitted! (Job ID: ${genRes.job_id.substring(0, 8)})`, 3000)
+                toast.success("Bạn vẫn đang còn có thể tạo tiếp ảnh/video mới. Tạo ngay", 3000)
                 if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
                 
                 updateOptimisticJob(tempId, genRes.job_id);

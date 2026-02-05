@@ -260,7 +260,7 @@ export function ImageGenerator() {
 
                 const genRes = await apiRequest<{ job_id: string, credits_remaining?: number }>(endpoint, { method: 'POST', body: JSON.stringify(payload) })
                 
-                toast.info(`Task submitted successfully!`, 2000)
+                toast.success("Bạn vẫn đang còn có thể tạo tiếp ảnh/video mới. Tạo ngay", 5000)
                 if (genRes.credits_remaining !== undefined) updateCredits(genRes.credits_remaining)
 
                 // Update Optimistic Job with Real ID

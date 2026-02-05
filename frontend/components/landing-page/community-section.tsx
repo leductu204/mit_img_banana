@@ -52,9 +52,12 @@ export function CommunitySection() {
               size="lg"
               variant="outline"
               className="w-full sm:w-auto gap-2 border-primary text-primary hover:bg-primary/10 rounded-full bg-transparent"
+              asChild
             >
-              Tham gia cộng đồng Zalo
-              <ArrowRight className="h-5 w-5" />
+              <a href="https://zalo.me/g/qobfqt070" target="_blank" rel="noopener noreferrer">
+                Tham gia cộng đồng Zalo
+                <ArrowRight className="h-5 w-5" />
+              </a>
             </Button>
           </div>
 

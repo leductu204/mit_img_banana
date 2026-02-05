@@ -45,7 +45,7 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
   }, [refreshTrigger]);
 
   const handleRevoke = async (keyId: string) => {
-    if (!confirm('Are you sure you want to revoke this key? This action cannot be undone.')) {
+    if (!confirm('Bạn có chắc chắn muốn thu hồi key này không? Hành động này không thể hoàn tác.')) {
       return;
     }
     
@@ -80,9 +80,9 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
         <div className="bg-gray-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
           <Key className="w-8 h-8 text-gray-500" />
         </div>
-        <h3 className="text-lg font-medium text-white mb-2">No API Keys Found</h3>
+        <h3 className="text-lg font-medium text-white mb-2">Không tìm thấy API Key nào</h3>
         <p className="text-gray-400 max-w-sm mx-auto">
-          Generate your first API key to start using our Public API endpoints.
+          Tạo API key đầu tiên để bắt đầu sử dụng các Public API endpoint của chúng tôi.
         </p>
       </div>
     );
@@ -94,11 +94,11 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-gray-800 bg-gray-900/50">
-              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Key Name/Prefix</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Balance</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Created</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tên Key/Prefix</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Trạng thái</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Số dư</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ngày tạo</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Hành động</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
@@ -121,7 +121,7 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                       : 'bg-red-500/10 text-red-400 border border-red-500/20'
                   }`}>
-                    {key.is_active ? 'Active' : 'Revoked'}
+                    {key.is_active ? 'Hoạt động' : 'Đã thu hồi'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -138,7 +138,7 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
                     <button
                       onClick={() => setTopUpKeyId(key.key_id)}
                       className="p-2 text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors"
-                      title="Transfer Credits"
+                      title="Chuyển Credits"
                     >
                       <CreditCard className="w-4 h-4" />
                     </button>
@@ -146,7 +146,7 @@ export default function APIKeyList({ refreshTrigger }: APIKeyListProps) {
                       onClick={() => handleRevoke(key.key_id)}
                       disabled={revokingKeyId === key.key_id}
                       className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                      title="Revoke Key"
+                      title="Thu hồi Key"
                     >
                       {revokingKeyId === key.key_id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

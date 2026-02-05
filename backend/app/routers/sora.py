@@ -8,6 +8,13 @@ import base64
 
 from app.services.providers.sora_client import sora_client_instance
 from app.deps import get_current_user
+from app.schemas.users import UserInDB
+from app.schemas.jobs import JobCreate
+from app.services.credits_service import credits_service, InsufficientCreditsError
+from app.services.concurrency_service import ConcurrencyService
+from app.repositories import jobs_repo, model_costs_repo
+import uuid
+import json
 
 router = APIRouter(tags=["sora"])
 
@@ -20,7 +27,7 @@ class SoraDownloadResponse(BaseModel):
 @router.post("/download", response_model=SoraDownloadResponse)
 async def download_sora_video(
     request: SoraDownloadRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """
     Get direct download link for a Sora video.
@@ -49,7 +56,7 @@ async def download_sora_video(
 @router.get("/proxy-download")
 def proxy_download_sora_video(
     url: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """
     Proxy the video download to enforce 'Save As' behavior and avoid new tab playback.
@@ -87,12 +94,66 @@ class SoraGenerateRequest(BaseModel):
 @router.post("/generate")
 async def generate_sora_video(
     request: SoraGenerateRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """
     Generate a Sora video using active tokens. Supports Text-to-Video and Image-to-Video.
+    Requires authentication and sufficient credits.
     """
     try:
+        # 0. Determine proper billing key/duration
+        billing_duration = f"{request.duration}s"
+        # Since repo has 10s and 15s. If 25s requested, we probably lack a cost entry.
+        # Let's map to existing costs or fallback.
+        if request.duration not in [10, 15]:
+            # Maybe fallback to highest cost?
+            billing_duration = "15s" # fallback
+        
+        # 1. Calculate Cost
+        # We assume "sora-2.0" is the model key in DB for billing
+        billing_model = "sora-2.0" 
+        cost_key = f"{billing_duration}-fast" # Assuming standard/fast speed for now
+        
+        cost = model_costs_repo.get_cost(billing_model, cost_key)
+        if cost is None:
+            # Fallback costs if DB missing entries
+            if request.duration == 10: cost = 20
+            elif request.duration >= 15: cost = 30
+            else: cost = 30
+            
+        # 2. Check Credits
+        from app.services.credits_service import credits_service, InsufficientCreditsError
+        has_enough, current_balance = credits_service.check_credits(
+            current_user.user_id, cost
+        )
+        
+        if not has_enough:
+             raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "Insufficient credits",
+                    "required": cost,
+                    "available": current_balance
+                }
+            )
+
+        # 3. Check Concurrency
+        from app.services.concurrency_service import ConcurrencyService
+        job_type = "i2v" if request.image else "t2v"
+        limit_check = ConcurrencyService.check_can_start_job(current_user.user_id, job_type)
+        can_start = limit_check.get("can_start", limit_check["allowed"])
+        can_queue = limit_check.get("can_queue", True)
+        
+        if not can_start and not can_queue:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Queue full",
+                    "message": limit_check.get("reason", "Queue limit reached."),
+                    "current_usage": limit_check.get("current_usage")
+                }
+            )
+
         # Determine n_frames based on duration
         n_frames = 450 # Default 15s
         if request.duration == 10:
@@ -100,73 +161,87 @@ async def generate_sora_video(
         elif request.duration == 25:
              n_frames = 750
         
-        # Handle Image Upload (I2V)
-        media_id = None
-        if request.image:
-            # 1. Get active token (we need it to upload)
-            # functionality of generate_video handles getting token, but we need it earlier for upload.
-            # SoraClient.generate_video gets the token inside. We should probably refactor or expose getting token.
-            # However, sora_client_instance.upload_image takes a token string.
-            # We need to get a valid token first.
-            
-            # Use sora_service to get the active token directly
-            from app.services.sora_service import sora_service
-            account = sora_service.get_active_token()
-            if not account:
-                raise HTTPException(status_code=400, detail="No active Sora account found for image upload.")
-            
-            token = account['access_token']
-            
-            # 2. Decode Base64
-            try:
-                # Handle data URI scheme if present (e.g. "data:image/png;base64,...")
-                image_str = request.image
-                if "," in image_str:
-                    image_str = image_str.split(",")[1]
-                
-                image_data = base64.b64decode(image_str)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid image base64: {str(e)}")
-
-            # 3. Upload Image
-            # We must pass the SAME token to generate_video to ensure consistency, 
-            # OR rely on generate_video picking the SAME account if we don't pass explicit token_id.
-            # Ideally, we should pass token_id to generate_video to be safe.
-            # checking sora_client.py: generate_video DOES NOT take a token object, it calls get_active_token internally unless we change it.
-            # IMPORTANT: SoraClient.generate_video calls sora_service.get_active_token() internally.
-            # If we call it twice, we might get different accounts if load balancing is round-robin!
-            # We should probably pass the token/token_id to generate_video.
-            # Looking at sora_client.py, generate_video signature:
-            # async def generate_video(self, prompt: str, model: str = "sy_8", n_frames: int = 450, orientation: str = "landscape", size: str = "small") -> str:
-            # It DOES NOT accept token or media_id yet in the signature shown in line 209 of previous view_file.
-            # Wait, I need to update SoraClient.generate_video signature to accept media_id and maybe explicit token.
-            
-            # Let's assume for now I will update SoraClient as well. This replace_file_content is for router.sw
-            # I will modify this router assuming I WILL update SoraClient to take media_id and token.
-            
-            # For now in this step, I'll just write the router logic assuming client update comes next.
-             
-            media_id = await sora_client_instance.upload_image(image_data, token)
+        # Prepare Job ID
+        job_id = str(uuid.uuid4())
+        status = "pending"
         
-        # Note: I need to update SoraClient.generate_video to accept media_id and allow passing a specific token/account 
-        # to ensure the upload and generation happen on the same account.
-        
-        # For this router change, I will assume sora_client_instance.generate_video will be updated to take `media_id`
-        # and `pre_selected_token` (or similar).
-        # Actually, looking at `sora_client.py`, it currently pulls a fresh token. 
-        # I MUST update `sora_client.py` first or concurrently.
-        # But this tool call is for `router.py`.
-        
-        # Let's change the plan slightly: Update router to use the new signature I AM ABOUT TO CREATE.
-        
-        gen_id = await sora_client_instance.generate_video(
+        # 4. Create Job Record
+        job_data = JobCreate(
+            job_id=job_id,
+            user_id=current_user.user_id,
+            type=job_type,
+            model=request.model, # "sy_8" or similar
             prompt=request.prompt,
-            model=request.model,
-            n_frames=n_frames,
-            orientation=request.ratio,
-            size="small",
-            media_id=media_id # New parameter
+            input_params=json.dumps({
+                "duration": request.duration, 
+                "ratio": request.ratio,
+                "n_frames": n_frames
+            }),
+            input_images=json.dumps([{"base64_truncated": True}]) if request.image else None,
+            credits_cost=cost,
+            provider_job_id=None
         )
-        return {"id": gen_id, "status": "queued"}
+        jobs_repo.create(job_data, status=status)
+        
+        if can_start:
+            try:
+                # Handle Image Upload (I2V)
+                media_id = None
+                if request.image:
+                    from app.services.sora_service import sora_service
+                    
+                    # 1. Get active token (we need it to upload)
+                    account = sora_service.get_active_token()
+                    if not account:
+                        raise HTTPException(status_code=500, detail="No active Sora account found for image upload.")
+                    
+                    token = account['access_token']
+                    
+                    # 2. Decode Base64
+                    try:
+                        image_str = request.image
+                        if "," in image_str:
+                            image_str = image_str.split(",")[1]
+                        
+                        image_data = base64.b64decode(image_str)
+                    except Exception as e:
+                        raise ValueError(f"Invalid image base64: {str(e)}")
+
+                    # 3. Upload Image
+                    media_id = await sora_client_instance.upload_image(image_data, token)
+
+                # Generate
+                gen_id = await sora_client_instance.generate_video(
+                    prompt=request.prompt,
+                    model=request.model,
+                    n_frames=n_frames,
+                    orientation=request.ratio,
+                    size="small",
+                    media_id=media_id
+                )
+                
+                if not gen_id:
+                     raise Exception("No provider job ID returned")
+                
+                jobs_repo.set_provider_id(job_id, gen_id)
+                jobs_repo.update_status(job_id, "processing")
+                
+            except Exception as e:
+                jobs_repo.update_status(job_id, "failed", error_message=str(e))
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # 5. Deduct Credits
+        reason = f"Sora Video: {request.model} {request.duration}s {request.ratio}"
+        new_balance = credits_service.deduct_credits(
+            user_id=current_user.user_id,
+            amount=cost,
+            job_id=job_id,
+            reason=reason
+        )
+        
+        return {"id": job_id, "status": "processing" if can_start else "pending", "credits_remaining": new_balance}
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

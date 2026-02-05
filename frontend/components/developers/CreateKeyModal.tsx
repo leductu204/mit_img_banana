@@ -44,7 +44,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
       setCreatedKey(data);
       onSuccess(); // Refresh parent list
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || 'Có lỗi xảy ra');
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +62,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">Create API Key</h2>
+          <h2 className="text-xl font-bold text-white">Tạo API Key</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -73,22 +73,22 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
             <div className="p-4 bg-teal-500/10 border border-teal-500/20 rounded-lg">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-teal-400 mb-2">
                 <AlertTriangle className="w-4 h-4" />
-                Important
+                Quan trọng
               </h3>
               <p className="text-sm text-teal-100/80">
-                Generate a new API key to access our Public API. You will need to transfer credits to this key to use it.
+                Tạo một API key mới để truy cập Public API của chúng tôi. Bạn sẽ cần chuyển credits vào key này để sử dụng.
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Key Name
+                Tên Key
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Production App"
+                placeholder="ví dụ: Ứng dụng Production"
                 className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-gray-600"
                 required
                 autoFocus
@@ -108,7 +108,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
                 className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
                 disabled={isLoading}
               >
-                Cancel
+                Hủy
               </button>
               <button
                 type="submit"
@@ -116,7 +116,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-all shadow-lg shadow-teal-500/20"
               >
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Generate Key
+                Tạo Key
               </button>
             </div>
           </form>
@@ -128,9 +128,9 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
                   <Check className="w-6 h-6 text-emerald-400" />
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-emerald-100">API Key Created!</h3>
+              <h3 className="text-lg font-bold text-emerald-100">API Key đã được tạo!</h3>
               <p className="text-sm text-emerald-200/70 mt-1">
-                Copy this key now. You won't be able to see it again.
+                Sao chép key này ngay. Bạn sẽ không thể thấy nó lần nữa.
               </p>
             </div>
 
@@ -141,7 +141,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
               <button
                 onClick={handleCopy}
                 className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors border border-gray-700"
-                title="Copy to clipboard"
+                title="Sao chép"
               >
                 {copied ? (
                   <Check className="w-4 h-4 text-emerald-400" />
@@ -155,7 +155,7 @@ export default function CreateKeyModal({ onClose, onSuccess }: CreateKeyModalPro
               onClick={onClose}
               className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
             >
-              Close
+              Đóng
             </button>
           </div>
         )}

@@ -24,7 +24,7 @@ export default function DevelopersPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-400 mt-2 text-lg">
-              Manage API keys, monitor usage, and integrate our AI models.
+              Quản lý API Key, theo dõi sử dụng và tích hợp các model AI.
             </p>
           </div>
           
@@ -34,14 +34,14 @@ export default function DevelopersPage() {
               className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-gray-300 rounded-lg flex items-center gap-2 border border-gray-800 transition-colors"
             >
               <BookOpen className="w-4 h-4" />
-              Documentation
+              Tài liệu
             </a>
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg flex items-center gap-2 shadow-lg shadow-teal-500/20 transition-all font-medium"
             >
               <Plus className="w-4 h-4" />
-              Create New Key
+              Tạo Key mới
             </button>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function DevelopersPage() {
             <div className="p-3 bg-blue-500/10 w-fit rounded-lg mb-4">
               <Code className="w-6 h-6 text-blue-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-1">Integration</h3>
+            <h3 className="text-lg font-semibold text-white mb-1">Tích hợp</h3>
             <div className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-white transition-colors">
               SDK 
               <ChevronRight className="w-3 h-3" />
@@ -73,7 +73,7 @@ export default function DevelopersPage() {
                 $
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-1">Total Balance</h3>
+            <h3 className="text-lg font-semibold text-white mb-1">Tổng số dư</h3>
              <p className="text-2xl font-bold text-white">{user?.credits || 0}</p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function DevelopersPage() {
         {/* API Keys List */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">Your API Keys</h2>
+            <h2 className="text-2xl font-bold text-white">Danh sách API Key</h2>
           </div>
           
           <APIKeyList refreshTrigger={refreshTrigger} />

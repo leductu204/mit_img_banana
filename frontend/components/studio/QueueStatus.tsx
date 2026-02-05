@@ -18,9 +18,17 @@ export default function QueueStatus() {
     const queueLimit = useMemo(() => {
         const plan = limits?.plan_name?.toLowerCase() || 'free';
         if (plan.includes('free')) return 0;
-        if (plan.includes('professional') || plan.includes('pro')) return 15;
-        if (plan.includes('starter')) return 5;
-        return 5; // Default fallback
+        
+        // Tier 3: Business / Creative (Gói Sáng Tạo)
+        if (plan.includes('business') || plan.includes('creative') || plan.includes('sáng tạo')) return 30;
+        
+        // Tier 2: Professional / Saver (Gói Tiết Kiệm)
+        if (plan.includes('professional') || plan.includes('pro') || plan.includes('saver') || plan.includes('tiết kiệm')) return 15;
+        
+        // Tier 1: Starter / Experience (Gói Trải Nghiệm)
+        if (plan.includes('starter') || plan.includes('experience') || plan.includes('trải nghiệm')) return 5;
+        
+        return 5; // Default fallback for paid plans
     }, [limits?.plan_name]);
 
     // Use server limits or fallbacks
@@ -33,8 +41,9 @@ export default function QueueStatus() {
     // Normalized plan name for display
     const planName = limits?.plan_name || 'Free';
     const isFree = planName.toLowerCase().includes('free');
-    const isPro = planName.toLowerCase().includes('pro');
-    const isStarter = planName.toLowerCase().includes('starter');
+    const isPro = planName.toLowerCase().includes('pro') || planName.toLowerCase().includes('professional') || planName.toLowerCase().includes('saver');
+    const isBusiness = planName.toLowerCase().includes('business') || planName.toLowerCase().includes('creative') || planName.toLowerCase().includes('sáng tạo');
+    const isStarter = planName.toLowerCase().includes('starter') || planName.toLowerCase().includes('experience');
 
     // Calculate active threads and queue
     const stats = useMemo(() => {
@@ -65,6 +74,7 @@ export default function QueueStatus() {
                 <div className="flex items-center gap-2">
                     <span className={cn(
                         "px-2 py-0.5 rounded text-[10px] font-bold border",
+                        isBusiness ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
                         isPro ? "bg-purple-500/20 text-purple-400 border-purple-500/30" :
                         isStarter ? "bg-[#00BCD4]/20 text-[#00BCD4] border-[#00BCD4]/30" :
                         "bg-gray-500/20 text-gray-400 border-gray-500/30" // Free/Default

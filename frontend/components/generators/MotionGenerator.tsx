@@ -133,10 +133,6 @@ export function MotionGenerator() {
             try {
                 const formData = new FormData()
                 formData.append("character_image", file)
-                // Use account_id from video if available to keep it consistent, though not strictly required
-                if (videoData && videoData.account_id) {
-                    formData.append("account_id", videoData.account_id.toString())
-                }
 
                 const response = await fetch(`${NEXT_PUBLIC_API}/api/motion/upload-image`, {
                     method: 'POST',
@@ -202,10 +198,6 @@ export function MotionGenerator() {
                 formData.append("video_cover_url", currentVideoData.video_cover_url)
                 formData.append("character_image_url", currentCharacterImageUrl)
                 
-                if (currentVideoData.account_id) {
-                    formData.append("account_id", currentVideoData.account_id.toString())
-                }
-                
                 // Quality mapping: 720p -> std, 1080p -> pro
                 formData.append("mode", currentQuality === '1080p' ? 'pro' : 'std')
 
@@ -225,7 +217,7 @@ export function MotionGenerator() {
 
                 const data = await response.json()
                 const jobId = data.job_id
-                toast.success("Task submitted!")
+                toast.success("Bạn vẫn đang còn có thể tạo tiếp ảnh/video mới. Tạo ngay", 5000)
                 
                 updateOptimisticJob(tempId, jobId);
 
@@ -353,8 +345,50 @@ export function MotionGenerator() {
                     </div>
 
                     <div className="space-y-2">
-                            <label className="text-sm font-medium text-[#B0B8C4]">Chất lượng</label>
-                            <QualitySelector value={quality} onChange={setQuality} options={['720p', '1080p']} />
+                        <label className="text-sm font-medium text-[#B0B8C4]">Chất lượng</label>
+                        <QualitySelector value={quality} onChange={setQuality} options={['720p', '1080p']} />
+                    </div>
+
+                    {/* Status Feedback / Retry */}
+                    <div className="flex flex-col gap-2 min-h-[20px] justify-center items-center text-xs">
+                        {/* Auth Error */}
+                        {!isAuthenticated && (
+                            <p className="text-red-400">Vui lòng đăng nhập để tiếp tục.</p>
+                        )}
+                        
+                        {/* Video Analysis Error */}
+                        {motionVideo && !videoData && !analyzing && (
+                             <div className="flex flex-col items-center gap-1 bg-red-500/10 p-2 rounded-lg w-full">
+                                <p className="text-red-400 font-medium">⚠️ Lỗi phân tích video gốc</p>
+                                <button 
+                                    onClick={() => handleVideoSelect(motionVideo)} 
+                                    className="text-[#00BCD4] hover:text-[#22D3EE] font-bold hover:underline"
+                                >
+                                    Thử phân tích lại
+                                </button>
+                             </div>
+                        )}
+
+                        {/* Image Upload Error */}
+                        {characterImage && !characterImageUrl && !analyzingImage && (
+                             <div className="flex flex-col items-center gap-1 bg-red-500/10 p-2 rounded-lg w-full">
+                                <p className="text-red-400 font-medium">⚠️ Lỗi tải lên ảnh nhân vật</p>
+                                <button 
+                                    onClick={() => handleImageSelect(characterImage)} 
+                                    className="text-[#00BCD4] hover:text-[#22D3EE] font-bold hover:underline"
+                                >
+                                    Thử tải lại
+                                </button>
+                             </div>
+                        )}
+                        
+                        {/* Credit Check (Preview) */}
+                        {!!user && !!videoData && user.credits < (quality === '1080p' ? videoData.costs["1080p"] : videoData.costs["720p"]) && (
+                            <div className="flex flex-col items-center gap-1 bg-yellow-500/10 p-2 rounded-lg w-full">
+                                <p className="text-yellow-400 font-medium">Không đủ Credit (Cần {quality === '1080p' ? videoData.costs["1080p"] : videoData.costs["720p"]})</p>
+                                <a href="/shop" className="text-[#00BCD4] hover:underline font-bold">Mua thêm Credit →</a>
+                            </div>
+                        )}
                     </div>
 
 

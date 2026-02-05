@@ -579,6 +579,63 @@ async def upload_file_veo(
     except Exception as e:
         raise HTTPException(500, f"Upload failed: {str(e)}")
 
+@router.post("/motion/upload-image")
+async def upload_image_kling_motion(
+    file: Optional[UploadFile] = File(None),
+    base64_data: Optional[str] = Form(None),
+    key_record: dict = Depends(verify_api_key_dependency)
+):
+    """
+    Upload image to Kling Client for Motion Control.
+    Accepts either file upload OR base64-encoded image data.
+    Returns the image URL from Kling's CDN.
+    """
+    try:
+        # Get image content from either file or base64
+        content = None
+        filename = "image.png"
+        
+        if base64_data:
+            # Decode base64 data
+            import base64
+            # Handle data URI format (data:image/png;base64,...)
+            if "," in base64_data:
+                base64_data = base64_data.split(",", 1)[1]
+            content = base64.b64decode(base64_data)
+        elif file:
+            # Read file content
+            content = await file.read()
+            filename = file.filename or "image.png"
+        else:
+            raise HTTPException(400, "Either 'file' or 'base64_data' is required")
+        
+        if not content:
+            raise HTTPException(400, "Empty image data")
+        
+        # Get Kling client
+        from app.repositories.kling_accounts_repo import kling_accounts_repo
+        from app.services.providers.kling_client import KlingClient
+        
+        accounts = kling_accounts_repo.list_accounts(active_only=True)
+        if not accounts:
+            raise HTTPException(503, "No active Kling accounts available")
+        
+        selected_account_id = accounts[0]['account_id']
+        client = KlingClient.create_from_account(selected_account_id)
+        
+        # Upload to Kling
+        image_url = client.upload_image_bytes(content, filename)
+        
+        if not image_url:
+            raise HTTPException(500, "Failed to upload image to Kling")
+        
+        return {"url": image_url}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Upload failed: {str(e)}")
+
 @router.post("/motion/estimate-cost")
 async def public_estimate_motion_cost(
     motion_video: UploadFile = File(...),
@@ -629,14 +686,16 @@ async def public_estimate_motion_cost(
 
 @router.post("/motion/generate")
 async def public_generate_motion(
-    character_image: UploadFile = File(...),
     motion_video_url: str = Form(...),
     video_cover_url: str = Form(...),
+    character_image: Optional[UploadFile] = File(None),
+    character_image_url: Optional[str] = Form(None),
     mode: str = Form("std"),
     key_record: dict = Depends(verify_api_key_dependency)
 ):
     """
     Public Generate Motion Control Video.
+    Accepts either character_image (file upload) OR character_image_url (pre-uploaded URL).
     """
     cost = 150 if mode == "pro" else 120
     
@@ -658,16 +717,19 @@ async def public_generate_motion(
         selected_account_id = accounts[0]['account_id']
         client = KlingClient.create_from_account(selected_account_id)
 
-        # 3. Upload Character Image
-        img_content = await character_image.read()
-        if not img_content:
-             raise HTTPException(400, "Empty image file")
-             
-        # Note: we need just the URL, but internal method returns URL. 
-        # But wait, original code uses `upload_image_bytes`.
-        image_url = client.upload_image_bytes(img_content, character_image.filename or "char.png")
-        if not image_url:
-             raise HTTPException(500, "Failed to upload character image")
+        # 3. Resolve Character Image URL
+        image_url = character_image_url
+        if not image_url and character_image:
+            # Upload the file if URL not provided
+            img_content = await character_image.read()
+            if not img_content:
+                 raise HTTPException(400, "Empty image file")
+                 
+            image_url = client.upload_image_bytes(img_content, character_image.filename or "char.png")
+            if not image_url:
+                 raise HTTPException(500, "Failed to upload character image")
+        elif not image_url and not character_image:
+            raise HTTPException(400, "Either character_image (file) or character_image_url (string) is required")
 
         # 4. Generate
         # Using self.DEFAULT_MODAL_ID internally in client now.
@@ -693,15 +755,17 @@ async def public_generate_motion(
         real_user_id = key_record.get("user_id")
         user_id = real_user_id if real_user_id else "system_public_api"
         
+        import json
         from app.schemas.jobs import JobCreate
         job_data = JobCreate(
             job_id=job_id,
             user_id=user_id,
-            type="motion",
+            type="i2v",  # Motion Control is treated as Image-to-Video
             model="kling-motion",
             prompt="motion control",
             credits_cost=cost,
-            provider_job_id=job_id
+            provider_job_id=job_id,
+            input_params=json.dumps({"account_id": selected_account_id})  # Store account for status checking
         )
         
         jobs_repo.create(job_data)

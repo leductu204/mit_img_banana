@@ -14,6 +14,7 @@ const navLinks = [
   { label: "Video", href: "/video" },
   { label: "Motion Control", href: "/motion-control" },
   { label: "Studio", href: "/studio" },
+  { label: "API", href: "/docs" },
   { label: "Tiện ích", href: "/tools" },
 ]
 

@@ -131,15 +131,34 @@ async def run_job_monitor(check_interval_seconds: int = 30):
                                 # The main loop has try/except Exception as e logging "Error checking job {job_id}: {e}"
                                 # So raising here allows main loop to handle it consistently.
                                 raise e
-                        elif job.get("model") == "motion-control":
-                            # Kling Motion Control job
-                            from app.services.providers.kling_client import get_kling_client
-                            k_client = get_kling_client()
-                            if k_client:
+                        elif job.get("model") == "kling-motion" or job.get("model") == "motion-control":
+                            # Kling Motion Control job - Use account-specific client
+                            import json
+                            from app.services.providers.kling_client import KlingClient
+                            
+                            # Try to get account_id from input_params
+                            input_params_str = job.get("input_params")
+                            account_id = None
+                            if input_params_str:
+                                try:
+                                    input_params = json.loads(input_params_str)
+                                    account_id = input_params.get("account_id")
+                                except:
+                                    pass
+                            
+                            if account_id:
+                                # Use the specific account that created the task
+                                k_client = KlingClient.create_from_account(account_id)
                                 result = k_client.check_task_status(provider_job_id)
                             else:
-                                logger.error(f"Job {job_id}: No active Kling client found to check status")
-                                continue
+                                # Fallback to default client (for old jobs without account_id)
+                                from app.services.providers.kling_client import get_kling_client
+                                k_client = get_kling_client()
+                                if k_client:
+                                    result = k_client.check_task_status(provider_job_id)
+                                else:
+                                    logger.error(f"Job {job_id}: No active Kling client found to check status")
+                                    continue
                         else:
                             # Higgsfield job - Use dynamic client
                             result = client.get_job_status(provider_job_id)

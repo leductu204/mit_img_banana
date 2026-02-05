@@ -8,6 +8,7 @@ This document describes all the API endpoints for different AI models.
 1. [Nano Banana (Image Generation)](#nano-banana-image-generation)
 2. [Kling (Video Generation)](#kling-video-generation)
 3. [General Routes](#general-routes)
+4. [Motion Control (Kling)](#motion-control-kling)
 
 ---
 
@@ -358,3 +359,78 @@ const { job_id } = await genRes.json();
 - All Nano Banana endpoints require authentication via JWT token (handled by `higgsfield_client`)
 - The JWT token is automatically refreshed using the `HIGGSFIELD_SSES` and `HIGGSFIELD_COOKIE` from environment variables
 - Kling endpoints are currently placeholders and need to be implemented with actual Kling API integration
+
+---
+
+## Motion Control (Kling)
+
+**Base Path:** `/api/motion`
+**Client:** `kling_client`
+
+### 1. Estimate Cost & Upload Video
+**Endpoint:** `POST /api/motion/estimate-cost`
+
+Uploads a source video to Kling for analysis and cost estimation.
+
+**Request:**
+- `motion_video`: File (Multipart Form Data)
+
+**Response:**
+```json
+{
+  "video_url": "string",
+  "video_cover_url": "string",
+  "costs": {
+    "720p": 500,
+    "1080p": 800
+  },
+  "account_id": 123
+}
+```
+
+**Implementation:** `backend/app/routers/motion.py:23-66`
+
+---
+
+### 2. Upload Character Image
+**Endpoint:** `POST /api/motion/upload-image`
+
+Uploads a character image to be animated.
+
+**Request:**
+- `character_image`: File (Multipart Form Data)
+- `account_id`: Integer (Optional) - ID of the Kling account to use
+
+**Response:**
+```json
+{
+  "image_url": "string",
+  "account_id": 123
+}
+```
+
+**Implementation:** `backend/app/routers/motion.py:68-106`
+
+---
+
+### 3. Generate Motion Video
+**Endpoint:** `POST /api/motion/generate`
+
+Generates a video applying the motion from the source video to the character image.
+
+**Request:**
+- `motion_video_url`: String (Required) - URL from `estimate-cost`
+- `video_cover_url`: String (Required) - URL from `estimate-cost`
+- `character_image_url`: String (Required) - URL from `upload-image`
+- `mode`: String (Default: "std") - "std" (Standard/720p) or "pro" (Professional/1080p)
+- `background_source`: String (Default: "input_image")
+
+**Response:**
+```json
+{
+  "job_id": "string",
+  "status": "processing"
+}
+```
+
+**Implementation:** `backend/app/routers/motion.py:108-278`

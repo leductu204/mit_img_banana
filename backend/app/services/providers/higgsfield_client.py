@@ -98,7 +98,7 @@ class HiggsfieldClient:
         """Sanitize HTTP errors to prevent exposing internal URLs"""
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError:
+        except Exception:  # curl_cffi doesn't have requests.exceptions module
             raise Exception(f"{operation} failed with status {response.status_code}: {response.text}")
 
     def get_jwt_token(self) -> str:
@@ -140,7 +140,7 @@ class HiggsfieldClient:
                 response = requests.post(url, headers=headers, data={}, impersonate="chrome")
                 self._handle_response(response, "Upload check")
                 return response.text
-            except (requests.RequestException, Exception) as e:
+            except Exception as e:  # curl_cffi doesn't have RequestException
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
@@ -168,7 +168,7 @@ class HiggsfieldClient:
                     "url": data.get("url"),
                     "upload_url": data.get("upload_url")
                 }
-            except (json.JSONDecodeError, ValueError, requests.RequestException) as e:
+            except (json.JSONDecodeError, ValueError, Exception) as e:  # curl_cffi doesn't have RequestException
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
@@ -205,7 +205,7 @@ class HiggsfieldClient:
                     "url": item.get("url"),
                     "upload_url": item.get("upload_url")
                 }
-            except (json.JSONDecodeError, ValueError, requests.RequestException) as e:
+            except (json.JSONDecodeError, ValueError, Exception) as e:  # curl_cffi doesn't have RequestException
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Video, User, BookOpenText, CreditCard, Palette, Download, Layout } from 'lucide-react';
+import { Sparkles, Video, User, BookOpenText, CreditCard, Palette, Download, Layout, Code } from 'lucide-react';
 import CreditsBadge from '../common/CreditsBadge';
 import { ConcurrentLimitIndicator } from '../common/ConcurrentLimitIndicator';
 import QueueStatus from '../common/QueueStatus';
@@ -16,6 +16,7 @@ export default function Sidebar() {
     const navItems = [
         { href: '/image', icon: Sparkles, label: 'Tạo ảnh' },
         { href: '/studio', icon: Palette, label: 'Studio' },
+        { href: '/docs', icon: Code, label: 'API' },
         { href: '/tools', icon: Layout, label: 'Tiện ích' },
         // { href: '/prompts', icon: BookOpenText, label: 'Kho Prompt Mẫu' },
         { href: '/video', icon: Video, label: 'Tạo Video' },

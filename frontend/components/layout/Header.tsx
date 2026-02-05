@@ -20,6 +20,7 @@ export default function Header() {
     { name: "Video", href: "/video" },
     { name: "Motion Control", href: "/motion-control" },
     { name: "Studio", href: "/studio" },
+    { name: "API", href: "/docs" },
     { name: "Tiện ích", href: "/tools" },
   ]
 

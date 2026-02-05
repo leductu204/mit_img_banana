@@ -24,7 +24,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
     setError('');
 
     if (!user || user.credits < amount) {
-      setError('Insufficient funds in your main wallet.');
+      setError('Không đủ số dư trong ví chính.');
       setIsLoading(false);
       return;
     }
@@ -50,7 +50,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || 'Có lỗi xảy ra');
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +60,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">Transfer Credits</h2>
+          <h2 className="text-xl font-bold text-white">Chuyển Credits</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -69,7 +69,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
             <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">From (Main Wallet)</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Từ (Ví chính)</p>
               <div className="flex items-center gap-2 text-white font-medium">
                 <Wallet className="w-4 h-4 text-purple-400" />
                 {user?.credits || 0} Credits
@@ -77,7 +77,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
             </div>
             <ArrowRight className="w-5 h-5 text-gray-500" />
             <div className="text-right">
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">To (API Key)</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Đến (API Key)</p>
               <div className="font-mono text-sm text-teal-400 truncate max-w-[100px]">
                 {keyId}
               </div>
@@ -86,7 +86,7 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Amount to Transfer
+              Số lượng cần chuyển
             </label>
             <input
               type="number"
@@ -112,14 +112,14 @@ export default function TopUpModal({ keyId, onClose, onSuccess }: TopUpModalProp
               className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
               disabled={isLoading}
             >
-              Cancel
+              Hủy
             </button>
             <button
               type="submit"
               disabled={isLoading || amount <= 0 || (user?.credits || 0) < amount}
               className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-all shadow-lg shadow-teal-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Transfer'}
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Chuyển'}
             </button>
           </div>
         </form>
